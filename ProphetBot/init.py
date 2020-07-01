@@ -4,7 +4,7 @@ import time, logging, os, sys
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 dow = datetime.date(datetime.now()).weekday()
-token = 'Njg1MjE2NTk1MjkwODgyMDg3.XtxESA.AMYyiiUY0niW0-bJx7Fc4xSgP1k'
+token = ''
 
 bot = commands.Bot(command_prefix='<',description='Test Bot, Not real >.>')
 
