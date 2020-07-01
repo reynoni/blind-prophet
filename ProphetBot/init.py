@@ -9,7 +9,8 @@ token = ''
 bot = commands.Bot(command_prefix='<',description='Test Bot, Not real >.>')
 
 logging.basicConfig(level=logging.INFO, filename='log.txt')
-     
+
+
 @bot.command()
 async def load(ctx, ext):
     check = False
@@ -18,10 +19,12 @@ async def load(ctx, ext):
         check = True
     else:
         await ctx.send("Access Denied.")
-    if check == True:
+    if check:
         bot.load_extension(f'cogs.{ext}')
         await ctx.send("Cog Loaded.")
     await ctx.message.delete()
+
+
 @bot.command()
 async def unload(ctx, ext):
     check = False
@@ -30,10 +33,11 @@ async def unload(ctx, ext):
         check = True
     else:
         await ctx.send("Access Denied.")
-    if check == True:
+    if check:
         bot.unload_extension(f'cogs.{ext}')
         await ctx.send("Cog Unloaded.")
     await ctx.message.delete()
+
 
 @bot.command()
 async def reload(ctx, ext):
@@ -53,6 +57,7 @@ for filename in listdir('./cogs'):
     if filename.endswith('.py'):
         bot.load_extension(f'cogs.{filename[:-3]}')
 
+
 @bot.command()
 async def list(ctx):
     check = False
@@ -66,6 +71,8 @@ async def list(ctx):
             if filename.endswith('.py'):
                 await ctx.send(f'cogs.{filename[:-3]}')
     await ctx.message.delete()
+
+
 @bot.command()
 async def ping(ctx):
     await ctx.send(f'Pong! Latency is {round(bot.latency * 1000)}ms.')
