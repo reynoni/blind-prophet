@@ -1,6 +1,6 @@
-#This module enables gsheet integrations with python using the googleapi
+# This module enables gsheet integrations with python using the googleapi
 
-#Import all the important things
+# Import all the important things
 from __future__ import print_function
 import pickle, logging
 import os.path
@@ -8,7 +8,8 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
-class gsheet(object): #Defining a gsheet, stolen from elsewhere, Nick doesn't understand this.
+
+class gsheet(object): # Defining a gsheet, stolen from elsewhere, Nick doesn't understand this.
     def __init__(self):
         SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
         self.creds = None
@@ -75,15 +76,3 @@ class gsheet(object): #Defining a gsheet, stolen from elsewhere, Nick doesn't un
         return result   
 
 
-
-
-
-
-
-
-
-
-
-
-
-        
