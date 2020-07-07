@@ -1,0 +1,9 @@
+# Note: Fill out this file and save it as "localsettings.py". Do not add that file to Git.
+
+# Discord Token
+token = ''  # NEVER COMMIT THIS
+
+# Spreadsheet Stuff
+gloc = ''
+SPREADSHEET_ID = ''
+BOT_SPREADSHEET_ID = ''

@@ -134,6 +134,8 @@ class mgmt(commands.Cog):
     @commands.command()
     async def get(self, ctx):
         msg = ctx.message.content[5:]
+        get_args = [x.strip() for x in msg.split('.')]
+        print(f'Incoming \'Get\' command. Args: {get_args}')
         target = ''
         if len(msg) == 0:  # Get for the user sending the message
             target = [str(ctx.author.id)]
@@ -209,7 +211,7 @@ class mgmt(commands.Cog):
         RANGE_NAME = 'Log!A2'
         msg = ctx.message.content[5:]
         log_args = [x.strip() for x in msg.split('.')]
-        print(f'log_args: {log_args}')
+        print(f'Incoming \'Log\' command. Args: {log_args}')
 
         # types: list of either 'int', 'str', or 'str_upper'
         def parse_activity(*types):
@@ -420,6 +422,8 @@ class mgmt(commands.Cog):
             RANGE_NAME = 'Characters!A' + str(len(USERLIST) + 3)
             XP_RANGE = 'Characters!H' + str(len(USERLIST) + 3)
             msg = ctx.message.content[8:]
+            create_args = [x.strip() for x in msg.split('.')]
+            print(f'Incoming \'Create\' command. Args: {create_args}')
             result = [x.strip() for x in msg.split('.')]
             print(f'{result}')
             print(f'{RANGE_NAME}')
