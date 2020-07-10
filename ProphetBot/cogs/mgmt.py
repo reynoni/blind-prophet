@@ -1,6 +1,7 @@
 import discord
 import logging
 import re
+from timeit import default_timer as timer
 from ProphetBot.constants import *
 from ProphetBot.localsettings import *
 # from ProphetBot.cogs.helpers import *
@@ -19,23 +20,24 @@ spec.loader.exec_module(foo)
 sheet = foo.gsheet()
 # SPREADSHEET_ID = '156aVcYNPLE2OAO8Ga78zmxciCrKIzCzXSn7-cQFbSMY'
 # BOT_SPREADSHEET_ID = '1Hm-WthWv_kwBeUlB_ECzcltveasT7QwuWudk76v1uoQ'
-global USERLIST
-global ASL
-global XPLIST
+# global USERLIST
+# global ASL
+# global XPLIST
+global xpmap
 
 
-def merge(list1, list2):
-    logging.info(f'{list1}')
-    logging.info(f'{list2}')
-    return [(list1[i], list2[i]) for i in range(0, len(list1))]
+# def merge(list1, list2):
+#     logging.info(f'{list1}')
+#     logging.info(f'{list2}')
+#     return [(list1[i], list2[i]) for i in range(0, len(list1))]
 
 
-def updateUserlist():
-    RENDER_OPTION = "UNFORMATTED_VALUE"
-    LIST_RANGE = 'Characters!A3:A'
-    USERLIST = sheet.get(SPREADSHEET_ID, LIST_RANGE, RENDER_OPTION)
-    USERLIST = USERLIST['values']
-    return USERLIST
+# def updateUserlist():
+#     RENDER_OPTION = "UNFORMATTED_VALUE"
+#     LIST_RANGE = 'Characters!A3:A'
+#     USERLIST = sheet.get(SPREADSHEET_ID, LIST_RANGE, RENDER_OPTION)
+#     USERLIST = USERLIST['values']
+#     return USERLIST
 
 
 def updateASL():
@@ -46,30 +48,34 @@ def updateASL():
     return ASL
 
 
-def updateXPlist():
-    RENDER_OPTION = "FORMATTED_VALUE"
+# def updateXPlist():
+#     RENDER_OPTION = "FORMATTED_VALUE"
+#     XPLIST_RANGE = 'Characters!H3:H'
+#     xplist = sheet.get(SPREADSHEET_ID, XPLIST_RANGE, RENDER_OPTION)
+#     xplist = xplist['values']
+#     USERLIST = updateUserlist()
+#     return merge(USERLIST, xplist)
+
+
+def build_user_map():
     XPLIST_RANGE = 'Characters!H3:H'
-    xplist = sheet.get(SPREADSHEET_ID, XPLIST_RANGE, RENDER_OPTION)
+    xplist = sheet.get(SPREADSHEET_ID, XPLIST_RANGE, "FORMATTED_VALUE")
     xplist = xplist['values']
-    USERLIST = updateUserlist()
-    return merge(USERLIST, xplist)
+    USERLIST_RANGE = 'Characters!A3:A'
+    userlist = sheet.get(SPREADSHEET_ID, USERLIST_RANGE, "UNFORMATTED_VALUE")
+    # userlist_ranges = userlist['range']
+    userlist = userlist['values']
+    # print(f'userlist values: {userlist}')
+    # print(f'userlist ranges: {userlist_ranges}')
+    return {  # Using fancy dictionary comprehension to make the dict
+        str(key[0]): value[0] for key, value in zip(userlist, xplist)
+    }
 
 
-def getCL(id):
-    IDINDEX = USERLIST.index(id)
-    character_level = XPLIST[IDINDEX][1][0]
+def getCL(charid, xpmap):
+    character_level = xpmap[charid]
+    # print(f'ID: {charid}, Level (XP): {character_level}')
     return 1 + int((int(character_level) / 1000))
-
-
-USERLIST = updateUserlist()
-XPLIST = updateXPlist()
-ASL = updateASL()
-CL = getCL(['286360249659817984'])
-
-print(f'XPLIST: {XPLIST}')
-print(f'USERLIST: {USERLIST}')
-print(f'ASL: {ASL}')
-print(f'CL: {CL}')
 
 
 class mgmt(commands.Cog):
@@ -80,56 +86,39 @@ class mgmt(commands.Cog):
     @commands.command()
     # @commands.check(is_tracker)
     async def level(self, ctx):
-        XPLIST_RANGE = 'Characters!H3:H'
-        USERLIST = updateUserlist()
-        RENDER_OPTION = "UNFORMATTED_VALUE"
-        XPLIST = sheet.get(SPREADSHEET_ID, XPLIST_RANGE, RENDER_OPTION)
-        XPLIST = XPLIST['values']
-        XPLIST = merge(USERLIST, XPLIST)
-        con = True
-        xpcheck = True
-        num = 0
-        global nameCheck
-        nameCheck = True
-        if user_has_role(self, TRACKERS_ROLE, ctx):
-            RANGE_NAME = ''
-            msg = ctx.message.content[7:]
-            result = [x.strip() for x in msg.split('.')]
-            for i in result:
-                if num == 0:
-                    i = re.sub(r'\D+', '', i)
-                    logging.info(f'{i}')
-                    if [i] not in USERLIST:
-                        logging.info(f'{nameCheck}')
-                        nameCheck = False
-                        break
-                    else:
-                        INDEX = USERLIST.index([i])
-                        logging.info(f'{INDEX}')
-                        CURRENTXPLIST = [x[1] for x in XPLIST]
-                        logging.info(f'{CURRENTXPLIST}')
-                        CURRENTXP = CURRENTXPLIST[INDEX]
-                        logging.info(f'{CURRENTXP}')
-                        if int(CURRENTXP[0]) > 2000:
-                            xpcheck = False
-                            break
-                        elif int(CURRENTXP[0]) < 2000:
-                            NEWXP = int(CURRENTXP[0]) + 1000
-                        else:
-                            NEWXP = 1000
-                        DATA = []
-                        DATA.append([NEWXP])
-                        logging.info(f'{NEWXP}')
-                        INSERT_RANGE = 'Characters!H' + str(INDEX + 3)
-                        logging.info(f'{INSERT_RANGE}')
-                        sheet.set(SPREADSHEET_ID, INSERT_RANGE, DATA, "COLUMNS")
-                        await ctx.message.channel.send(msg + ' - level up submitted!')
-            if nameCheck == False:
-                await ctx.message.channel.send('Error: The @Name (1) was entered incorrectly. Please try again.')
-            elif xpcheck == False:
-                await ctx.message.channel.send('Error: The targeted player has over 2000 XP. Please enter manually.')
-        else:
+        user_map = build_user_map()
+        if not user_has_role(self, TRACKERS_ROLE, ctx):
             await ctx.message.channel.send('Naughty Naughty ' + ctx.message.author.name)
+
+        msg = ctx.message.content[7:]
+        result = [x.strip() for x in msg.split('.')]
+        print(f'{str(ctx.message.created_at)} - Incoming \'Level\' command from {ctx.message.author.name}'
+              f'. Args: {result}')
+        if len(result) != 1:
+            # Error case
+            await ctx.message.channel.send(INPUT_ERROR)
+            return
+
+        target = re.sub(r'\D+', '', result[0])
+        if target not in user_map:
+            await ctx.message.channel.send(NAME_ERROR)
+            return
+
+        if (targetXP := int(user_map[target])) > 2000:
+            await ctx.message.channel.send('Error: The targeted player has over 2000 XP. Please enter manually.')
+            return
+        elif targetXP < 2000:
+            newXP = targetXP + 1000
+        else:
+            newXP = 1000
+
+        DATA = [[newXP]]
+        logging.info(f'New XP for target {target}: {newXP}')
+        index = list(user_map.keys()).index(target)  # Dicts preserve order in Python 3. Fancy.
+        INSERT_RANGE = 'Characters!H' + str(index + 3)  # Could find the index in this same line, but that's messy
+        logging.info(f'Insert Range: {INSERT_RANGE}')
+        sheet.set(SPREADSHEET_ID, INSERT_RANGE, DATA, "COLUMNS")
+        await ctx.message.channel.send(msg + ' - level up submitted by ' + ctx.author.name)
 
     @commands.command()
     async def get(self, ctx):
@@ -137,17 +126,19 @@ class mgmt(commands.Cog):
         get_args = [x.strip() for x in msg.split('.')]
         print(f'Incoming \'Get\' command. Args: {get_args}')
         target = ''
+        user_map = build_user_map()
         if len(msg) == 0:  # Get for the user sending the message
-            target = [str(ctx.author.id)]
+            target = str(ctx.author.id)
         elif len(msg.split()) == 1:  # Get for some other user
-            target = [re.sub(r'\D+', '', msg)]
+            target = re.sub(r'\D+', '', msg)
 
-        if target in USERLIST:
+        if target in user_map:
             IN_RANGE_NAME = 'Bot Staging!A4'
             OUT_RANGE_NAME = 'Bot Staging!A9:B17'
             RENDER_OPTION = "UNFORMATTED_VALUE"
             values = [target]
-            sheet.set(BOT_SPREADSHEET_ID, IN_RANGE_NAME, values, "COLUMNS")
+            print(f'values: {values}')
+            sheet.set(BOT_SPREADSHEET_ID, IN_RANGE_NAME, [values], "COLUMNS")
             data_out = sheet.get(BOT_SPREADSHEET_ID, OUT_RANGE_NAME, RENDER_OPTION)
             send_data = data_out['values']
             logging.info(f'{send_data}')
@@ -200,10 +191,13 @@ class mgmt(commands.Cog):
 
     @commands.command()
     # @commands.check(is_tracker)
-    async def log_alt(self, ctx):
+    async def log(self, ctx):
+        start = timer()
+        global xpmap
         command_data = []
         display_errors = []
-        global USERLIST
+        # usermap = build_xpmap()
+        usermap = xpmap
         if not user_has_role(self, TRACKERS_ROLE, ctx):  # >log command requires Tracker role
             await ctx.message.channel.send('Naughty Naughty ' + ctx.message.author.name)
             return
@@ -211,7 +205,8 @@ class mgmt(commands.Cog):
         RANGE_NAME = 'Log!A2'
         msg = ctx.message.content[5:]
         log_args = [x.strip() for x in msg.split('.')]
-        print(f'Incoming \'Log\' command. Args: {log_args}')
+        print(f'{str(ctx.message.created_at)} - Incoming \'Log\' command from {ctx.message.author.name}'
+              f'. Args: {log_args}')  # TODO: This should log actual time, not message time
 
         # types: list of either 'int', 'str', or 'str_upper'
         def parse_activity(*types):
@@ -245,7 +240,7 @@ class mgmt(commands.Cog):
 
             # Get the user targeted by the log command
             target_id = re.sub(r'\D+', '', log_args[0])
-            if [target_id] not in USERLIST:
+            if target_id not in usermap:
                 display_errors.append(NAME_ERROR)
             else:
                 command_data.append([target_id])
@@ -294,131 +289,23 @@ class mgmt(commands.Cog):
         else:
             while len(command_data) < 7:
                 command_data.append([''])  # Pad until CL and ASL
-            id_obj = [str(ctx.message.author.id)]  # Because the sheet formatting has to be a little extra
-            command_data.append([getCL(id_obj)])
-            command_data.append([ASL])
+            target_id = re.sub(r'\D+', '', log_args[0])
+            xpmap = build_user_map()
+            command_data.append([getCL(target_id, xpmap)])  # Because the sheet formatting has to be a little extra
+            command_data.append([updateASL()])
             print(f'DATA: {command_data}')  # TODO: Turn this into a proper logging statement
-            sheet.add(SPREADSHEET_ID, RANGE_NAME, command_data, "COLUMNS")
-            await ctx.message.channel.send(msg + ' - submitted by ' + ctx.author.nick)
-        await ctx.message.delete()
-
-
-    @commands.command()
-    # @commands.check(is_tracker)
-    async def log(self, ctx):
-        command_data = []
-        display_errors = []
-        global USERLIST
-        if not user_has_role(self, TRACKERS_ROLE, ctx):  # >log command requires Tracker role
-            await ctx.message.channel.send('Naughty Naughty ' + ctx.message.author.name)
-            return
-
-        RANGE_NAME = 'Log!A2'
-        FIELDS = 6  # Amount of fields/cells
-        msg = ctx.message.content[5:]
-
-        log_args = [x.strip() for x in msg.split('.')]
-        if 2 <= len(log_args) <= FIELDS:
-
-            # Start off by logging the user submitting the message and the date/time
-            command_data.append([ctx.message.author.name])
-            command_data.append([str(ctx.message.created_at)])
-
-            # Get the user targeted by the log command
-            target_name = re.sub(r'\D+', '', log_args[0])
-            if [target_name] not in USERLIST:
-                display_errors.append(NAME_ERROR)
-            else:
-                command_data.append([target_name])
-
-            # Get the activity type being logged
-            activity = log_args[1].upper()
-            if activity not in ACTIVITY_TYPES:  # Grabbing ACTIVITY_TYPES from constants.py
-                display_errors.append(ACTIVITY_ERROR)
-            else:
-                command_data.append([activity])
-
-            if len(display_errors) == 0:
-                # Handle RP
-                if activity in ['RP', 'MOD', 'ADMIN']:
-                    if len(log_args) > 2:
-                        display_errors.append(INPUT_ERROR)
-
-                # Handle PIT/ARENA
-                elif activity in ['ARENA', 'PIT']:
-                    try:
-                        result = log_args[2].upper()
-                        if result not in ['WIN', 'LOSS', 'HOST']:
-                            display_errors.append(RESULT_ERROR)
-                        else:
-                            command_data.append([result])
-                    except IndexError:
-                        display_errors.append(MISSING_FIELD_ERROR)
-
-                # Handle SHOP/SHOPKEEP
-                # To-Do: Deprecate 'SHOPKEEP'. Nobody uses it.
-                elif activity in ['SHOP', 'SHOPKEEP']:
-                    try:
-                        cost = re.sub(r'\D+', '', log_args[2])
-                        if cost == '':
-                            display_errors.append(NUMBER_ERROR)
-                        else:
-                            command_data.append([cost])
-                    except IndexError:
-                        display_errors.append(MISSING_FIELD_ERROR)
-
-                # Handle BUY/SELL
-                elif activity in ['BUY', 'SELL']:
-                    try:
-                        item_name = log_args[2]
-                        cost = re.sub(r'\D+', '', log_args[3])
-                        if cost == '':
-                            display_errors.append(NUMBER_ERROR)
-                        else:
-                            command_data.append([item_name])
-                            command_data.append([cost])
-                    except IndexError:
-                        display_errors.append(MISSING_FIELD_ERROR)
-
-                # Handle QUEST/ACTIVITY/ADVENTURE, as well as BONUS/GLOBAL
-                elif activity in ['QUEST', 'ACTIVITY', 'ADVENTURE', 'BONUS', 'GLOBAL']:
-                    try:
-                        activity_name = log_args[2].upper()
-                        gp = re.sub(r'\D+', '', log_args[3])
-                        xp = re.sub(r'\D+', '', log_args[4])
-                        if xp == '' or gp == '':
-                            display_errors.append(NUMBER_ERROR)
-                        else:
-                            command_data.append([activity_name])
-                            command_data.append([gp])
-                            command_data.append([xp])
-                    except IndexError:
-                        display_errors.append(MISSING_FIELD_ERROR)
-                else:
-                    display_errors.append('How did you even get here?')
-        else:
-            display_errors.append('Error: There must be 2-5 fields entered.')
-
-        if len(display_errors) > 0:
-            for error in display_errors:
-                await ctx.message.channel.send(error)
-        else:
-            while len(command_data) < 7:
-                command_data.append([''])  # Pad until CL and ASL
-            id_obj = [str(ctx.message.author.id)]  # Because the sheet formatting has to be a little extra
-            command_data.append([getCL(id_obj)])
-            command_data.append([ASL])
-            print('DATA: ' + f'{command_data}')  # TODO: Turn this into a proper logging statement
-            sheet.add(SPREADSHEET_ID, RANGE_NAME, command_data, "COLUMNS")
+            sheet.add(SPREADSHEET_ID, 'Log!A2', command_data, "COLUMNS")
+            stop = timer()
+            print(f'Elapsed time: {stop - start}')
             await ctx.message.channel.send(msg + ' - submitted by ' + ctx.author.nick)
         await ctx.message.delete()
 
     @commands.command()
     # @commands.check(is_council)
     async def create(self, ctx):
-        global USERLIST
+        # global USERLIST
         if user_has_role(self, COUNCIL_ROLE, ctx):
-            USERLIST = updateUserlist()
+            USERLIST = build_user_map()  # TODO: Test this
             RANGE_NAME = 'Characters!A' + str(len(USERLIST) + 3)
             XP_RANGE = 'Characters!H' + str(len(USERLIST) + 3)
             msg = ctx.message.content[8:]
@@ -441,7 +328,7 @@ class mgmt(commands.Cog):
             print(f'{DATA}')
             await ctx.message.delete()
             await ctx.message.channel.send(ctx.message.content[8:] + ' - submitted!')
-            USERLIST = updateUserlist()
+            # USERLIST = updateUserlist()
 
         else:
             await ctx.message.delete()
@@ -450,7 +337,20 @@ class mgmt(commands.Cog):
 
 
 def setup(bot):
+    global xpmap
     bot.add_cog(mgmt(bot))
+
+    # USERLIST = updateUserlist()
+    # XPLIST = updateXPlist()
+    ASL = updateASL()
+    xpmap = build_user_map()
+    CL = getCL('286360249659817984', xpmap)
+
+    # print(f'XPLIST: {XPLIST}')
+    # print(f'USERLIST: {USERLIST}')
+    print(f'XP Map: {xpmap}')
+    print(f'ASL: {ASL}')
+    print(f'CL: {CL}')
 
 
 def user_has_role(self, roleid, ctx):
