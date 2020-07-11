@@ -4,9 +4,8 @@ import time, logging, os, sys
 from datetime import datetime
 from ProphetBot.localsettings import token
 from ProphetBot.constants import *
-# from ProphetBot.cogs.helpers import *
+# from ProphetBot.helpers import *
 dow = datetime.date(datetime.now()).weekday()
-# token = ''  # NEVER COMMIT THIS
 
 bot = commands.Bot(command_prefix='<', description='Test Bot, Not real >.>')
 
@@ -62,20 +61,6 @@ async def list(ctx):
 @bot.command()
 async def ping(ctx):
     await ctx.send(f'Pong! Latency is {round(bot.latency * 1000)}ms.')
-
-##print(f'{dow}')  
-##if dow == 6:
-##    run = True
-##else:
-##    run = False
-##    
-##while True:
-##    if (dow == 1) & (run == False):
-##        weekly()
-##        run = True
-##    else:
-##        time.sleep(60)
-##        print("slept")
 
 
 bot.run(token, bot=True, reconnect=True)
