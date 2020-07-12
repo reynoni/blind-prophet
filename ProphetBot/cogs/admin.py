@@ -4,10 +4,10 @@ from ProphetBot.helpers import *
 
 
 def setup(bot):
-    bot.add_cog(Admin(bot))
+    bot.add_cog(admin(bot))
 
 
-class Admin(commands.Cog):
+class admin(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
