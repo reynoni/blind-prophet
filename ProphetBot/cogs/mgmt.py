@@ -116,8 +116,9 @@ class mgmt(commands.Cog):
     @commands.check(is_council)
     async def weekly(self, ctx):
         # Command to process the weekly reset
-
         await ctx.channel.send("`PROCESSING WEEKLY RESET`")
+
+        # Process pending GP/XP
         RENDER_OPTION = "UNFORMATTED_VALUE"
         RANGE_NAME_XP_PEND = 'Characters!I3:I'
         RANGE_NAME_XP_TOTAL = 'Characters!H3:H'
@@ -127,12 +128,10 @@ class mgmt(commands.Cog):
         xp_pend = self.sheet.get(SPREADSHEET_ID, RANGE_NAME_XP_PEND, RENDER_OPTION)
         gp_total = gp_pend.get('values', {})
         xp_total = xp_pend.get('values', {})
-        # print("GP PEND:" + f'{gp_pend}')
-        # print("XP PEND:" + f'{xp_pend}')
-        # print("GP TOTAL:" + f'{gp_total}')
-        # print("XP TOTAL:" + f'{xp_total}')
         self.sheet.set(SPREADSHEET_ID, RANGE_NAME_GP_TOTAL, gp_total, "ROWS")
         self.sheet.set(SPREADSHEET_ID, RANGE_NAME_XP_TOTAL, xp_total, "ROWS")
+
+        # Archive old log entries
         LOG_RANGE_IN = 'Log!A2:G500'
         LOG_RANGE_OUT = 'Archive Log!A2:G500'
         LOG_IN = self.sheet.get(SPREADSHEET_ID, LOG_RANGE_IN, RENDER_OPTION)
@@ -237,7 +236,7 @@ class mgmt(commands.Cog):
             while len(command_data) < 7:
                 command_data.append([''])  # Pad until CL and ASL
             target_id = re.sub(r'\D+', '', log_args[0])
-            command_data.append([self.getCL(target_id)])  # Because the sheet formatting has to be a little extra
+            command_data.append([self.get_CL(target_id)])  # Because the sheet formatting has to be a little extra
             command_data.append([self.updateASL()])
             print(f'DATA: {command_data}')  # TODO: Turn this into a proper logging statement
             self.sheet.add(SPREADSHEET_ID, 'Log!A2', command_data, "COLUMNS")
@@ -248,28 +247,27 @@ class mgmt(commands.Cog):
 
     @commands.command()
     @commands.check(is_council)
-    async def create(self, ctx):  # TODO: Rewrite all of this
-        self.user_map = self.build_user_map()  # TODO: Test this
+    async def create(self, ctx):
         RANGE_NAME = 'Characters!A' + str(len(self.user_map.keys()) + 3)
         XP_RANGE = 'Characters!H' + str(len(self.user_map.keys()) + 3)
         msg = ctx.message.content[8:]
+        args = [x.strip() for x in msg.split('.')]
+        print(f'Incoming \'Create\' command. Args: {args}')
+        # print(f'{RANGE_NAME}')
 
-        create_args = [x.strip() for x in msg.split('.')]
-        print(f'Incoming \'Create\' command. Args: {create_args}')
-        result = [x.strip() for x in msg.split('.')]
-        print(f'{result}')
-        print(f'{RANGE_NAME}')
+        if not len(args) == 5:  # [@user, name, faction, class, starting gp]
+            # Error case
+            await ctx.message.channel.send(INPUT_ERROR)
+            return
 
-        DATA = []
-        for i in result:
-            if i.startswith("<"):
-                i = re.sub(r'\D+', '', i)
+        user_id = re.sub(r'\D+', '', args.pop(0))
+        DATA = [[user_id]]
+        for i in args:
             DATA.append([i])
 
-        DATA2 = []
-        DATA2.append(['0'])
+        reset_xp = [['0']]
         self.sheet.set(SPREADSHEET_ID, RANGE_NAME, DATA, "COLUMNS")
-        self.sheet.set(SPREADSHEET_ID, XP_RANGE, DATA2, "COLUMNS")
+        self.sheet.set(SPREADSHEET_ID, XP_RANGE, reset_xp, "COLUMNS")
         print(f'{DATA}')
         await ctx.message.delete()
         await ctx.message.channel.send(ctx.message.content[8:] + ' - submitted!')
@@ -282,32 +280,30 @@ class mgmt(commands.Cog):
     @weekly.error
     @log.error
     @create.error
-    async def error_handler(self, ctx, error):
+    async def error_handler(self, ctx, error):  # TODO: Move this check to a universal on_command_error() override
         if isinstance(error, commands.CheckFailure):
             await ctx.message.channel.send('Naughty Naughty ' + ctx.message.author.name)
             return
 
     def updateASL(self):
         ASL_RANGE = 'Characters!B1'
-        ASL = self.sheet.get(SPREADSHEET_ID, ASL_RANGE, "UNFORMATTED_VALUE")
-        ASL = int(ASL['values'][0][0])
-        return ASL
+        server_level = self.sheet.get(SPREADSHEET_ID, ASL_RANGE, "UNFORMATTED_VALUE")
+        server_level = int(server_level['values'][0][0])
+        return server_level
 
     def build_user_map(self):
         XPLIST_RANGE = 'Characters!H3:H'
-        xplist = self.sheet.get(SPREADSHEET_ID, XPLIST_RANGE, "FORMATTED_VALUE")
-        xplist = xplist['values']
         USERLIST_RANGE = 'Characters!A3:A'
-        userlist = self.sheet.get(SPREADSHEET_ID, USERLIST_RANGE, "UNFORMATTED_VALUE")
-        # userlist_ranges = userlist['range']
-        userlist = userlist['values']
-        # print(f'userlist values: {userlist}')
-        # print(f'userlist ranges: {userlist_ranges}')
+        xp_list = self.sheet.get(SPREADSHEET_ID, XPLIST_RANGE, "FORMATTED_VALUE")
+        user_list = self.sheet.get(SPREADSHEET_ID, USERLIST_RANGE, "UNFORMATTED_VALUE")
+        user_list = user_list['values']
+        xp_list = xp_list['values']
+
         return {  # Using fancy dictionary comprehension to make the dict
-            str(key[0]): value[0] for key, value in zip(userlist, xplist)
+            str(key[0]): value[0] for key, value in zip(user_list, xp_list)
         }
 
-    def getCL(self, charid):
+    def get_CL(self, charid):
         character_level = self.user_map[charid]
         # print(f'ID: {charid}, Level (XP): {character_level}')
         return 1 + int((int(character_level) / 1000))

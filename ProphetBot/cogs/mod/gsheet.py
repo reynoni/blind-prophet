@@ -9,7 +9,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
 
-class gsheet(object): # Defining a gsheet, stolen from elsewhere, Nick doesn't understand this.
+class gsheet(object):  # Defining a gsheet, stolen from elsewhere, Nick doesn't understand this.
     def __init__(self):
         SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
         self.creds = None
@@ -41,7 +41,7 @@ class gsheet(object): # Defining a gsheet, stolen from elsewhere, Nick doesn't u
             'majorDimension': majorD,
             'values': values
         }
-        #The money-maker, the insert.
+        # The money-maker, the insert.
         result = sheet.values().append(spreadsheetId=sheetid, range=sheetrange, valueInputOption='USER_ENTERED', body=body).execute() 
 
     def set(self,sheetid,sheetrange,ivalue,majorD): #Input data into a cell/range, doesn't add rows, overwrites data.
@@ -49,8 +49,8 @@ class gsheet(object): # Defining a gsheet, stolen from elsewhere, Nick doesn't u
         sheet = self.service.spreadsheets()
         value_input_option = 'USER_ENTERED'
         values = ivalue
-        #values = []
-        #values.append(ivalue)
+        # values = []
+        # values.append(ivalue)
         print(f'{values}')
         print(type(values))
         body = {
@@ -58,7 +58,7 @@ class gsheet(object): # Defining a gsheet, stolen from elsewhere, Nick doesn't u
             'range': sheetrange,
             'values': values
         }
-        #The data push.
+        # The data push.
         result = sheet.values().update(spreadsheetId=sheetid, range=sheetrange, valueInputOption=value_input_option, body=body).execute()
         
     def clear(self,sheetid,sheetrange):
@@ -71,7 +71,7 @@ class gsheet(object): # Defining a gsheet, stolen from elsewhere, Nick doesn't u
         sheet = self.service.spreadsheets()
         date_time_render_option = 'FORMATTED_STRING'
 
-        #The return.
+        # The return.
         result = sheet.values().get(spreadsheetId=sheetid, range=sheetrange, valueRenderOption=render_option, dateTimeRenderOption=date_time_render_option).execute()
         return result   
 

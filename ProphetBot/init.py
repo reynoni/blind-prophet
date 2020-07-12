@@ -3,8 +3,8 @@ from os import listdir
 import time, logging, os, sys
 from datetime import datetime
 from ProphetBot.localsettings import token
-from ProphetBot.constants import *
-# from ProphetBot.helpers import *
+# from ProphetBot.constants import *
+from ProphetBot.helpers import *
 dow = datetime.date(datetime.now()).weekday()
 
 bot = commands.Bot(command_prefix='<', description='Test Bot, Not real >.>')
@@ -13,48 +13,36 @@ logging.basicConfig(level=logging.INFO, filename='log.txt')
 
 
 @bot.command()
+@commands.check(is_admin)
 async def load(ctx, ext):
-    if ctx.author.id in ADMIN_USERS:
-        bot.load_extension(f'cogs.{ext}')
-        await ctx.send("Cog Loaded.")
-    else:
-        await ctx.send("Access Denied.")
+    bot.load_extension(f'cogs.{ext}')
+    await ctx.send("Cog Loaded.")
     await ctx.message.delete()
 
 
 @bot.command()
+@commands.check(is_admin)
 async def unload(ctx, ext):
-    if ctx.author.id in ADMIN_USERS:
-        bot.unload_extension(f'cogs.{ext}')
-        await ctx.send("Cog Unloaded.")
-    else:
-        await ctx.send("Access Denied.")
+    bot.unload_extension(f'cogs.{ext}')
+    await ctx.send("Cog Unloaded.")
     await ctx.message.delete()
 
 
 @bot.command()
+@commands.check(is_admin)
 async def reload(ctx, ext):
-    if ctx.author.id in ADMIN_USERS:
-        bot.unload_extension(f'cogs.{ext}')
-        bot.load_extension(f'cogs.{ext}')
-        await ctx.send("Cogs Reloaded.")
-    else:
-        await ctx.send("Access Denied.")
+    bot.unload_extension(f'cogs.{ext}')
+    bot.load_extension(f'cogs.{ext}')
+    await ctx.send("Cogs Reloaded.")
     await ctx.message.delete()
-
-for filename in listdir('./cogs'):
-    if filename.endswith('.py'):
-        bot.load_extension(f'cogs.{filename[:-3]}')
 
 
 @bot.command()
+@commands.check(is_admin)
 async def list(ctx):
-    if ctx.author.id in ADMIN_USERS:
-        for filename in listdir('./cogs'):
-            if filename.endswith('.py'):
-                await ctx.send(f'cogs.{filename[:-3]}')
-    else:
-        await ctx.send("Access Denied.")
+    for file_name in listdir('./cogs'):
+        if file_name.endswith('.py'):
+            await ctx.send(f'cogs.{file_name[:-3]}')
     await ctx.message.delete()
 
 
@@ -62,6 +50,15 @@ async def list(ctx):
 async def ping(ctx):
     await ctx.send(f'Pong! Latency is {round(bot.latency * 1000)}ms.')
 
+
+@load.error
+@unload.error
+@reload.error
+@list.error
+async def error_handler(self, ctx, error):  # TODO: Move this check to a universal on_command_error() override
+    if isinstance(error, commands.CheckFailure):
+        await ctx.message.channel.send('Naughty Naughty ' + ctx.message.author.name)
+        return
 
 bot.run(token, bot=True, reconnect=True)
 
