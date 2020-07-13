@@ -14,6 +14,7 @@ ACTIVITY_ERROR = 'Error: The activity (2) was entered incorrectly. Please try ag
 RESULT_ERROR = 'Error: The result (3) was entered incorrectly. Please try again.'
 NUMBER_ERROR = 'Error: A number was entered incorrectly. Please try again.'
 MISSING_FIELD_ERROR = 'Error: One or more fields missing for activity type. Please try again.'
+EXTRA_FIELD_ERROR = 'Error: Too many fields for activity type. Please try again.'
 INPUT_ERROR = 'Error: There was an incorrect input. Please try again.'
 XP_ERROR = 'Error: The targeted player has over 2000 XP. Please enter manually.'
 

@@ -159,6 +159,10 @@ class bpdia(commands.Cog):
             # check for too few arguments
             if len(log_args) < num_args + offset:
                 display_errors.append(MISSING_FIELD_ERROR)
+                return
+            elif len(log_args) > num_args + offset:
+                display_errors.append(EXTRA_FIELD_ERROR)
+                return
 
             for i in range(num_args):
                 arg = log_args[offset + i]
@@ -200,7 +204,7 @@ class bpdia(commands.Cog):
                 # Handle RP
                 if activity in ['RP', 'MOD', 'ADMIN']:
                     if len(log_args) > 2:
-                        display_errors.append(INPUT_ERROR)
+                        display_errors.append(EXTRA_FIELD_ERROR)
 
                 # Handle PIT/ARENA
                 elif activity in ['ARENA', 'PIT']:
@@ -227,10 +231,7 @@ class bpdia(commands.Cog):
         else:
             display_errors.append('Error: There must be 2-5 fields entered.')
 
-        if len(display_errors) > 0:
-            for error in display_errors:
-                await ctx.message.channel.send(error)
-        else:
+        if len(display_errors) == 0:
             while len(command_data) < 7:
                 command_data.append([''])  # Pad until CL and ASL
             target_id = re.sub(r'\D+', '', log_args[0])
@@ -241,6 +242,9 @@ class bpdia(commands.Cog):
             stop = timer()
             print(f'Elapsed time: {stop - start}')
             await ctx.message.channel.send(msg + ' - log submitted by ' + ctx.author.nick)
+        else:
+            for error in display_errors:
+                await ctx.message.channel.send(error)
         await ctx.message.delete()
 
     @commands.command(brief='- Creates a new character on the BPdia sheet', help=CREATE_HELP)
