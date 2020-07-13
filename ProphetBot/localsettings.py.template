@@ -4,6 +4,5 @@
 token = ''  # NEVER COMMIT THIS
 
 # Spreadsheet Stuff
-gloc = ''
 SPREADSHEET_ID = ''
 BOT_SPREADSHEET_ID = ''

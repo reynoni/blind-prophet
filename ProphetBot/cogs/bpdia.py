@@ -37,7 +37,7 @@ class bpdia(commands.Cog):
     @commands.check(is_tracker)
     async def level(self, ctx):
         msg = ctx.message.content[7:]
-
+        self.user_map = self.build_user_map()
         result = [x.strip() for x in msg.split('.')]
         print(f'{str(ctx.message.created_at)} - Incoming \'Level\' command from {ctx.message.author.name}'
               f'. Args: {result}')
@@ -65,16 +65,15 @@ class bpdia(commands.Cog):
         insert_range = 'Characters!H' + str(index + 3)  # Could find the index in this same line, but that's messy
         # logging.info(f'Insert Range: {insert_range}')
         self.sheet.set(SPREADSHEET_ID, insert_range, insert_data, "COLUMNS")
-        self.user_map = self.build_user_map()  # Get an updated user map
         await ctx.message.channel.send(msg + ' - level submitted by ' + ctx.author.nick)
         await ctx.message.delete()
 
-    @commands.command(brief='- Updates ASL and user XP map', help=UPDATE_HELP)
-    async def update(self, ctx):
-        self.ASL = self.update_asl()
-        self.user_map = self.build_user_map()
-        await ctx.message.channel.send('User Map and ASL updated by ' + ctx.author.nick)
-        await ctx.message.delete()
+    # @commands.command(brief='- Updates ASL and user XP map', help=UPDATE_HELP)
+    # async def update(self, ctx):
+    #     self.ASL = self.update_asl()
+    #     self.user_map = self.build_user_map()
+    #     await ctx.message.channel.send('User Map and ASL updated by ' + ctx.author.nick)
+    #     await ctx.message.delete()
 
     @commands.command(brief='- Displays character information for a user', help=GET_HELP)
     async def get(self, ctx):
@@ -147,7 +146,7 @@ class bpdia(commands.Cog):
         start = timer()
         command_data = []
         display_errors = []
-
+        self.user_map = self.build_user_map()
         msg = ctx.message.content[5:]
         log_args = [x.strip() for x in msg.split('.')]
         print(f'{str(ctx.message.created_at)} - Incoming \'Log\' command from {ctx.message.author.name}'
@@ -270,7 +269,6 @@ class bpdia(commands.Cog):
         print(f'{DATA}')
         await ctx.message.delete()
         await ctx.message.channel.send(ctx.message.content[8:] + ' - create submitted by ' + ctx.author.nick)
-        self.user_map = self.build_user_map()
 
     # --------------------------- #
     # Helper functions
@@ -282,7 +280,7 @@ class bpdia(commands.Cog):
         return server_level
 
     def build_user_map(self):
-        XPLIST_RANGE = 'Characters!H3:H'
+        XPLIST_RANGE = 'Characters!I3:I'
         USERLIST_RANGE = 'Characters!A3:A'
         xp_list = self.sheet.get(SPREADSHEET_ID, XPLIST_RANGE, "FORMATTED_VALUE")
         user_list = self.sheet.get(SPREADSHEET_ID, USERLIST_RANGE, "UNFORMATTED_VALUE")
