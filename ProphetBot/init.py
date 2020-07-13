@@ -2,9 +2,7 @@ from discord.ext import commands
 from os import listdir
 import time, logging, os, sys
 from datetime import datetime
-from ProphetBot.localsettings import token
-# from ProphetBot.constants import *
-from ProphetBot.helpers import *
+from ProphetBot.localsettings import *
 
 dow = datetime.date(datetime.now()).weekday()
 logging.basicConfig(level=logging.INFO, filename='log.txt')
@@ -18,7 +16,7 @@ class ProphetBot(commands.Bot):
             return
 
 
-bot = ProphetBot(command_prefix='<', description='Test Bot, Not real >.>')
+bot = ProphetBot(command_prefix=COMMAND_PREFIX, description=BOT_DESCRIPTION)
 for filename in listdir('./cogs'):
     if filename.endswith('.py'):
         bot.load_extension(f'cogs.{filename[:-3]}')

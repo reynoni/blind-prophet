@@ -1,4 +1,3 @@
-import discord
 import logging
 import re
 from timeit import default_timer as timer
