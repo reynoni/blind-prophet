@@ -24,7 +24,7 @@ class gsheet(object):  # Defining a gsheet, stolen from elsewhere, Nick doesn't 
             if self.creds and self.creds.expired and self.creds.refresh_token:
                 self.creds.refresh(Request())
             else:
-                flow = InstalledAppFlow.from_client_secrets_file('./cogs/mod/credentials.json', SCOPES)
+                flow = InstalledAppFlow.from_client_secrets_file('./ProphetBot/cogs/mod/credentials.json', SCOPES)
                 self.creds = flow.run_local_server()
             # Save the credentials for the next run
             with open('token.pickle', 'wb') as token:
