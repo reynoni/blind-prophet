@@ -6,3 +6,7 @@ token = ''  # NEVER COMMIT THIS
 # Spreadsheet Stuff
 SPREADSHEET_ID = ''
 BOT_SPREADSHEET_ID = ''
+
+# Bot Stuff
+COMMAND_PREFIX = '<'
+BOT_DESCRIPTION = 'ProphetBot - Created and maintained by Nicoalas#5232 and Alesha#0362'

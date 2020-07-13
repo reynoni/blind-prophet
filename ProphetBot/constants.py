@@ -29,4 +29,4 @@ WEEKLY_HELP = '@Council only\n\nUsage: >weekly'
 LOG_HELP = '@Trackers only\n\nUsage: >log @Player . Activity . Result . GP . XP\n\nAccepted activity types:\n'\
            + str(ACTIVITY_TYPES)
 GET_HELP = 'Usage: >get [@user]\n\nIf no @user is specified, it retrieves information for the message author'
-CREATE_HELP = '@Council only\n\nUsage: >create @Player . Name . Faction . Starting GP'
+CREATE_HELP = '@Council only\n\nUsage: >create @Player . Name . Faction . Class . Starting GP'
