@@ -28,7 +28,7 @@ class bpdia(commands.Cog):
 
     @commands.command(brief='- Provides a link to the public BPdia sheet')
     async def sheet(self, ctx):
-        link = '<https://docs.google.com/spreadsheets/d/' + BOT_SPREADSHEET_ID + '/>'
+        link = '<https://docs.google.com/spreadsheets/d/' + '1Ps6SWbnlshtJ33Yf30_1e0RkwXpaPy0YVFYaiETnbns' + '/>'
         await ctx.message.channel.send(f'The BPdia public sheet can be found at:\n{link}')
         await ctx.message.delete()
 
