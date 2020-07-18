@@ -13,6 +13,36 @@ def setup(bot):
     bot.add_cog(bpdia(bot))
 
 
+def build_table(data, level):
+    character_data = []
+    character_data.append(['Name', str(data[1])])
+    character_data.append(['Class', str(data[3])])
+    character_data.append(['Faction', str(data[2])])
+    character_data.append(['Level', data[6]])
+    character_data.append(['Wealth', data[5]])
+    character_data.append(['Experience', data[8]])
+
+    if level > 3:
+        character_data.append(['Div GP', str(data[19]) + '/' + str(data[20])])
+        character_data.append(['Div XP', str(data[21]) + '/' + str(data[22])])
+        character_data.append(['ASL Mod', str(data[9])])
+    else:
+        needed_arena = 1 if level == 1 else 2
+        needed_rp = 1 if level == 1 else 2
+        num_arena = int(data[24]) if level == 1 else (int(data[28]) + int(data[29]))
+        num_rp =    int(data[23]) if level == 1 else (int(data[26]) + int(data[27]))
+        num_pit =   int(data[25]) if level == 1 else int(data[30])
+        character_data.append(['RP', str(num_rp) + '/' + str(needed_rp)])
+        character_data.append(['Arena', str(num_arena) + '/' + str(needed_arena)])
+        character_data.append(['Pit', str(num_pit) + '/1'])
+
+    table = Texttable()
+    table.set_cols_align(["l", "r"])
+    table.set_cols_valign(["m", "m"])
+    table.add_rows(character_data)
+    return table.draw()
+
+
 class bpdia(commands.Cog):
 
     def __init__(self, bot):
@@ -28,7 +58,7 @@ class bpdia(commands.Cog):
 
     @commands.command(brief='- Provides a link to the public BPdia sheet')
     async def sheet(self, ctx):
-        link = '<https://docs.google.com/spreadsheets/d/' + BOT_SPREADSHEET_ID + '/>'
+        link = '<https://docs.google.com/spreadsheets/d/' + '1Ps6SWbnlshtJ33Yf30_1e0RkwXpaPy0YVFYaiETnbns' + '/>'
         await ctx.message.channel.send(f'The BPdia public sheet can be found at:\n{link}')
         await ctx.message.delete()
 
@@ -95,7 +125,7 @@ class bpdia(commands.Cog):
         OUT_RANGE_NAME = 'Bot Staging!A9:B17'
         RENDER_OPTION = "UNFORMATTED_VALUE"
         values = [target]
-        print(f'values: {values}')
+        # print(f'values: {values}')
         self.sheet.set(BOT_SPREADSHEET_ID, IN_RANGE_NAME, [values], "COLUMNS")
         data_out = self.sheet.get(BOT_SPREADSHEET_ID, OUT_RANGE_NAME, RENDER_OPTION)
         send_data = data_out['values']
@@ -103,10 +133,36 @@ class bpdia(commands.Cog):
         t = Texttable()
         t.set_cols_align(["l", "r"])
         t.set_cols_valign(["m", "m"])
+        # print(f'send_data: {send_data}')
         t.add_rows(send_data)
         get_message = t.draw()
 
         await ctx.send("`" + get_message + "`")
+        await ctx.message.delete()
+
+    @commands.command(brief='- !EXPERIMENTAL! Displays character information for a user', help=GET_HELP)
+    async def get_alt(self, ctx, target=None):
+        if not target:
+            target = str(ctx.author.id)
+        else:
+            target = re.sub(r'\D+', '', target)
+        print(f'Incoming \'Get_Alt\' command. Args: {target}')
+        u_map = self.build_user_map()
+
+        if target not in self.user_map:
+            await ctx.send(
+                "'" + target + "' is not a valid input... >get for your own stats, >get @name for someone else.")
+            return
+
+        index = list(u_map.keys()).index(target)  # Dicts preserve order in Python 3. Fancy.
+        user_row = 'Characters!A' + str(index + 3) + ':AE' + str(index + 3)  # Probably shouldn't specify columns
+
+        data = self.sheet.get(SPREADSHEET_ID, user_row, "FORMATTED_VALUE")
+        data = data['values']
+        print(f'get_alt data: {data}')
+
+        table = build_table(data[0], self.get_cl(target))
+        await ctx.send("`" + table + "`")
         await ctx.message.delete()
 
     @commands.command(brief='- Processes the weekly reset', help=WEEKLY_HELP)

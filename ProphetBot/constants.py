@@ -1,5 +1,7 @@
 
 # Users - Also maybe in settings file
+from typing import Dict
+
 ADMIN_USERS = [286360249659817984, 208388527401074688]  # DON'T LET ME COMMIT THIS WITH MY ID IN THERE - Alesha
 
 # Roles - Maybe these should be in a settings file
@@ -21,6 +23,7 @@ XP_ERROR = 'Error: The targeted player has over 2000 XP. Please enter manually.'
 # Misc
 ACTIVITY_TYPES = ["RP", "ARENA", "PIT", "BUY", "SELL", "GLOBAL", "BONUS", "QUEST", "CAMPAIGN", "ADVENTURE",
                   "SHOP", "SHOPKEEP", "MOD", "ADMIN"]
+RARITY_MAP: Dict[str, int] = {'COMMON': 1, 'UNCOMMON': 2, 'RARE': 3, 'VERY RARE': 4, 'VERY': 4, 'LEGENDARY': 5}
 
 # Help Text
 LEVEL_HELP = '@Tracker only\n\nUsage: >level @user'

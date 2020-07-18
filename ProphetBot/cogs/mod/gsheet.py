@@ -51,8 +51,6 @@ class gsheet(object):  # Defining a gsheet, stolen from elsewhere, Nick doesn't 
         values = ivalue
         # values = []
         # values.append(ivalue)
-        print(f'{values}')
-        print(type(values))
         body = {
             'majorDimension': majorD,
             'range': sheetrange,
