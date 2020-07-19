@@ -19,6 +19,7 @@ MISSING_FIELD_ERROR = 'Error: One or more fields missing for activity type. Plea
 EXTRA_FIELD_ERROR = 'Error: Too many fields for activity type. Please try again.'
 INPUT_ERROR = 'Error: There was an incorrect input. Please try again.'
 XP_ERROR = 'Error: The targeted player has over 2000 XP. Please enter manually.'
+SHOP_TYPE_ERROR = f'Error: The Shop type is unrecognized.'
 
 # Misc
 ACTIVITY_TYPES = ["RP", "ARENA", "PIT", "BUY", "SELL", "GLOBAL", "BONUS", "QUEST", "CAMPAIGN", "ADVENTURE",
