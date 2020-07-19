@@ -3,9 +3,15 @@
 # Discord Token
 token = ''  # NEVER COMMIT THIS
 
-# Spreadsheet Stuff
+# BPdia Spreadsheet Stuff
 SPREADSHEET_ID = ''
 BOT_SPREADSHEET_ID = ''
+
+# Item Spreadsheets
+WEAP_ARM_SPREADSHEET_ID = ''
+MAGIC_ITEM_SPREADSHEET_ID = ''
+SCROLL_SPREADSHEET_ID = ''
+POTION_SPREADSHEET_ID = ''
 
 # Bot Stuff
 COMMAND_PREFIX = '<'
