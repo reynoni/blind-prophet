@@ -62,6 +62,12 @@ class BPdia(commands.Cog):
         await ctx.message.channel.send(f'The BPdia public sheet can be found at:\n{link}')
         await ctx.message.delete()
 
+    @commands.command()
+    @commands.check(is_admin)
+    async def expiry(self, ctx):
+        await ctx.message.channel.send(f'The Google token expires at {self.sheet.get_token_expiry()}')
+        await ctx.message.delete()
+
     @commands.command(brief='- Manually levels initiates', help=LEVEL_HELP)
     @commands.check(is_tracker)
     async def level(self, ctx):
