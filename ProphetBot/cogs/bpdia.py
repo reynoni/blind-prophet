@@ -129,8 +129,8 @@ class bpdia(commands.Cog):
         self.sheet.set(SPREADSHEET_ID, RANGE_NAME_XP_TOTAL, xp_total, "ROWS")
 
         # Archive old log entries
-        LOG_RANGE_IN = 'Log!A2:G500'
-        LOG_RANGE_OUT = 'Archive Log!A2:G500'
+        LOG_RANGE_IN = 'Log!A2:I'
+        LOG_RANGE_OUT = 'Archive Log!A2:I'
         LOG_IN = self.sheet.get(SPREADSHEET_ID, LOG_RANGE_IN, RENDER_OPTION)
         LOG_OUT = LOG_IN.get('values', {})
         self.sheet.add(SPREADSHEET_ID, LOG_RANGE_OUT, LOG_OUT, "ROWS")
