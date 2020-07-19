@@ -85,16 +85,14 @@ class Items(commands.Cog):
 
         print(f'Cog \'items\' loaded')
 
-    @commands.command(aliases=['inv'])
+    @commands.command(aliases=['inv', 'I'])
     async def inventory(self, ctx, shop_type, rarity, num):
         print(f'Incoming \'Inventory\' command, args:\n'
               f'shop_type: {shop_type}\n'
               f'rarity: {rarity}\n'
               f'num: {num}')
-        if shop_type.upper() not in [
-                'BLACKSMITH', 'CONSUMABLE', 'MAGIC', 'POTION', 'POTIONS', 'SCROLL', 'SCROLLS', 'WEAPON', 'WEAPONS',
-                'ARMOR', 'ARMORS', 'ARMOUR', 'ARMOURS']:
-            print('Error, shop type not right')
+        if shop_type.upper() not in SHOP_TYPES:
+            await ctx.send(SHOP_TYPE_ERROR)
             return
         print(f'SHOP TYPE = {shop_type}')
         table = Texttable()
