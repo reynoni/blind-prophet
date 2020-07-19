@@ -10,7 +10,7 @@ from texttable import Texttable
 
 
 def setup(bot):
-    bot.add_cog(bpdia(bot))
+    bot.add_cog(BPdia(bot))
 
 
 def build_table(data, level):
@@ -43,7 +43,7 @@ def build_table(data, level):
     return table.draw()
 
 
-class bpdia(commands.Cog):
+class BPdia(commands.Cog):
 
     def __init__(self, bot):
         # Setting up some objects
