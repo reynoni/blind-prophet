@@ -37,6 +37,8 @@ class gsheet(object):  # Defining a gsheet, stolen from elsewhere, Nick doesn't 
         return self.creds.expiry
 
     def refresh_if_expired(self):
+        SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+        print('Token invalid, refreshing')
         if not self.creds.valid:
             if self.creds and self.creds.expired and self.creds.refresh_token:
                 self.creds.refresh(Request())
