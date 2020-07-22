@@ -1,5 +1,7 @@
 
 # Users - Also maybe in settings file
+from typing import Dict
+
 ADMIN_USERS = [286360249659817984, 208388527401074688]  # DON'T LET ME COMMIT THIS WITH MY ID IN THERE - Alesha
 
 # Roles - Maybe these should be in a settings file
@@ -7,6 +9,14 @@ TRACKERS_ROLE_BP = 685693338472415309
 COUNCIL_ROLE_BP = 679752344157945949
 TRACKERS_ROLE = 728637444114874379
 COUNCIL_ROLE = 728637447340032062
+
+# Misc
+ACTIVITY_TYPES = ["RP", "ARENA", "PIT", "BUY", "SELL", "GLOBAL", "BONUS", "QUEST", "CAMPAIGN", "ADVENTURE",
+                  "SHOP", "SHOPKEEP", "MOD", "ADMIN"]
+SHOP_TYPES = ['BLACKSMITH', 'CONSUMABLE', 'MAGIC', 'WONDROUS', 'POTION', 'POTIONS', 'SCROLL', 'SCROLLS', 'WEAPON',
+              'WEAPONS', 'ARMOR', 'ARMORS', 'ARMOUR', 'ARMOURS']
+RARITY_MAP: Dict[str, int] = {'COMMON': 1, 'UNCOMMON': 2, 'RARE': 3, 'VERY RARE': 4, 'VERY': 4, 'LEGENDARY': 5,
+                              'C': 1, 'U': 2, 'R': 3, 'V': 4, 'VR': 4, 'L': 5}
 
 # Errors
 NAME_ERROR = 'Error: The @Name (1) was entered incorrectly. Please try again.'
@@ -17,10 +27,8 @@ MISSING_FIELD_ERROR = 'Error: One or more fields missing for activity type. Plea
 EXTRA_FIELD_ERROR = 'Error: Too many fields for activity type. Please try again.'
 INPUT_ERROR = 'Error: There was an incorrect input. Please try again.'
 XP_ERROR = 'Error: The targeted player has over 2000 XP. Please enter manually.'
-
-# Misc
-ACTIVITY_TYPES = ["RP", "ARENA", "PIT", "BUY", "SELL", "GLOBAL", "BONUS", "QUEST", "CAMPAIGN", "ADVENTURE",
-                  "SHOP", "SHOPKEEP", "MOD", "ADMIN"]
+SHOP_TYPE_ERROR = f'Error: The Shop type is unrecognized. Accepted shop types are:\n' \
+                  f'{SHOP_TYPES}'
 
 # Help Text
 LEVEL_HELP = '@Tracker only\n\nUsage: >level @user'

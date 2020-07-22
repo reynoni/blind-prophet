@@ -3,9 +3,13 @@
 # Discord Token
 token = ''  # NEVER COMMIT THIS
 
-# Spreadsheet Stuff
+# BPdia Spreadsheet Stuff
 SPREADSHEET_ID = ''
 BOT_SPREADSHEET_ID = ''
+
+# Item Spreadsheets
+WEAP_ARM_SPREADSHEET_ID = ''
+INV_SPREADSHEET_ID=''
 
 # Bot Stuff
 COMMAND_PREFIX = '<'
