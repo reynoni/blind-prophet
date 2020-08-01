@@ -50,11 +50,11 @@ class Items(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.sheet = gsheet()
-        self.weapons_map = self.build_map(WEAP_ARM_SPREADSHEET_ID, 'Weapons!B2:H')
-        self.armor_map = self.build_map(WEAP_ARM_SPREADSHEET_ID, 'Armor!B2:H')
-        self.consumable_map = self.build_map(POTION_SPREADSHEET_ID, 'Sheet1!C4:G')
-        self.scroll_map = self.build_map(SCROLL_SPREADSHEET_ID, 'Sheet1!C3:K')
-        self.wondrous_map = self.build_map(MAGIC_ITEM_SPREADSHEET_ID, 'Sheet1!C3:I')
+        self.weapons_map = self.build_map(INV_SPREADSHEET_ID, 'Weapons!A2:H')
+        self.armor_map = self.build_map(INV_SPREADSHEET_ID, 'Armor!A2:H')
+        self.consumable_map = self.build_map(INV_SPREADSHEET_ID, 'Consumables!A2:E')
+        self.scroll_map = self.build_map(INV_SPREADSHEET_ID, 'Scrolls!A2:J')
+        self.wondrous_map = self.build_map(INV_SPREADSHEET_ID, 'Wondrous!A2:H')
 
         print(f'Cog \'Items\' loaded')
 
@@ -74,7 +74,6 @@ class Items(commands.Cog):
             rarity_value = RARITY_MAP[rarity.upper()]
             available_items = list()
             item_stock = dict()
-
             for key in item_map.keys():
                 parsed_cost = int(re.sub(r'\D+', '', item_map[key][cost_ind]))
                 if parsed_cost <= max_cost:
@@ -104,70 +103,70 @@ class Items(commands.Cog):
         table.set_cols_width([20, 5, 7])
 
         if shop_type.upper() == 'BLACKSMITH':
-            weapon_stock = roll_stock(self.weapons_map, rarity_ind=1, cost_ind=5, max_qty=1)
-            armor_stock = roll_stock(self.armor_map, rarity_ind=1, cost_ind=5, max_qty=1)
+            weapon_stock = roll_stock(self.weapons_map, rarity_ind=0, cost_ind=1, max_qty=1)
+            armor_stock = roll_stock(self.armor_map, rarity_ind=0, cost_ind=1, max_qty=1)
             table.header(['Item', 'Qty', 'Cost'])
 
             weapon_data = []
             for item in weapon_stock:
-                weapon_data.append([item, str(weapon_stock[item]), self.weapons_map[item][5]])
+                weapon_data.append([item, str(weapon_stock[item]), self.weapons_map[item][1]])
             table.add_rows(sort_stock(weapon_data), header=False)
 
             armor_data = []
             for item in armor_stock:
-                armor_data.append([item, str(armor_stock[item]), self.armor_map[item][5]])
+                armor_data.append([item, str(armor_stock[item]), self.armor_map[item][1]])
             table.add_rows(sort_stock(armor_data), header=False)
 
         elif shop_type.upper() in ['WEAPON', 'WEAPONS']:
-            weapon_stock = roll_stock(self.weapons_map, rarity_ind=1, cost_ind=5, max_qty=1)
+            weapon_stock = roll_stock(self.weapons_map, rarity_ind=0, cost_ind=1, max_qty=1)
             table.header(['Item', 'Qty', 'Cost'])
 
             weapon_data = []
             for item in weapon_stock:
-                weapon_data.append([item, str(weapon_stock[item]), self.weapons_map[item][5]])
+                weapon_data.append([item, str(weapon_stock[item]), self.weapons_map[item][1]])
             table.add_rows(sort_stock(weapon_data), header=False)
 
         elif shop_type.upper() in ['ARMOR', 'ARMORS', 'ARMOUR', 'ARMOURS']:
-            armor_stock = roll_stock(self.armor_map, rarity_ind=1, cost_ind=5, max_qty=1)
+            armor_stock = roll_stock(self.armor_map, rarity_ind=0, cost_ind=1, max_qty=1)
             table.header(['Item', 'Qty', 'Cost'])
 
             armor_data = []
             for item in armor_stock:
-                armor_data.append([item, str(armor_stock[item]), self.armor_map[item][5]])
+                armor_data.append([item, str(armor_stock[item]), self.armor_map[item][1]])
             table.add_rows(sort_stock(armor_data), header=False)
 
         elif shop_type.upper() in ['MAGIC', 'WONDROUS']:
             # wondrous_stock = roll_stock(self.wondrous_map, rarity_ind=1, cost_ind=5, max_qty=1)
-            wondrous_stock = roll_stock(self.wondrous_map, rarity_ind=2, cost_ind=0, max_qty=1)
+            wondrous_stock = roll_stock(self.wondrous_map, rarity_ind=0, cost_ind=1, max_qty=1)
             print(f'Magic Stock: {wondrous_stock}')
             table.header(['Item', 'Qty', 'Cost'])
 
             shop_data = []
             for item in wondrous_stock:
-                shop_data.append([item, str(wondrous_stock[item]), self.wondrous_map[item][0]])
+                shop_data.append([item, str(wondrous_stock[item]), self.wondrous_map[item][1]])
             table.add_rows(sort_stock(shop_data), header=False)
 
         elif shop_type.upper() in ['POTION', 'POTIONS']:
-            potion_stock = roll_stock(self.consumable_map, rarity_ind=0, cost_ind=3, max_qty=4)
+            potion_stock = roll_stock(self.consumable_map, rarity_ind=0, cost_ind=1, max_qty=4)
             print(f'Potion Stock: {potion_stock}')
             table.header(['Item', 'Qty', 'Cost'])
 
             potion_data = []
             for item in potion_stock:
-                potion_data.append([item, str(potion_stock[item]), self.consumable_map[item][3]])
+                potion_data.append([item, str(potion_stock[item]), self.consumable_map[item][1]])
             if num > 1:  # Add the default potions to the stock list
                 potion_data.append(['Potion of Healing', str(random.randint(1, 4)), '50'])
                 potion_data.append(['Token of Feather Fall', str(random.randint(1, 4)), '50'])
             table.add_rows(sort_stock(potion_data), header=False)
 
         elif shop_type.upper() in ['SCROLL', 'SCROLLS']:
-            scroll_stock = roll_stock(self.scroll_map, rarity_ind=1, cost_ind=0, max_qty=2)
+            scroll_stock = roll_stock(self.scroll_map, rarity_ind=0, cost_ind=1, max_qty=2)
             print(f'Scroll Stock: {scroll_stock}')
             table.header(['Item', 'Qty', 'Lvl'])
 
             scroll_data = []
             for item in scroll_stock:
-                scroll_data.append([item, str(scroll_stock[item]), self.scroll_map[item][0]])
+                scroll_data.append([item, str(scroll_stock[item]), self.scroll_map[item][1]])
             table.add_rows(sort_stock(scroll_data), header=False)
 
         output = '`' + table.draw() + '`'
