@@ -13,7 +13,7 @@ def setup(bot):
     bot.add_cog(Items(bot))
 
 
-def build_table(matches, result_map, headers, start_ind):
+def build_table(matches, result_map, headers):
     table = Texttable()
     if len(matches) > 1:
         table.set_deco(Texttable.HEADER | Texttable.HLINES | Texttable.VLINES)
@@ -22,17 +22,20 @@ def build_table(matches, result_map, headers, start_ind):
         table.header(headers)
 
         for match in matches:
+            print(f'match: {match}: {result_map[match]}')
             data = [match]
-            data.extend(value for value in result_map[match][start_ind:])
+            data.extend(value for value in result_map[match][0:])
+            # print(f'Adding row: {data}')
             table.add_row(data)
 
         output = '```' + table.draw() + '```'
     else:
         table.set_cols_align(["l", "r"])
         table.set_cols_valign(["m", "m"])
+        table.set_cols_width([10, 20])
         table.header([headers[0], matches[0]])
-        data = list(zip(headers[start_ind:], (result_map[matches[0]])[start_ind:]))
-        table.add_rows(data)
+        data = list(zip(headers[1:], (result_map[matches[0]])[0:]))
+        table.add_rows(data, header=False)
         output = '`' + table.draw() + '`'
 
     return output
@@ -54,11 +57,11 @@ class Items(commands.Cog):
         self.armor_map = self.build_map(INV_SPREADSHEET_ID, 'Armor!A2:H')
         self.consumable_map = self.build_map(INV_SPREADSHEET_ID, 'Consumables!A2:E')
         self.scroll_map = self.build_map(INV_SPREADSHEET_ID, 'Scrolls!A2:J')
-        self.wondrous_map = self.build_map(INV_SPREADSHEET_ID, 'Wondrous!A2:H')
+        self.wondrous_map = self.build_map(INV_SPREADSHEET_ID, 'Wondrous!A2:F')
 
         print(f'Cog \'Items\' loaded')
 
-    @commands.command(aliases=['inv', 'i', 'I'])
+    @commands.command(aliases=['inv', 'i', 'roll'], case_insensitive=True)
     async def inventory(self, ctx, shop_type, rarity, num=1, max_cost=1000000):
         print(f'Incoming \'Inventory\' command, args:\n'
               f'shop_type: {shop_type}\n'
@@ -69,15 +72,16 @@ class Items(commands.Cog):
             return
 
         # We pass so many args directly from the command that this may as well be private within said command
-        def roll_stock(item_map, rarity_ind, cost_ind, max_qty):
+        # def roll_stock(item_map, rarity_ind, cost_ind, max_qty):
+        def roll_stock(item_map, max_qty):
             print(f'roll_stock, max_cost = {max_cost}')
             rarity_value = RARITY_MAP[rarity.upper()]
             available_items = list()
             item_stock = dict()
             for key in item_map.keys():
-                parsed_cost = int(re.sub(r'\D+', '', item_map[key][cost_ind]))
+                parsed_cost = int(re.sub(r'\D+', '', item_map[key][1]))
                 if parsed_cost <= max_cost:
-                    item_rarity = item_map[key][rarity_ind]
+                    item_rarity = item_map[key][0]
                     if RARITY_MAP[item_rarity.upper()] <= rarity_value:
                         # print(f'Found item \'{key}\' that matches rarity search \'{rarity_value}\'')
                         available_items.append(key)
@@ -102,9 +106,9 @@ class Items(commands.Cog):
         table.set_cols_valign(['m', 'm', 'm'])
         table.set_cols_width([20, 5, 7])
 
-        if shop_type.upper() == 'BLACKSMITH':
-            weapon_stock = roll_stock(self.weapons_map, rarity_ind=0, cost_ind=1, max_qty=1)
-            armor_stock = roll_stock(self.armor_map, rarity_ind=0, cost_ind=1, max_qty=1)
+        if shop_type.upper() in ['BLACKSMITH', 'SMITH']:
+            weapon_stock = roll_stock(self.weapons_map, max_qty=1)
+            armor_stock = roll_stock(self.armor_map, max_qty=1)
             table.header(['Item', 'Qty', 'Cost'])
 
             weapon_data = []
@@ -117,8 +121,8 @@ class Items(commands.Cog):
                 armor_data.append([item, str(armor_stock[item]), self.armor_map[item][1]])
             table.add_rows(sort_stock(armor_data), header=False)
 
-        elif shop_type.upper() in ['WEAPON', 'WEAPONS']:
-            weapon_stock = roll_stock(self.weapons_map, rarity_ind=0, cost_ind=1, max_qty=1)
+        elif shop_type.upper() in ['WEAPON', 'WEAPONS', 'WEAP']:
+            weapon_stock = roll_stock(self.weapons_map, max_qty=1)
             table.header(['Item', 'Qty', 'Cost'])
 
             weapon_data = []
@@ -126,8 +130,8 @@ class Items(commands.Cog):
                 weapon_data.append([item, str(weapon_stock[item]), self.weapons_map[item][1]])
             table.add_rows(sort_stock(weapon_data), header=False)
 
-        elif shop_type.upper() in ['ARMOR', 'ARMORS', 'ARMOUR', 'ARMOURS']:
-            armor_stock = roll_stock(self.armor_map, rarity_ind=0, cost_ind=1, max_qty=1)
+        elif shop_type.upper() in ['ARMOR', 'ARMORS', 'ARMOUR', 'ARMOURS', 'ARM']:
+            armor_stock = roll_stock(self.armor_map, max_qty=1)
             table.header(['Item', 'Qty', 'Cost'])
 
             armor_data = []
@@ -137,7 +141,7 @@ class Items(commands.Cog):
 
         elif shop_type.upper() in ['MAGIC', 'WONDROUS']:
             # wondrous_stock = roll_stock(self.wondrous_map, rarity_ind=1, cost_ind=5, max_qty=1)
-            wondrous_stock = roll_stock(self.wondrous_map, rarity_ind=0, cost_ind=1, max_qty=1)
+            wondrous_stock = roll_stock(self.wondrous_map, max_qty=1)
             print(f'Magic Stock: {wondrous_stock}')
             table.header(['Item', 'Qty', 'Cost'])
 
@@ -146,21 +150,21 @@ class Items(commands.Cog):
                 shop_data.append([item, str(wondrous_stock[item]), self.wondrous_map[item][1]])
             table.add_rows(sort_stock(shop_data), header=False)
 
-        elif shop_type.upper() in ['POTION', 'POTIONS']:
-            potion_stock = roll_stock(self.consumable_map, rarity_ind=0, cost_ind=1, max_qty=4)
+        elif shop_type.upper() in ['POTION', 'POTIONS', 'POT']:
+            potion_stock = roll_stock(self.consumable_map, max_qty=4)
             print(f'Potion Stock: {potion_stock}')
             table.header(['Item', 'Qty', 'Cost'])
 
             potion_data = []
             for item in potion_stock:
                 potion_data.append([item, str(potion_stock[item]), self.consumable_map[item][1]])
-            if num > 1:  # Add the default potions to the stock list
+            if num > 1:  # Remove the first item and add the default healing potion in its place
+                potion_data.pop()
                 potion_data.append(['Potion of Healing', str(random.randint(1, 4)), '50'])
-                potion_data.append(['Token of Feather Fall', str(random.randint(1, 4)), '50'])
             table.add_rows(sort_stock(potion_data), header=False)
 
         elif shop_type.upper() in ['SCROLL', 'SCROLLS']:
-            scroll_stock = roll_stock(self.scroll_map, rarity_ind=0, cost_ind=1, max_qty=2)
+            scroll_stock = roll_stock(self.scroll_map, max_qty=2)
             print(f'Scroll Stock: {scroll_stock}')
             table.header(['Item', 'Qty', 'Lvl'])
 
@@ -173,7 +177,7 @@ class Items(commands.Cog):
         await ctx.send(output)
         await ctx.message.delete()
 
-    @commands.command(aliases=['armour'])
+    @commands.command(aliases=['armour', 'arm'], case_insensitive=True)
     async def armor(self, ctx, item_name):
         matches = [key for key in self.armor_map.keys() if item_name.lower() in key.lower()]
         if len(matches) > 5:
@@ -181,12 +185,12 @@ class Items(commands.Cog):
             matches = matches[:5]
 
         table = build_table(matches, self.armor_map,
-                            ['Item Name', 'Rarity', 'Attunement', 'Notes', 'Source', 'Price'], start_ind=1)
+                            ['Item Name', 'Rarity', 'Price', 'Notes', 'Source'])
 
         await ctx.send(table)
         await ctx.message.delete()
 
-    @commands.command()
+    @commands.command(aliases=['weapons', 'weap'], case_insensitive=True)
     async def weapon(self, ctx, item_name):
         matches = [key for key in self.weapons_map.keys() if item_name.lower() in key.lower()]
         if len(matches) > 5:
@@ -195,12 +199,12 @@ class Items(commands.Cog):
 
         print(f'{matches}')
         table = build_table(matches, self.weapons_map,
-                            ['Item Name', 'Rarity', 'Attunement', 'Notes', 'Source', 'Price'], start_ind=1)
+                            ['Item Name', 'Rarity', 'Price', 'Attunement', 'Notes', 'Source'])
 
         await ctx.send(table)
         await ctx.message.delete()
 
-    @commands.command(aliases=['magic'])
+    @commands.command(aliases=['magic'], case_insensitive=True)
     async def wondrous(self, ctx, item_name):
         matches = [key for key in self.wondrous_map.keys() if item_name.lower() in key.lower()]
         if len(matches) > 5:
@@ -209,12 +213,12 @@ class Items(commands.Cog):
 
         print(f'{matches}')
         table = build_table(matches, self.wondrous_map,
-                            ['Item Name', 'Rarity', 'Attunement', 'Notes', 'Source', 'Price'], start_ind=1)
+                            ['Item Name', 'Rarity', 'Price', 'Attunement', 'Notes', 'Source'])
 
         await ctx.send(table)
         await ctx.message.delete()
 
-    @commands.command(aliases=['consumable'])
+    @commands.command(aliases=['consumable', 'pot'], case_insensitive=True)
     async def potion(self, ctx, item_name):
         matches = [key for key in self.consumable_map.keys() if item_name.lower() in key.lower()]
         if len(matches) > 5:
@@ -222,8 +226,7 @@ class Items(commands.Cog):
             matches = matches[:5]
 
         print(f'{matches}')
-        table = build_table(matches, self.consumable_map,
-                            ['Name', 'Rarity', 'Source', 'Notes', 'Price'], start_ind=0)
+        table = build_table(matches, self.consumable_map, ['Item Name', 'Rarity', 'Price', 'Source'])
 
         await ctx.send(table)
         await ctx.message.delete()
