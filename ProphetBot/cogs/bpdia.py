@@ -23,15 +23,15 @@ def build_table(data, level):
     character_data.append(['Experience', data[8]])
 
     if level > 3:
-        character_data.append(['Div GP', str(data[19]) + '/' + str(data[20])])
-        character_data.append(['Div XP', str(data[21]) + '/' + str(data[22])])
+        character_data.append(['Div GP', str(data[21]) + '/' + str(data[22])])
+        character_data.append(['Div XP', str(data[23]) + '/' + str(data[24])])
         character_data.append(['ASL Mod', str(data[9])])
     else:
         needed_arena = 1 if level == 1 else 2
         needed_rp = 1 if level == 1 else 2
-        num_arena = int(data[24]) if level == 1 else (int(data[28]) + int(data[29]))
-        num_rp =    int(data[23]) if level == 1 else (int(data[26]) + int(data[27]))
-        num_pit =   int(data[25]) if level == 1 else int(data[30])
+        num_arena = int(data[26]) if level == 1 else (int(data[30]) + int(data[31]))
+        num_rp =    int(data[25]) if level == 1 else (int(data[28]) + int(data[29]))
+        num_pit =   int(data[27]) if level == 1 else int(data[32])
         character_data.append(['RP', str(num_rp) + '/' + str(needed_rp)])
         character_data.append(['Arena', str(num_arena) + '/' + str(needed_arena)])
         character_data.append(['Pit', str(num_pit) + '/1'])
@@ -56,7 +56,8 @@ class BPdia(commands.Cog):
         print(f'User Map: {self.user_map}')
         print(f'ASL: {self.ASL}')
 
-    @commands.command(brief='- Provides a link to the public BPdia sheet')
+    @commands.command(brief='- Provides a link to the public BPdia sheet',
+                      case_insensitive=True)
     async def sheet(self, ctx):
         link = '<https://docs.google.com/spreadsheets/d/' + '1Ps6SWbnlshtJ33Yf30_1e0RkwXpaPy0YVFYaiETnbns' + '/>'
         await ctx.message.channel.send(f'The BPdia public sheet can be found at:\n{link}')
@@ -68,7 +69,9 @@ class BPdia(commands.Cog):
         await ctx.message.channel.send(f'The Google token expires at {self.sheet.get_token_expiry()}')
         await ctx.message.delete()
 
-    @commands.command(brief='- Manually levels initiates', help=LEVEL_HELP)
+    @commands.command(brief='- Manually levels initiates',
+                      help=LEVEL_HELP,
+                      case_insensitive=True)
     @commands.check(is_tracker)
     async def level(self, ctx):
         msg = ctx.message.content[7:]
@@ -110,7 +113,9 @@ class BPdia(commands.Cog):
     #     await ctx.message.channel.send('User Map and ASL updated by ' + ctx.author.nick)
     #     await ctx.message.delete()
 
-    @commands.command(brief='- Displays character information for a user', help=GET_HELP)
+    @commands.command(brief='- Displays character information for a user',
+                      help=GET_HELP,
+                      case_insensitive=True)
     async def get(self, ctx):
         msg = ctx.message.content[5:]
         get_args = [x.strip() for x in msg.split('.')]
@@ -146,7 +151,9 @@ class BPdia(commands.Cog):
         await ctx.send("`" + get_message + "`")
         await ctx.message.delete()
 
-    @commands.command(brief='- !EXPERIMENTAL! Displays character information for a user', help=GET_HELP)
+    @commands.command(brief='- !EXPERIMENTAL! Displays character information for a user',
+                      help=GET_HELP,
+                      case_insensitive=True)
     async def get_alt(self, ctx, target=None):
         if not target:
             target = str(ctx.author.id)
@@ -171,7 +178,9 @@ class BPdia(commands.Cog):
         await ctx.send("`" + table + "`")
         await ctx.message.delete()
 
-    @commands.command(brief='- Processes the weekly reset', help=WEEKLY_HELP)
+    @commands.command(brief='- Processes the weekly reset',
+                      help=WEEKLY_HELP,
+                      case_insensitive=True)
     @commands.check(is_council)
     async def weekly(self, ctx):
         # Command to process the weekly reset
@@ -201,7 +210,9 @@ class BPdia(commands.Cog):
         await ctx.message.delete()
         await ctx.channel.send("`WEEKLY RESET HAS OCCURRED.`")
 
-    @commands.command(brief='- Records an activity in the BPdia log', help=LOG_HELP)
+    @commands.command(brief='- Records an activity in the BPdia log',
+                      help=LOG_HELP,
+                      case_insensitive=True)
     @commands.check(is_tracker)
     async def log(self, ctx):
         start = timer()
@@ -229,7 +240,7 @@ class BPdia(commands.Cog):
                 arg = log_args[offset + i]
                 if types[i] == 'int':
                     try:
-                        arg = int(arg.lstrip('0'))
+                        arg = int(arg, 10)
                     except ValueError:
                         display_errors.append(NUMBER_ERROR)
                 elif types[i] == 'str':
@@ -308,7 +319,9 @@ class BPdia(commands.Cog):
                 await ctx.message.channel.send(error)
         await ctx.message.delete()
 
-    @commands.command(brief='- Creates a new character on the BPdia sheet', help=CREATE_HELP)
+    @commands.command(brief='- Creates a new character on the BPdia sheet',
+                      help=CREATE_HELP,
+                      case_insensitive=True)
     @commands.check(is_council)
     async def create(self, ctx):
         RANGE_NAME = 'Characters!A' + str(len(self.user_map.keys()) + 3)
@@ -329,8 +342,11 @@ class BPdia(commands.Cog):
         #     DATA.append([i])
 
         reset_xp = [['0']]
+        initial_log_data = [['Blind Prophet'], [str(ctx.message.created_at)], [user_id], ['BONUS'], ['Initial'],
+                            [0], [0], [1], [self.update_asl()]]
         self.sheet.set(SPREADSHEET_ID, RANGE_NAME, DATA, "COLUMNS")
         self.sheet.set(SPREADSHEET_ID, XP_RANGE, reset_xp, "COLUMNS")
+        self.sheet.add(SPREADSHEET_ID, 'Log!A2', initial_log_data, "COLUMNS")
         print(f'{DATA}')
         await ctx.message.delete()
         await ctx.message.channel.send(ctx.message.content[8:] + ' - create submitted by ' + ctx.author.nick)
