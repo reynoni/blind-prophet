@@ -16,7 +16,7 @@ class ProphetBot(commands.Bot):
             return
 
 
-bot = ProphetBot(command_prefix=COMMAND_PREFIX, description=BOT_DESCRIPTION)
+bot = ProphetBot(command_prefix=COMMAND_PREFIX, description=BOT_DESCRIPTION, case_insensitive=True)
 for filename in listdir('ProphetBot/cogs'):
     if filename.endswith('.py'):
         bot.load_extension(f'ProphetBot.cogs.{filename[:-3]}')

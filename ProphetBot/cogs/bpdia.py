@@ -56,8 +56,7 @@ class BPdia(commands.Cog):
         print(f'User Map: {self.user_map}')
         print(f'ASL: {self.ASL}')
 
-    @commands.command(brief='- Provides a link to the public BPdia sheet',
-                      case_insensitive=True)
+    @commands.command(brief='- Provides a link to the public BPdia sheet')
     async def sheet(self, ctx):
         link = '<https://docs.google.com/spreadsheets/d/' + '1Ps6SWbnlshtJ33Yf30_1e0RkwXpaPy0YVFYaiETnbns' + '/>'
         await ctx.message.channel.send(f'The BPdia public sheet can be found at:\n{link}')
@@ -70,8 +69,7 @@ class BPdia(commands.Cog):
         await ctx.message.delete()
 
     @commands.command(brief='- Manually levels initiates',
-                      help=LEVEL_HELP,
-                      case_insensitive=True)
+                      help=LEVEL_HELP)
     @commands.check(is_tracker)
     async def level(self, ctx):
         msg = ctx.message.content[7:]
@@ -114,8 +112,7 @@ class BPdia(commands.Cog):
     #     await ctx.message.delete()
 
     @commands.command(brief='- Displays character information for a user',
-                      help=GET_HELP,
-                      case_insensitive=True)
+                      help=GET_HELP)
     async def get(self, ctx):
         msg = ctx.message.content[5:]
         get_args = [x.strip() for x in msg.split('.')]
@@ -152,8 +149,7 @@ class BPdia(commands.Cog):
         await ctx.message.delete()
 
     @commands.command(brief='- !EXPERIMENTAL! Displays character information for a user',
-                      help=GET_HELP,
-                      case_insensitive=True)
+                      help=GET_HELP)
     async def get_alt(self, ctx, target=None):
         if not target:
             target = str(ctx.author.id)
@@ -179,8 +175,7 @@ class BPdia(commands.Cog):
         await ctx.message.delete()
 
     @commands.command(brief='- Processes the weekly reset',
-                      help=WEEKLY_HELP,
-                      case_insensitive=True)
+                      help=WEEKLY_HELP)
     @commands.check(is_council)
     async def weekly(self, ctx):
         # Command to process the weekly reset
@@ -211,10 +206,10 @@ class BPdia(commands.Cog):
         await ctx.channel.send("`WEEKLY RESET HAS OCCURRED.`")
 
     @commands.command(brief='- Records an activity in the BPdia log',
-                      help=LOG_HELP,
-                      case_insensitive=True)
+                      help=LOG_HELP)
     @commands.check(is_tracker)
     async def log(self, ctx):
+
         start = timer()
         command_data = []
         display_errors = []
@@ -240,7 +235,7 @@ class BPdia(commands.Cog):
                 arg = log_args[offset + i]
                 if types[i] == 'int':
                     try:
-                        arg = int(arg, 10)
+                        arg = str(int(arg, 10))
                     except ValueError:
                         display_errors.append(NUMBER_ERROR)
                 elif types[i] == 'str':
@@ -320,8 +315,7 @@ class BPdia(commands.Cog):
         await ctx.message.delete()
 
     @commands.command(brief='- Creates a new character on the BPdia sheet',
-                      help=CREATE_HELP,
-                      case_insensitive=True)
+                      help=CREATE_HELP)
     @commands.check(is_council)
     async def create(self, ctx):
         RANGE_NAME = 'Characters!A' + str(len(self.user_map.keys()) + 3)

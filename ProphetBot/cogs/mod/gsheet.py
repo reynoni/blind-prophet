@@ -5,13 +5,15 @@ from __future__ import print_function
 import pickle, logging
 import os.path
 from googleapiclient.discovery import build
+from google.oauth2.service_account import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
 
 class gsheet(object):  # Defining a gsheet, stolen from elsewhere, Nick doesn't understand this.
     def __init__(self):
-        SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+        SCOPES = ['https://www.googleapis.com/auth/spreadsheets',
+                  'https://www.googleapis.com/auth/drive']
         self.creds = None
         # The file token.pickle stores the user's access and refresh tokens, and is
         # created automatically when the authorization flow completes for the first
@@ -37,7 +39,8 @@ class gsheet(object):  # Defining a gsheet, stolen from elsewhere, Nick doesn't 
         return self.creds.expiry
 
     def refresh_if_expired(self):
-        SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+        SCOPES = ['https://www.googleapis.com/auth/spreadsheets',
+                  'https://www.googleapis.com/auth/drive']
         if not self.creds.valid:
             print('Token invalid, refreshing')
             if self.creds and self.creds.expired and self.creds.refresh_token:

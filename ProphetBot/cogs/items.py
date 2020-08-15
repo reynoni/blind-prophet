@@ -61,7 +61,7 @@ class Items(commands.Cog):
 
         print(f'Cog \'Items\' loaded')
 
-    @commands.command(aliases=['inv', 'i', 'roll'], case_insensitive=True)
+    @commands.command(aliases=['inv', 'i', 'roll'])
     async def inventory(self, ctx, shop_type, rarity, num=1, max_cost=1000000):
         print(f'Incoming \'Inventory\' command, args:\n'
               f'shop_type: {shop_type}\n'
@@ -177,7 +177,7 @@ class Items(commands.Cog):
         await ctx.send(output)
         await ctx.message.delete()
 
-    @commands.command(aliases=['armour', 'arm'], case_insensitive=True)
+    @commands.command(aliases=['armour', 'arm'])
     async def armor(self, ctx, item_name):
         matches = [key for key in self.armor_map.keys() if item_name.lower() in key.lower()]
         if len(matches) > 5:
@@ -190,7 +190,7 @@ class Items(commands.Cog):
         await ctx.send(table)
         await ctx.message.delete()
 
-    @commands.command(aliases=['weapons', 'weap'], case_insensitive=True)
+    @commands.command(aliases=['weapons', 'weap'])
     async def weapon(self, ctx, item_name):
         matches = [key for key in self.weapons_map.keys() if item_name.lower() in key.lower()]
         if len(matches) > 5:
@@ -204,7 +204,7 @@ class Items(commands.Cog):
         await ctx.send(table)
         await ctx.message.delete()
 
-    @commands.command(aliases=['magic'], case_insensitive=True)
+    @commands.command(aliases=['magic'])
     async def wondrous(self, ctx, item_name):
         matches = [key for key in self.wondrous_map.keys() if item_name.lower() in key.lower()]
         if len(matches) > 5:
@@ -218,7 +218,7 @@ class Items(commands.Cog):
         await ctx.send(table)
         await ctx.message.delete()
 
-    @commands.command(aliases=['consumable', 'pot'], case_insensitive=True)
+    @commands.command(aliases=['consumable', 'pot'])
     async def potion(self, ctx, item_name):
         matches = [key for key in self.consumable_map.keys() if item_name.lower() in key.lower()]
         if len(matches) > 5:
