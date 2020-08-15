@@ -1,5 +1,6 @@
 import logging
 import re
+from gspread import *
 from timeit import default_timer as timer
 from ProphetBot.constants import *
 from ProphetBot.localsettings import *
