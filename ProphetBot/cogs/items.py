@@ -180,7 +180,10 @@ class Items(commands.Cog):
     @commands.command(aliases=['armour', 'arm'])
     async def armor(self, ctx, item_name):
         matches = [key for key in self.armor_map.keys() if item_name.lower() in key.lower()]
-        if len(matches) > 5:
+        if len(matches) == 0:
+            await ctx.send(f'Error: Search query \"{item_name}\" returned no results.')
+            return False
+        elif len(matches) > 5:
             await ctx.send(f'Search \'{item_name}\' returned {len(matches)} results. Displaying top 5.')
             matches = matches[:5]
 
@@ -193,7 +196,10 @@ class Items(commands.Cog):
     @commands.command(aliases=['weapons', 'weap'])
     async def weapon(self, ctx, item_name):
         matches = [key for key in self.weapons_map.keys() if item_name.lower() in key.lower()]
-        if len(matches) > 5:
+        if len(matches) == 0:
+            await ctx.send(f'Error: Search query \"{item_name}\" returned no results.')
+            return False
+        elif len(matches) > 5:
             await ctx.send(f'Search \'{item_name}\' returned {len(matches)} results. Displaying top 5.')
             matches = matches[:5]
 
@@ -204,10 +210,13 @@ class Items(commands.Cog):
         await ctx.send(table)
         await ctx.message.delete()
 
-    @commands.command(aliases=['magic'])
+    @commands.command(aliases=['magic', 'wonderous'])
     async def wondrous(self, ctx, item_name):
         matches = [key for key in self.wondrous_map.keys() if item_name.lower() in key.lower()]
-        if len(matches) > 5:
+        if len(matches) == 0:
+            await ctx.send(f'Error: Search query \"{item_name}\" returned no results.')
+            return False
+        elif len(matches) > 5:
             await ctx.send(f'Search \'{item_name}\' returned {len(matches)} results. Displaying top 5.')
             matches = matches[:5]
 
@@ -221,7 +230,10 @@ class Items(commands.Cog):
     @commands.command(aliases=['consumable', 'pot'])
     async def potion(self, ctx, item_name):
         matches = [key for key in self.consumable_map.keys() if item_name.lower() in key.lower()]
-        if len(matches) > 5:
+        if len(matches) == 0:
+            await ctx.send(f'Error: Search query \"{item_name}\" returned no results.')
+            return False
+        elif len(matches) > 5:
             await ctx.send(f'Search \'{item_name}\' returned {len(matches)} results. Displaying top 5.')
             matches = matches[:5]
 

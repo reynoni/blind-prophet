@@ -44,6 +44,36 @@ def build_table(data, level):
     return table.draw()
 
 
+def build_table_alt(data, level):
+    character_data = []
+    character_data.append(['Name', str(data['Name'])])
+    character_data.append(['Class', str(data['Class'])])
+    character_data.append(['Faction', str(data['Faction'])])
+    character_data.append(['Level', data['Level']])
+    character_data.append(['Wealth', data['Total GP']])
+    character_data.append(['Experience', data['Total XP']])
+
+    if level > 3:
+        character_data.append(['Div GP', str(data['Div GP']) + '/' + str(data['GP Max'])])
+        character_data.append(['Div XP', str(data['Div XP']) + '/' + str(data['XP Max'])])
+        character_data.append(['ASL Mod', str(data[9])])
+    else:
+        needed_arena = 1 if level == 1 else 2
+        needed_rp = 1 if level == 1 else 2
+        num_arena = int(data[26]) if level == 1 else (int(data[30]) + int(data[31]))
+        num_rp =    int(data[25]) if level == 1 else (int(data[28]) + int(data[29]))
+        num_pit =   int(data[27]) if level == 1 else int(data[32])
+        character_data.append(['RP', str(num_rp) + '/' + str(needed_rp)])
+        character_data.append(['Arena', str(num_arena) + '/' + str(needed_arena)])
+        character_data.append(['Pit', str(num_pit) + '/1'])
+
+    table = Texttable()
+    table.set_cols_align(["l", "r"])
+    table.set_cols_valign(["m", "m"])
+    table.add_rows(character_data)
+    return table.draw()
+
+
 class BPdia(commands.Cog):
 
     def __init__(self, bot):
@@ -164,14 +194,21 @@ class BPdia(commands.Cog):
                 "'" + target + "' is not a valid input... >get for your own stats, >get @name for someone else.")
             return
 
+        header_row = 'Characters!A2:AJ2'
         index = list(u_map.keys()).index(target)  # Dicts preserve order in Python 3. Fancy.
-        user_row = 'Characters!A' + str(index + 3) + ':AE' + str(index + 3)  # Probably shouldn't specify columns
+        user_row = 'Characters!A' + str(index + 3) + ':AJ' + str(index + 3)  # Probably shouldn't specify columns
 
-        data = self.sheet.get(SPREADSHEET_ID, user_row, "FORMATTED_VALUE")
-        data = data['values']
-        print(f'get_alt data: {data}')
+        header_data = self.sheet.get(SPREADSHEET_ID, header_row, "FORMATTED_VALUE")
+        header_data = header_data['values']
+        char_data = self.sheet.get(SPREADSHEET_ID, user_row, "FORMATTED_VALUE")
+        char_data = char_data['values']
+        print(f'get_alt data: {char_data}')
 
-        table = build_table(data[0], self.get_cl(target))
+        char_dict = {
+            header_data[i]: char_data[i] for i in range(len(header_data))
+        }
+
+        table = build_table(char_data[0], self.get_cl(target))
         await ctx.send("`" + table + "`")
         await ctx.message.delete()
 
@@ -310,10 +347,133 @@ class BPdia(commands.Cog):
             stop = timer()
             print(f'Elapsed time: {stop - start}')
             await ctx.message.channel.send(msg + ' - log submitted by ' + ctx.author.nick)
+            await ctx.message.delete()
         else:
             for error in display_errors:
                 await ctx.message.channel.send(error)
-        await ctx.message.delete()
+
+    @commands.command(brief='- Records an activity in the BPdia log',
+                      help=LOG_HELP)
+    @commands.check(is_tracker)
+    async def log_alt(self, ctx, *log_args):
+
+        start = timer()
+        command_data = []
+        display_errors = []
+        self.user_map = self.build_user_map()
+        # msg = ctx.message.content[5:]
+        # log_args = [x.strip() for x in msg.split('.')]
+        print(f'{str(ctx.message.created_at)} - Incoming \'Log\' command from {ctx.message.author.name}'
+              f'. Args: {log_args}')  # TODO: This should log actual time, not message time
+        log_args = list(filter(lambda a: a != '.', log_args))
+
+        # types: list of either 'int', 'str', or 'str_upper'
+        def parse_activity(*types):
+            num_args = len(types)
+            offset = 2  # First two index positions are always spoken for
+            # check for too few arguments
+            if len(log_args) < num_args + offset:
+                display_errors.append(MISSING_FIELD_ERROR)
+                return
+            elif len(log_args) > num_args + offset:
+                display_errors.append(EXTRA_FIELD_ERROR)
+                return
+
+            for i in range(num_args):
+                arg = log_args[offset + i]
+                if types[i] == 'int':
+                    try:
+                        arg = str(int(arg, 10))
+                    except ValueError:
+                        display_errors.append(NUMBER_ERROR)
+                elif types[i] == 'str':
+                    arg = str(arg)
+                elif types[i] == 'str_upper':
+                    arg = str(arg).upper()
+                else:
+                    raise Exception('Incorrect argument type in `types`')
+
+                command_data.append([arg])
+
+        if 2 <= len(log_args):
+
+            # Start off by logging the user submitting the message and the date/time
+            command_data.append([ctx.message.author.name])
+            command_data.append([str(ctx.message.created_at)])
+
+            # Get the user targeted by the log command
+            target_id = re.sub(r'\D+', '', log_args[0])
+            if target_id not in self.user_map:
+                display_errors.append(NAME_ERROR)
+            else:
+                command_data.append([target_id])
+
+            # Get the activity type being logged
+            activity = log_args[1].upper()
+            if activity not in ACTIVITY_TYPES:  # Grabbing ACTIVITY_TYPES from constants.py
+                display_errors.append(ACTIVITY_ERROR)
+            else:
+                command_data.append([activity])
+
+            if len(display_errors) == 0:
+                # Handle RP
+                if activity in ['RP', 'MOD', 'ADMIN']:
+                    if len(log_args) > 2:
+                        display_errors.append(EXTRA_FIELD_ERROR)
+
+                # Handle PIT/ARENA
+                elif activity in ['ARENA', 'PIT']:
+                    if len(log_args) < 3 or log_args[2].upper() not in ['WIN', 'LOSS', 'HOST']:
+                        display_errors.append(RESULT_ERROR)
+                    else:
+                        parse_activity('str_upper')
+
+                # Handle SHOP/SHOPKEEP
+                # To-Do: Deprecate 'SHOPKEEP'. Nobody uses it.
+                elif activity in ['SHOP', 'SHOPKEEP']:
+                    parse_activity('int')
+
+                # Handle BUY/SELL
+                elif activity in ['BUY', 'SELL']:
+                    parse_activity('str', 'int')
+
+                # Handle QUEST/ACTIVITY/ADVENTURE, as well as BONUS/GLOBAL
+                elif activity in ['QUEST', 'ACTIVITY', 'ADVENTURE', 'BONUS', 'GLOBAL']:
+                    parse_activity('str', 'int', 'int')
+
+                else:
+                    display_errors.append('How did you even get here?')
+        else:
+            display_errors.append('Error: There must be 2-5 fields entered.')
+
+        if len(display_errors) == 0:
+            while len(command_data) < 7:
+                command_data.append([''])  # Pad until CL and ASL
+            target_id = re.sub(r'\D+', '', log_args[0])
+            command_data.append([self.get_cl(target_id)])  # Because the sheet formatting has to be a little extra
+            command_data.append([self.update_asl()])
+            print(f'DATA: {command_data}')  # TODO: Turn this into a proper logging statement
+            self.sheet.add(SPREADSHEET_ID, 'Log!A2', command_data, "COLUMNS")
+            stop = timer()
+            print(f'Elapsed time: {stop - start}')
+            await ctx.message.channel.send(f'{log_args} - log_alt submitted by {ctx.author.nick}')
+            await ctx.message.delete()
+        else:
+            for error in display_errors:
+                await ctx.message.channel.send(error)
+
+    @commands.command(brief='- Alias for logging a RP', aliases=ACTIVITY_TYPES)
+    @commands.check(is_tracker)
+    async def log_alias(self, ctx, *args):
+        msg = str(ctx.message.content).split()
+        activity = msg[0][1:]
+
+        print(f'{str(ctx.message.created_at)} - Incoming \'{activity}\' command from {ctx.message.author.name}'
+              f'. Args: {args}')  # TODO: This should log actual time, not message time
+
+        args = list(filter(lambda a: a != '.', args))
+        args.insert(1, activity)
+        await self.log_alt(ctx, *args)
 
     @commands.command(brief='- Creates a new character on the BPdia sheet',
                       help=CREATE_HELP)
