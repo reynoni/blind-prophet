@@ -1,5 +1,6 @@
 import logging
 import re
+import gspread
 from gspread import *
 from timeit import default_timer as timer
 from ProphetBot.constants import *
@@ -14,55 +15,26 @@ def setup(bot):
     bot.add_cog(BPdia(bot))
 
 
-def build_table(data, level):
+def build_table(data):
+    level = int(data['Level'])
     character_data = []
-    character_data.append(['Name', str(data[1])])
-    character_data.append(['Class', str(data[3])])
-    character_data.append(['Faction', str(data[2])])
-    character_data.append(['Level', data[6]])
-    character_data.append(['Wealth', data[5]])
-    character_data.append(['Experience', data[8]])
-
-    if level > 3:
-        character_data.append(['Div GP', str(data[21]) + '/' + str(data[22])])
-        character_data.append(['Div XP', str(data[23]) + '/' + str(data[24])])
-        character_data.append(['ASL Mod', str(data[9])])
-    else:
-        needed_arena = 1 if level == 1 else 2
-        needed_rp = 1 if level == 1 else 2
-        num_arena = int(data[26]) if level == 1 else (int(data[30]) + int(data[31]))
-        num_rp =    int(data[25]) if level == 1 else (int(data[28]) + int(data[29]))
-        num_pit =   int(data[27]) if level == 1 else int(data[32])
-        character_data.append(['RP', str(num_rp) + '/' + str(needed_rp)])
-        character_data.append(['Arena', str(num_arena) + '/' + str(needed_arena)])
-        character_data.append(['Pit', str(num_pit) + '/1'])
-
-    table = Texttable()
-    table.set_cols_align(["l", "r"])
-    table.set_cols_valign(["m", "m"])
-    table.add_rows(character_data)
-    return table.draw()
-
-
-def build_table_alt(data, level):
-    character_data = []
-    character_data.append(['Name', str(data['Name'])])
-    character_data.append(['Class', str(data['Class'])])
-    character_data.append(['Faction', str(data['Faction'])])
+    character_data.append(['Name', data['Name']])
+    character_data.append(['Class', data['Class']])
+    character_data.append(['Faction', data['Faction']])
     character_data.append(['Level', data['Level']])
     character_data.append(['Wealth', data['Total GP']])
     character_data.append(['Experience', data['Total XP']])
 
     if level > 3:
-        character_data.append(['Div GP', str(data['Div GP']) + '/' + str(data['GP Max'])])
-        character_data.append(['Div XP', str(data['Div XP']) + '/' + str(data['XP Max'])])
-        character_data.append(['ASL Mod', str(data[9])])
+        character_data.append(['Div GP', data['Div GP'] + '/' + data['GP Max']])
+        character_data.append(['Div XP', data['Div XP'] + '/' + data['XP Max']])
+        character_data.append(['ASL Mod', data['ASL Mod']])
     else:
         needed_arena = 1 if level == 1 else 2
         needed_rp = 1 if level == 1 else 2
-        num_arena = int(data[26]) if level == 1 else (int(data[30]) + int(data[31]))
-        num_rp =    int(data[25]) if level == 1 else (int(data[28]) + int(data[29]))
-        num_pit =   int(data[27]) if level == 1 else int(data[32])
+        num_arena = int(data['L1 Arena']) if level == 1 else (int(data['L2 Arena 1/2']) + int(data['L2 Arena 2/2']))
+        num_rp = int(data['L1 RP']) if level == 1 else (int(data['L2 RP 1/2']) + int(data['L2 RP 2/2']))
+        num_pit = int(data['L1 Pit']) if level == 1 else int(data['L2 Pit'])
         character_data.append(['RP', str(num_rp) + '/' + str(needed_rp)])
         character_data.append(['Arena', str(num_arena) + '/' + str(needed_arena)])
         character_data.append(['Pit', str(num_pit) + '/1'])
@@ -72,6 +44,10 @@ def build_table_alt(data, level):
     table.set_cols_valign(["m", "m"])
     table.add_rows(character_data)
     return table.draw()
+
+
+def flatten(thicc_list):
+    return [item for sublist in thicc_list for item in sublist]
 
 
 class BPdia(commands.Cog):
@@ -80,12 +56,20 @@ class BPdia(commands.Cog):
         # Setting up some objects
         self.bot = bot
         self.sheet = gsheet()
-        self.ASL = self.update_asl()
+        try:
+            self.drive = gspread.service_account(filename=GOOGLE_SA_JSON)
+            self.bpdia_sheet = self.drive.open_by_key(GSPREAD_TEST_SHEET_ID)
+            self.char_sheet = self.bpdia_sheet.worksheet('Characters')
+            self.log_sheet = self.bpdia_sheet.worksheet('Log')
+        except Exception as E:
+            print(f'Exception: {type(E)} when trying to use service account')
+        # self.ASL = self.update_asl()
         self.user_map = self.build_user_map()
 
         print(f'Cog \'BPdia\' loaded')
         print(f'User Map: {self.user_map}')
-        print(f'ASL: {self.ASL}')
+        # print(f'Alt map: {alt_map}')
+        # print(f'ASL: {self.ASL}')
 
     @commands.command(brief='- Provides a link to the public BPdia sheet')
     async def sheet(self, ctx):
@@ -98,6 +82,15 @@ class BPdia(commands.Cog):
     async def expiry(self, ctx):
         await ctx.message.channel.send(f'The Google token expires at {self.sheet.get_token_expiry()}')
         await ctx.message.delete()
+
+    @commands.command()
+    @commands.check(is_admin)
+    async def find(self, ctx, query):
+        worksheet = self.bpdia_sheet.worksheet('Characters')
+        cell = worksheet.find(str(query))
+
+        print("Found something at R%sC%s" % (cell.row, cell.col))
+        await ctx.message.channel.send(f'String \'{query}\' found at R{cell.row}, C{cell.col}')
 
     @commands.command(brief='- Manually levels initiates',
                       help=LEVEL_HELP)
@@ -135,16 +128,42 @@ class BPdia(commands.Cog):
         await ctx.message.channel.send(msg + ' - level submitted by ' + ctx.author.nick)
         await ctx.message.delete()
 
-    # @commands.command(brief='- Updates ASL and user XP map', help=UPDATE_HELP)
-    # async def update(self, ctx):
-    #     self.ASL = self.update_asl()
-    #     self.user_map = self.build_user_map()
-    #     await ctx.message.channel.send('User Map and ASL updated by ' + ctx.author.nick)
-    #     await ctx.message.delete()
+    @commands.command(brief='- Manually levels initiates',
+                      help=LEVEL_HELP)
+    @commands.check(is_tracker)
+    async def level_new(self, ctx, disc_user):
+        # TODO: This duplicates XP by adding non-reset XP to reset XP
+        u_map = self.alt_user_map()
+        print(f'{str(ctx.message.created_at)} - Incoming \'Level\' command from {ctx.message.author.name}'
+              f'. Args: {disc_user}')
+
+        target = re.sub(r'\D+', '', disc_user)
+        if target not in u_map:
+            await ctx.message.channel.send(NAME_ERROR)
+            return
+
+        if (targetXP := int(u_map[target])) > 2000:
+            await ctx.message.channel.send('Error: The targeted player has over 2000 XP. Please enter manually.')
+            return
+        elif targetXP < 2000:
+            new_xp = targetXP + 1000
+        else:
+            new_xp = 1000
+
+        print(new_xp)
+        index = list(u_map.keys()).index(target)  # Dicts preserve order in Python 3. Fancy.
+        xp_range = 'H' + str(index + 3)  # Could find the index in this same line, but that's messy
+        try:
+            self.char_sheet.update(xp_range, new_xp)
+        except Exception as E:
+            print(E)
+        await ctx.message.channel.send(f'{disc_user} - level submitted by {ctx.author.nick}')
+        await ctx.message.delete()
 
     @commands.command(brief='- Displays character information for a user',
                       help=GET_HELP)
     async def get(self, ctx):
+        # start = timer()
         msg = ctx.message.content[5:]
         get_args = [x.strip() for x in msg.split('.')]
         print(f'Incoming \'Get\' command. Args: {get_args}')
@@ -176,6 +195,8 @@ class BPdia(commands.Cog):
         t.add_rows(send_data)
         get_message = t.draw()
 
+        # stop = timer()
+        # print(f'Get elapsed time (new): {stop - start}')
         await ctx.send("`" + get_message + "`")
         await ctx.message.delete()
 
@@ -187,28 +208,27 @@ class BPdia(commands.Cog):
         else:
             target = re.sub(r'\D+', '', target)
         print(f'Incoming \'Get_Alt\' command. Args: {target}')
-        u_map = self.build_user_map()
 
-        if target not in self.user_map:
+        try:
+            target_cell = self.char_sheet.find(target, in_column=1)
+        except gspread.exceptions.CellNotFound:
             await ctx.send(
                 "'" + target + "' is not a valid input... >get for your own stats, >get @name for someone else.")
             return
 
-        header_row = 'Characters!A2:AJ2'
-        index = list(u_map.keys()).index(target)  # Dicts preserve order in Python 3. Fancy.
-        user_row = 'Characters!A' + str(index + 3) + ':AJ' + str(index + 3)  # Probably shouldn't specify columns
+        header_row = '2:2'
+        user_row = str(target_cell.row) + ':' + str(target_cell.row)
+        data = self.char_sheet.batch_get([header_row, user_row])
 
-        header_data = self.sheet.get(SPREADSHEET_ID, header_row, "FORMATTED_VALUE")
-        header_data = header_data['values']
-        char_data = self.sheet.get(SPREADSHEET_ID, user_row, "FORMATTED_VALUE")
-        char_data = char_data['values']
-        print(f'get_alt data: {char_data}')
+        header_data = list(data[0][0])
+        char_data = list(data[1][0])
+        char_map = dict()
 
-        char_dict = {
-            header_data[i]: char_data[i] for i in range(len(header_data))
-        }
+        for i in range(len(header_data)):
+            if header_data[i] != '':  # Parse out some empty columns
+                char_map[header_data[i]] = str(char_data[i]).replace('*', '1')  # No idea why data is returned like this
 
-        table = build_table(char_data[0], self.get_cl(target))
+        table = build_table(char_map)  # This is where the fun stuff lives, tbh
         await ctx.send("`" + table + "`")
         await ctx.message.delete()
 
@@ -356,13 +376,11 @@ class BPdia(commands.Cog):
                       help=LOG_HELP)
     @commands.check(is_tracker)
     async def log_alt(self, ctx, *log_args):
-
         start = timer()
         command_data = []
         display_errors = []
         self.user_map = self.build_user_map()
-        # msg = ctx.message.content[5:]
-        # log_args = [x.strip() for x in msg.split('.')]
+
         print(f'{str(ctx.message.created_at)} - Incoming \'Log\' command from {ctx.message.author.name}'
               f'. Args: {log_args}')  # TODO: This should log actual time, not message time
         log_args = list(filter(lambda a: a != '.', log_args))
@@ -453,7 +471,10 @@ class BPdia(commands.Cog):
             command_data.append([self.get_cl(target_id)])  # Because the sheet formatting has to be a little extra
             command_data.append([self.update_asl()])
             print(f'DATA: {command_data}')  # TODO: Turn this into a proper logging statement
+            flat_data = flatten(command_data)
             self.sheet.add(SPREADSHEET_ID, 'Log!A2', command_data, "COLUMNS")
+            self.log_sheet.append_row(flat_data, value_input_option='USER_ENTERED',
+                                      insert_data_option='INSERT_ROWS', table_range='A2')
             stop = timer()
             print(f'Elapsed time: {stop - start}')
             await ctx.message.channel.send(f'{log_args} - log_alt submitted by {ctx.author.nick}')
@@ -506,6 +527,30 @@ class BPdia(commands.Cog):
         await ctx.message.delete()
         await ctx.message.channel.send(ctx.message.content[8:] + ' - create submitted by ' + ctx.author.nick)
 
+    @commands.command(brief='- Creates a new character on the BPdia sheet',
+                      help=CREATE_HELP)
+    @commands.check(is_council)
+    async def create_new(self, ctx, *args):
+        data = list(args)
+        print(f'Incoming \'Create\' command. Args: {data}')
+
+        if not len(data) == 5:  # [@user, name, faction, class, starting gp]
+            # Error case
+            await ctx.message.channel.send(INPUT_ERROR)
+            return
+
+        data[0] = re.sub(r'\D+', '', data[0])
+        data.extend(['', '', 0])
+        initial_log_data = ['Blind Prophet', str(ctx.message.created_at), str(data[0]), 'BONUS', 'Initial',
+                            0, 0, 1, int(self.update_asl())]
+
+        self.char_sheet.append_row(data, value_input_option='USER_ENTERED',
+                                   insert_data_option='INSERT_ROWS', table_range='A3')
+        self.log_sheet.append_row(initial_log_data, insert_data_option='INSERT_ROWS', table_range='A2')
+
+        await ctx.message.delete()
+        await ctx.message.channel.send(f'{data} - create submitted by {ctx.author.nick}')
+
     # --------------------------- #
     # Helper functions
     # --------------------------- #
@@ -516,18 +561,29 @@ class BPdia(commands.Cog):
         return server_level
 
     def build_user_map(self):
+        # start = timer()
         XPLIST_RANGE = 'Characters!I3:I'
         USERLIST_RANGE = 'Characters!A3:A'
         xp_list = self.sheet.get(SPREADSHEET_ID, XPLIST_RANGE, "FORMATTED_VALUE")
         user_list = self.sheet.get(SPREADSHEET_ID, USERLIST_RANGE, "UNFORMATTED_VALUE")
         user_list = user_list['values']
         xp_list = xp_list['values']
+        # stop = timer()
+        # print(f'Elapsed time (old): {stop - start}')
 
         return {  # Using fancy dictionary comprehension to make the dict
             str(key[0]): value[0] for key, value in zip(user_list, xp_list)
         }
 
+    def alt_user_map(self):
+        USERLIST_RANGE = 'A3:A'
+        XPLIST_RANGE = 'I3:I'
+        results = self.char_sheet.batch_get([USERLIST_RANGE, XPLIST_RANGE])
+
+        return {  # Using fancy dictionary comprehension to make the dict
+            str(key[0]): int(value[0]) for key, value in zip(results[0], results[1])
+        }
+
     def get_cl(self, charid):
         character_level = self.user_map[charid]
-        # print(f'ID: {charid}, Level (XP): {character_level}')
         return 1 + int((int(character_level) / 1000))

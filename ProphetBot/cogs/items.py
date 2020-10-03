@@ -1,10 +1,12 @@
 from attr import attrs
 from discord.ext import commands
+import gspread
 from os import listdir
 from ProphetBot.helpers import *
 from ProphetBot.localsettings import *
 from ProphetBot.cogs.mod.gsheet import gsheet
 from texttable import Texttable
+from timeit import default_timer as timer
 import re
 import random
 
@@ -53,11 +55,17 @@ class Items(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.sheet = gsheet()
-        self.weapons_map = self.build_map(INV_SPREADSHEET_ID, 'Weapons!A2:H')
-        self.armor_map = self.build_map(INV_SPREADSHEET_ID, 'Armor!A2:H')
-        self.consumable_map = self.build_map(INV_SPREADSHEET_ID, 'Consumables!A2:E')
-        self.scroll_map = self.build_map(INV_SPREADSHEET_ID, 'Scrolls!A2:J')
-        self.wondrous_map = self.build_map(INV_SPREADSHEET_ID, 'Wondrous!A2:F')
+        self.weapons_map = dict()
+        self.armor_map = dict()
+        self.consumable_map = dict()
+        self.scroll_map = dict()
+        self.wondrous_map = dict()
+        try:
+            self.drive = gspread.service_account(filename=GOOGLE_SA_JSON)
+            self.inv_sheet = self.drive.open_by_key(INV_SPREADSHEET_ID)
+            self.build_maps()
+        except Exception as E:
+            print(f'Exception: {type(E)} when trying to use service account')
 
         print(f'Cog \'Items\' loaded')
 
@@ -140,7 +148,6 @@ class Items(commands.Cog):
             table.add_rows(sort_stock(armor_data), header=False)
 
         elif shop_type.upper() in ['MAGIC', 'WONDROUS']:
-            # wondrous_stock = roll_stock(self.wondrous_map, rarity_ind=1, cost_ind=5, max_qty=1)
             wondrous_stock = roll_stock(self.wondrous_map, max_qty=1)
             print(f'Magic Stock: {wondrous_stock}')
             table.header(['Item', 'Qty', 'Cost'])
@@ -243,10 +250,13 @@ class Items(commands.Cog):
         await ctx.send(table)
         await ctx.message.delete()
 
-    def build_map(self, sheet_id, sheet_range):
-        result_list = self.sheet.get(sheet_id, sheet_range, "FORMATTED_VALUE")
-        result_list = result_list['values']
-        print(f'{result_list}')
-        return {  # Using fancy dictionary comprehension to make the dict
-            item[0]: item[1:] for item in result_list
-        }
+    def build_maps(self):
+        result_dict = self.inv_sheet.values_batch_get(list(['Weapons!A2:H', 'Armor!A2:H', 'Consumables!A2:E',
+                                                            'Scrolls!A2:J', 'Wondrous!A2:F']))
+        values_list = result_dict['valueRanges']  # This result is something beautiful
+
+        self.weapons_map = {item[0]: item[1:] for item in values_list[0]['values']}
+        self.armor_map = {item[0]: item[1:] for item in values_list[1]['values']}
+        self.consumable_map = {item[0]: item[1:] for item in values_list[2]['values']}
+        self.scroll_map = {item[0]: item[1:] for item in values_list[3]['values']}
+        self.wondrous_map = {item[0]: item[1:] for item in values_list[4]['values']}
