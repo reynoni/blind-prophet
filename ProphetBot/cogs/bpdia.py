@@ -82,12 +82,6 @@ class BPdia(commands.Cog):
 
     @commands.command()
     @commands.check(is_admin)
-    async def expiry(self, ctx):
-        await ctx.message.channel.send(f'The Google token expires at {self.sheet.get_token_expiry()}')
-        await ctx.message.delete()
-
-    @commands.command()
-    @commands.check(is_admin)
     async def find(self, ctx, query):
 
         try:
