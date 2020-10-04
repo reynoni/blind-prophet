@@ -1,12 +1,13 @@
 import logging
 import re
 import gspread
+import discord
 from gspread import *
 from timeit import default_timer as timer
 from ProphetBot.constants import *
 from ProphetBot.localsettings import *
 from ProphetBot.cogs.mod.gsheet import gsheet
-from ProphetBot.helpers import *  # Not needed until we get decorator checks working
+from ProphetBot.helpers import *
 from discord.ext import commands
 from texttable import Texttable
 
@@ -61,9 +62,9 @@ class BPdia(commands.Cog):
             self.bpdia_sheet = self.drive.open_by_key(GSPREAD_TEST_SHEET_ID)
             self.char_sheet = self.bpdia_sheet.worksheet('Characters')
             self.log_sheet = self.bpdia_sheet.worksheet('Log')
+            self.log_archive = self.bpdia_sheet.worksheet('Archive Log')
         except Exception as E:
             print(f'Exception: {type(E)} when trying to use service account')
-        # self.ASL = self.update_asl()
         self.user_map = self.build_user_map()
 
         print(f'Cog \'BPdia\' loaded')
@@ -86,10 +87,15 @@ class BPdia(commands.Cog):
     @commands.command()
     @commands.check(is_admin)
     async def find(self, ctx, query):
-        worksheet = self.bpdia_sheet.worksheet('Characters')
-        cell = worksheet.find(str(query))
 
-        print("Found something at R%sC%s" % (cell.row, cell.col))
+        try:
+            cell = self.char_sheet.find(str(query))
+        except gspread.exceptions.CellNotFound as e:
+            print("Failed to find anything")
+            await ctx.message.channel.send(f'String \'{query}\' not found')
+            return
+
+        print("Found something at R%s, C%s" % (cell.row, cell.col))
         await ctx.message.channel.send(f'String \'{query}\' found at R{cell.row}, C{cell.col}')
 
     @commands.command(brief='- Manually levels initiates',
@@ -156,7 +162,9 @@ class BPdia(commands.Cog):
         try:
             self.char_sheet.update(xp_range, new_xp)
         except Exception as E:
-            print(E)
+            await ctx.message.channel.send(f'Error occurred while sending data to the sheet')
+            print(f'level exception: {type(E)}')
+            return
         await ctx.message.channel.send(f'{disc_user} - level submitted by {ctx.author.nick}')
         await ctx.message.delete()
 
@@ -262,6 +270,40 @@ class BPdia(commands.Cog):
 
         await ctx.message.delete()
         await ctx.channel.send("`WEEKLY RESET HAS OCCURRED.`")
+
+    @commands.command(brief='- Processes the weekly reset',
+                      help=WEEKLY_HELP)
+    # @commands.check(is_council)
+    async def weekly_test(self, ctx):
+        # Command to process the weekly reset
+        await ctx.channel.send("`Test`")
+
+        # Process pending GP/XP
+        pending_gp_xp = self.char_sheet.batch_get(['F3:F', 'I3:I'])
+        gp_total = list(pending_gp_xp[0])
+        xp_total = list(pending_gp_xp[1])
+
+        try:
+            self.char_sheet.batch_update([{
+                'range': 'E3:E',
+                'values': gp_total
+            }, {
+                'range': 'H3:H',
+                'values': xp_total
+            }])
+        except Exception as e:
+            print(type(e))
+
+        # Archive old log entries
+        pending_logs = self.log_sheet.get('A2:I')
+        try:
+            self.log_archive.append_rows(pending_logs, value_input_option='USER_ENTERED',
+                                         insert_data_option='INSERT_ROWS', table_range='A2')
+            self.bpdia_sheet.values_clear('Log!A2:I')
+        except Exception as e:
+            print(type(e))
+
+        await ctx.channel.send("`Boop`")
 
     @commands.command(brief='- Records an activity in the BPdia log',
                       help=LOG_HELP)
