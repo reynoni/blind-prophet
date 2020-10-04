@@ -2,7 +2,7 @@
 # Users - Also maybe in settings file
 from typing import Dict
 
-ADMIN_USERS = [286360249659817984, 208388527401074688]  # DON'T LET ME COMMIT THIS WITH MY ID IN THERE - Alesha
+ADMIN_USERS = [286360249659817984, 208388527401074688]
 
 # Roles - Maybe these should be in a settings file
 TRACKERS_ROLE_BP = 685693338472415309

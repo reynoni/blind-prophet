@@ -8,9 +8,9 @@ SPREADSHEET_ID = ''
 BOT_SPREADSHEET_ID = ''
 
 # Item Spreadsheets
-WEAP_ARM_SPREADSHEET_ID = ''
 INV_SPREADSHEET_ID=''
 
 # Bot Stuff
 COMMAND_PREFIX = '<'
 BOT_DESCRIPTION = 'ProphetBot - Created and maintained by Nicoalas#5232 and Alesha#0362'
+GOOGLE_SA_JSON = ''
