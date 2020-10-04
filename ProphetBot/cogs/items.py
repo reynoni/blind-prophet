@@ -1,10 +1,8 @@
-from attr import attrs
-from discord.ext import commands
 import gspread
-from os import listdir
+import os
+import json
+from discord.ext import commands
 from ProphetBot.helpers import *
-from ProphetBot.localsettings import *
-from ProphetBot.cogs.mod.gsheet import gsheet
 from texttable import Texttable
 from timeit import default_timer as timer
 import re
@@ -54,15 +52,14 @@ class Items(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.sheet = gsheet()
         self.weapons_map = dict()
         self.armor_map = dict()
         self.consumable_map = dict()
         self.scroll_map = dict()
         self.wondrous_map = dict()
         try:
-            self.drive = gspread.service_account(filename=GOOGLE_SA_JSON)
-            self.inv_sheet = self.drive.open_by_key(INV_SPREADSHEET_ID)
+            self.drive = gspread.service_account_from_dict(json.loads(os.environ['GOOGLE_SA_JSON']))
+            self.inv_sheet = self.drive.open_by_key(os.environ["INV_SPREADSHEET_ID"])
             self.build_maps()
         except Exception as E:
             print(f'Exception: {type(E)} when trying to use service account')

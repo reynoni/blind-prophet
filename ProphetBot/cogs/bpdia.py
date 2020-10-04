@@ -1,8 +1,8 @@
 import logging
 import re
 import gspread
-import discord
-from gspread import *
+import os
+import json
 from timeit import default_timer as timer
 from ProphetBot.constants import *
 from ProphetBot.localsettings import *
@@ -58,12 +58,13 @@ class BPdia(commands.Cog):
         self.bot = bot
         self.sheet = gsheet()
         try:
-            self.drive = gspread.service_account(filename=GOOGLE_SA_JSON)
-            self.bpdia_sheet = self.drive.open_by_key(GSPREAD_TEST_SHEET_ID)
+            self.drive = gspread.service_account_from_dict(json.loads(os.environ['GOOGLE_SA_JSON']))
+            self.bpdia_sheet = self.drive.open_by_key(os.environ['SPREADSHEET_ID'])
             self.char_sheet = self.bpdia_sheet.worksheet('Characters')
             self.log_sheet = self.bpdia_sheet.worksheet('Log')
             self.log_archive = self.bpdia_sheet.worksheet('Archive Log')
         except Exception as E:
+            print(E)
             print(f'Exception: {type(E)} when trying to use service account')
         self.user_map = self.build_user_map()
 
@@ -273,10 +274,10 @@ class BPdia(commands.Cog):
 
     @commands.command(brief='- Processes the weekly reset',
                       help=WEEKLY_HELP)
-    # @commands.check(is_council)
+    @commands.check(is_council)
     async def weekly_test(self, ctx):
         # Command to process the weekly reset
-        await ctx.channel.send("`Test`")
+        await ctx.channel.send("`PROCESSING WEEKLY RESET`")
 
         # Process pending GP/XP
         pending_gp_xp = self.char_sheet.batch_get(['F3:F', 'I3:I'])
@@ -291,8 +292,9 @@ class BPdia(commands.Cog):
                 'range': 'H3:H',
                 'values': xp_total
             }])
-        except Exception as e:
-            print(type(e))
+        except gspread.exceptions.APIError:
+            await ctx.channel.send("Error: Trouble getting GP/XP values. Aborting.")
+            return
 
         # Archive old log entries
         pending_logs = self.log_sheet.get('A2:I')
@@ -300,10 +302,12 @@ class BPdia(commands.Cog):
             self.log_archive.append_rows(pending_logs, value_input_option='USER_ENTERED',
                                          insert_data_option='INSERT_ROWS', table_range='A2')
             self.bpdia_sheet.values_clear('Log!A2:I')
-        except Exception as e:
-            print(type(e))
+        except gspread.exceptions.APIError:
+            await ctx.channel.send("Error: Trouble archiving log entries. Aborting.")
+            return
 
-        await ctx.channel.send("`Boop`")
+        await ctx.message.delete()
+        await ctx.channel.send("`WEEKLY RESET HAS OCCURRED.`")
 
     @commands.command(brief='- Records an activity in the BPdia log',
                       help=LOG_HELP)
