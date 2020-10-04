@@ -324,7 +324,7 @@ class BPdia(commands.Cog):
 
         args = list(filter(lambda a: a != '.', args))
         args.insert(1, activity)
-        await self.log_alt(ctx, *args)
+        await self.log(ctx, *args)
 
     @commands.command(brief='- Creates a new character on the BPdia sheet',
                       help=CREATE_HELP)
