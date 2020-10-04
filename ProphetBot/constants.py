@@ -1,7 +1,6 @@
-
-# Users - Also maybe in settings file
 from typing import Dict
 
+# Users
 ADMIN_USERS = [286360249659817984, 208388527401074688]
 
 # Roles - Maybe these should be in a settings file
@@ -34,7 +33,7 @@ SHOP_TYPE_ERROR = f'Error: The Shop type is unrecognized. Accepted shop types ar
 LEVEL_HELP = '@Tracker only\n\nUsage: >level @user'
 UPDATE_HELP = '@Tracker only\n\nUsage: >update'
 WEEKLY_HELP = '@Council only\n\nUsage: >weekly'
-LOG_HELP = '@Trackers only\n\nUsage: >log @Player . Activity . Result . GP . XP\n\nAccepted activity types:\n'\
+LOG_HELP = '@Trackers only\n\nUsage: >log @player activity [result] [gp] [xp]\n\nAccepted activity types:\n'\
            + str(ACTIVITY_TYPES)
 GET_HELP = 'Usage: >get [@user]\n\nIf no @user is specified, it retrieves information for the message author'
-CREATE_HELP = '@Council only\n\nUsage: >create @Player . Name . Faction . Class . Starting GP'
+CREATE_HELP = '@Council only\n\nUsage: >create @player name faction class starting_GP'
