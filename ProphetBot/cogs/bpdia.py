@@ -5,7 +5,6 @@ import os
 import json
 from timeit import default_timer as timer
 from ProphetBot.constants import *
-from ProphetBot.cogs.mod.gsheet import gsheet
 from ProphetBot.helpers import *
 from discord.ext import commands
 from texttable import Texttable
