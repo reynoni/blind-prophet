@@ -38,12 +38,12 @@ WEEKLY_HELP = '@Council only\n\n' \
               'Usage: >weekly'
 LOG_HELP = '**@Trackers only**\n\n' \
            'Logs an activity for a user.\n\n' \
-           'General Usage: `>log @player activity [result] [gp] [xp]`\n\n' \
-           'RP: `>log @player rp`\n - Logs a RP for @player' \
-           'Arena: `>log @player arena win\n` - Logs an arena win for @player' \
-           'Pit: `>log @player pit loss`\n - Logs a pit loss for @player' \
+           'General Usage: `>log @player activity [result] [gp] [xp]`\n' \
+           'RP: `>log @player rp` - Logs a RP for @player\n' \
+           'Arena: `>log @player arena win` - Logs an arena win for @player\n' \
+           'Pit: `>log @player pit loss` - Logs a pit loss for @player\n' \
            'Bonus: `>log @player bonus \'because reasons\' 25 25` - Logs a bonus for @player with reason' \
-           ' \'because reasons\' and GP/XP values of 25' \
+           ' \'because reasons\' and GP/XP values of 25\n\n' \
            'Accepted activity types:\n' + str(ACTIVITY_TYPES)
 LOG_ALIAS_HELP = '**@Trackers** only\n\n' \
                'Shorthand for logging a particular activity. For example, \'>rp @player\' logs a RP for that player,' \
