@@ -17,7 +17,7 @@ class ProphetBot(commands.Bot):
             return
 
 
-class MyHelpCommand(commands.MinimalHelpCommand):
+class MyHelpCommand(commands.DefaultHelpCommand):
     async def send_pages(self):
         destination = self.get_destination()
         e = discord.Embed(color=discord.Color.blurple(), description='')
@@ -28,9 +28,8 @@ class MyHelpCommand(commands.MinimalHelpCommand):
 
 bot = ProphetBot(command_prefix=os.environ['COMMAND_PREFIX'],
                  description='ProphetBot - Created and maintained by Nicoalas#5232 and Alesha#0362',
-                 case_insensitive=True)
-
-bot.help_command = MyHelpCommand()
+                 case_insensitive=True,
+                 help_command=MyHelpCommand())
 
 for filename in listdir('ProphetBot/cogs'):
     if filename.endswith('.py'):
