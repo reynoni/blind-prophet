@@ -338,7 +338,7 @@ class BPdia(commands.Cog):
                             0, 0, 1, int(self.get_asl())]
 
         self.char_sheet.append_row(data, value_input_option='USER_ENTERED',
-                                   insert_data_option='INSERT_ROWS', table_range='A3')
+                                   insert_data_option='INSERT_ROWS', table_range='A2')
         self.log_sheet.append_row(initial_log_data, insert_data_option='INSERT_ROWS', table_range='A2')
 
         await ctx.message.delete()
