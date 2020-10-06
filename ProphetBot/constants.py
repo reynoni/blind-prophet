@@ -1,7 +1,6 @@
-
-# Users - Also maybe in settings file
 from typing import Dict
 
+# Users
 ADMIN_USERS = [286360249659817984, 208388527401074688]
 
 # Roles - Maybe these should be in a settings file
@@ -31,10 +30,29 @@ SHOP_TYPE_ERROR = f'Error: The Shop type is unrecognized. Accepted shop types ar
                   f'{SHOP_TYPES}'
 
 # Help Text
-LEVEL_HELP = '@Tracker only\n\nUsage: >level @user'
-UPDATE_HELP = '@Tracker only\n\nUsage: >update'
-WEEKLY_HELP = '@Council only\n\nUsage: >weekly'
-LOG_HELP = '@Trackers only\n\nUsage: >log @Player . Activity . Result . GP . XP\n\nAccepted activity types:\n'\
-           + str(ACTIVITY_TYPES)
-GET_HELP = 'Usage: >get [@user]\n\nIf no @user is specified, it retrieves information for the message author'
-CREATE_HELP = '@Council only\n\nUsage: >create @Player . Name . Faction . Class . Starting GP'
+LEVEL_HELP = '@Tracker only\n\n' \
+             'Usage: >level @user'
+UPDATE_HELP = '@Tracker only\n\n' \
+              'Usage: >update'
+WEEKLY_HELP = '@Council only\n\n' \
+              'Usage: >weekly'
+LOG_HELP = '**@Trackers only**\n\n' \
+           'Logs an activity for a user.\n\n' \
+           'General Usage: `>log @player activity [result] [gp] [xp]`\n' \
+           'RP: `>log @player rp` - Logs a RP for @player\n' \
+           'Arena: `>log @player arena win` - Logs an arena win for @player\n' \
+           'Pit: `>log @player pit loss` - Logs a pit loss for @player\n' \
+           'Bonus: `>log @player bonus \'because reasons\' 25 25` - Logs a bonus for @player with reason' \
+           ' \'because reasons\' and GP/XP values of 25\n\n' \
+           'Accepted activity types:\n' + str(ACTIVITY_TYPES)
+LOG_ALIAS_HELP = '**@Trackers** only\n\n' \
+               'Shorthand for logging a particular activity. For example, \'>rp @player\' logs a RP for that player,' \
+                ' while \'>bonus @player \"great job\" 50 50\' logs a bonus for that player with a reason of' \
+                ' \"good job\" and GP and XP values of 50\n\n' \
+               'Usage: >[activity_type] @player [result] [gp] [xp]\n\n' \
+               'Accepted activity types:\n' \
+               + str(ACTIVITY_TYPES)
+GET_HELP = 'Usage: >get [@user]\n\n' \
+           'If no @user is specified, it retrieves information for the message author'
+CREATE_HELP = '@Council only\n\n' \
+              'Usage: >create @player name faction class starting_GP'

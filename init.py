@@ -1,4 +1,5 @@
 from discord.ext import commands
+import discord
 from os import listdir, path
 import time, logging, os, sys
 from datetime import datetime
@@ -16,9 +17,20 @@ class ProphetBot(commands.Bot):
             return
 
 
+class MyHelpCommand(commands.MinimalHelpCommand):
+    async def send_pages(self):
+        destination = self.get_destination()
+        e = discord.Embed(color=discord.Color.blurple(), description='')
+        for page in self.paginator.pages:
+            e.description += page
+        await destination.send(embed=e)
+
+
 bot = ProphetBot(command_prefix=os.environ['COMMAND_PREFIX'],
                  description='ProphetBot - Created and maintained by Nicoalas#5232 and Alesha#0362',
-                 case_insensitive=True)
+                 case_insensitive=True,
+                 help_command=MyHelpCommand())
+
 for filename in listdir('ProphetBot/cogs'):
     if filename.endswith('.py'):
         bot.load_extension(f'ProphetBot.cogs.{filename[:-3]}')
