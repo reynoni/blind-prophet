@@ -3,10 +3,13 @@ import discord
 from os import listdir, path
 import time, logging, os, sys
 from datetime import datetime
+from discord import Intents
 # from ProphetBot.localsettings import *
 
 dow = datetime.date(datetime.now()).weekday()
 logging.basicConfig(level=logging.INFO, filename='log.txt')
+intents = Intents.default()
+intents.members = True
 
 
 class ProphetBot(commands.Bot):
@@ -29,7 +32,8 @@ class MyHelpCommand(commands.MinimalHelpCommand):
 bot = ProphetBot(command_prefix=os.environ['COMMAND_PREFIX'],
                  description='ProphetBot - Created and maintained by Nicoalas#5232 and Alesha#0362',
                  case_insensitive=True,
-                 help_command=MyHelpCommand())
+                 help_command=MyHelpCommand(),
+                 intents=intents)
 
 for filename in listdir('ProphetBot/cogs'):
     if filename.endswith('.py'):

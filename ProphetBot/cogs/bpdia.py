@@ -3,8 +3,10 @@ import re
 import gspread
 import os
 import json
+import discord
 from timeit import default_timer as timer
 from ProphetBot.constants import *
+from datetime import datetime
 from ProphetBot.helpers import *
 from discord.ext import commands
 from texttable import Texttable
@@ -99,7 +101,7 @@ class BPdia(commands.Cog):
     async def level(self, ctx, disc_user):
         # TODO: This duplicates XP by adding non-reset XP to reset XP
         user_map = self.get_user_map()
-        print(f'{str(ctx.message.created_at)} - Incoming \'Level\' command from {ctx.message.author.name}'
+        print(f'{str(datetime.utcnow())} - Incoming \'Level\' command from {ctx.message.author.name}'
               f'. Args: {disc_user}')
 
         target = re.sub(r'\D+', '', disc_user)
@@ -193,6 +195,25 @@ class BPdia(commands.Cog):
             await ctx.channel.send("Error: Trouble archiving log entries. Aborting.")
             return
 
+        # Process Council/Magewright bonuses
+        user_map = self.get_user_map()
+        server = ctx.guild
+        role_council = discord.utils.get(server.roles, id=COUNCIL_ROLE_BP)
+        council_ids = [member.id for member in role_council.members]
+        role_magewright = discord.utils.get(server.roles, id=680038654785093643)
+        magewright_ids = [member.id for member in role_magewright.members if member.id not in council_ids]
+        log_data = []
+        for member_id in council_ids:
+            log_data.append(['Blind Prophet', str(datetime.utcnow()), str(member_id), 'ADMIN', '',
+                             '', '', get_cl(user_map[str(member_id)]), int(self.get_asl())])
+        print(f'council logs: {log_data}')
+        for member_id in magewright_ids:
+            log_data.append(['Blind Prophet', str(datetime.utcnow()), str(member_id), 'MOD', '',
+                             '', '', get_cl(user_map[str(member_id)]), int(self.get_asl())])
+        print(f'added magewright logs: {log_data}')
+        self.log_sheet.append_rows(log_data, value_input_option='USER_ENTERED', insert_data_option='INSERT_ROWS',
+                                   table_range='A2')
+
         await ctx.message.delete()
         await ctx.channel.send("`WEEKLY RESET HAS OCCURRED.`")
 
@@ -205,7 +226,7 @@ class BPdia(commands.Cog):
         display_errors = []
         user_map = self.get_user_map()
 
-        print(f'{str(ctx.message.created_at)} - Incoming \'Log\' command from {ctx.message.author.name}'
+        print(f'{str(datetime.utcnow())} - Incoming \'Log\' command from {ctx.message.author.name}'
               f'. Args: {log_args}')  # TODO: This should log actual time, not message time
         log_args = list(filter(lambda a: a != '.', log_args))
 
@@ -241,7 +262,7 @@ class BPdia(commands.Cog):
 
             # Start off by logging the user submitting the message and the date/time
             command_data.append(ctx.message.author.name)
-            command_data.append(str(ctx.message.created_at))
+            command_data.append(str(datetime.utcnow()))
 
             # Get the user targeted by the log command
             target_id = re.sub(r'\D+', '', log_args[0])
@@ -313,7 +334,7 @@ class BPdia(commands.Cog):
         msg = str(ctx.message.content).split()
         activity = msg[0][1:]
 
-        print(f'{str(ctx.message.created_at)} - Incoming \'{activity}\' command from {ctx.message.author.name}'
+        print(f'{str(datetime.utcnow())} - Incoming \'{activity}\' command from {ctx.message.author.name}'
               f'. Args: {args}')  # TODO: This should log actual time, not message time
 
         args = list(filter(lambda a: a != '.', args))
@@ -334,7 +355,7 @@ class BPdia(commands.Cog):
 
         data[0] = re.sub(r'\D+', '', data[0])
         data.extend(['', '', 0])
-        initial_log_data = ['Blind Prophet', str(ctx.message.created_at), str(data[0]), 'BONUS', 'Initial',
+        initial_log_data = ['Blind Prophet', str(datetime.utcnow()), str(data[0]), 'BONUS', 'Initial',
                             0, 0, 1, int(self.get_asl())]
 
         self.char_sheet.append_row(data, value_input_option='USER_ENTERED',
