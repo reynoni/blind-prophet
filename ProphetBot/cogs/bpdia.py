@@ -198,19 +198,20 @@ class BPdia(commands.Cog):
         # Process Council/Magewright bonuses
         user_map = self.get_user_map()
         server = ctx.guild
+
         role_council = discord.utils.get(server.roles, id=COUNCIL_ROLE_BP)
         council_ids = [member.id for member in role_council.members]
         role_magewright = discord.utils.get(server.roles, id=680038654785093643)
         magewright_ids = [member.id for member in role_magewright.members if member.id not in council_ids]
+
         log_data = []
         for member_id in council_ids:
             log_data.append(['Blind Prophet', str(datetime.utcnow()), str(member_id), 'ADMIN', '',
                              '', '', get_cl(user_map[str(member_id)]), int(self.get_asl())])
-        print(f'council logs: {log_data}')
         for member_id in magewright_ids:
             log_data.append(['Blind Prophet', str(datetime.utcnow()), str(member_id), 'MOD', '',
                              '', '', get_cl(user_map[str(member_id)]), int(self.get_asl())])
-        print(f'added magewright logs: {log_data}')
+
         self.log_sheet.append_rows(log_data, value_input_option='USER_ENTERED', insert_data_option='INSERT_ROWS',
                                    table_range='A2')
 
