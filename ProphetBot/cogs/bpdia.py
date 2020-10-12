@@ -26,7 +26,7 @@ def build_table(data):
     character_data.append(['Wealth', data['Total GP']])
     character_data.append(['Experience', data['Total XP']])
 
-    if level > 3:
+    if level >= 3:
         character_data.append(['Div GP', data['Div GP'] + '/' + data['GP Max']])
         character_data.append(['Div XP', data['Div XP'] + '/' + data['XP Max']])
         character_data.append(['ASL Mod', data['ASL Mod']])
