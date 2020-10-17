@@ -170,11 +170,12 @@ class Items(commands.Cog):
         elif shop_type.upper() in ['SCROLL', 'SCROLLS']:
             scroll_stock = roll_stock(self.scroll_map, max_qty=2)
             print(f'Scroll Stock: {scroll_stock}')
-            table.header(['Item', 'Qty', 'Lvl'])
+            table.header(['Item (lvl)', 'Qty', 'Cost'])
 
             scroll_data = []
             for item in scroll_stock:
-                scroll_data.append([item, str(scroll_stock[item]), self.scroll_map[item][1]])
+                display_name = str(item) + ' (' + self.scroll_map[item][2] + ')'  # Appending the spell level
+                scroll_data.append([display_name, str(scroll_stock[item]), self.scroll_map[item][1]])
             table.add_rows(sort_stock(scroll_data), header=False)
 
         output = '`' + table.draw() + '`'
@@ -249,7 +250,7 @@ class Items(commands.Cog):
 
     def build_maps(self):
         result_dict = self.inv_sheet.values_batch_get(list(['Weapons!A2:H', 'Armor!A2:H', 'Consumables!A2:E',
-                                                            'Scrolls!A2:J', 'Wondrous!A2:F']))
+                                                            'Scrolls!A2:G', 'Wondrous!A2:F']))
         values_list = result_dict['valueRanges']  # This result is something beautiful
 
         self.weapons_map = {item[0]: item[1:] for item in values_list[0]['values']}
