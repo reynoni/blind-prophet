@@ -77,8 +77,8 @@ class Items(commands.Cog):
             return
 
         # We pass so many args directly from the command that this may as well be private within said command
-        # def roll_stock(item_map, rarity_ind, cost_ind, max_qty):
-        def roll_stock(item_map, max_qty):
+        # And then I added num_offset... :\
+        def roll_stock(item_map, max_qty, num_offset=0):
             print(f'roll_stock, max_cost = {max_cost}')
             rarity_value = RARITY_MAP[rarity.upper()]
             available_items = list()
@@ -93,7 +93,7 @@ class Items(commands.Cog):
                 else:
                     print(f'Item \'{key}\' excluded for exceeding cost of {max_cost}')
 
-            for i in range(num):
+            for i in range(num + num_offset):
                 rand_item = random.randint(0, len(available_items) - 1)
                 item_name = available_items[rand_item]
                 item_qty = random.randint(1, max_qty) if max_qty > 1 else 1
@@ -155,16 +155,21 @@ class Items(commands.Cog):
             table.add_rows(sort_stock(shop_data), header=False)
 
         elif shop_type.upper() in ['POTION', 'POTIONS', 'POT']:
-            potion_stock = roll_stock(self.consumable_map, max_qty=4)
+            if num > 1:  # This is so jank
+                potion_stock = {'Potion of Healing': str(random.randint(1, 4))}
+                potion_stock.update(roll_stock(self.consumable_map, max_qty=4, num_offset=-1))
+            else:
+                potion_stock = roll_stock(self.consumable_map, max_qty=4)
             print(f'Potion Stock: {potion_stock}')
             table.header(['Item', 'Qty', 'Cost'])
 
             potion_data = []
             for item in potion_stock:
-                potion_data.append([item, str(potion_stock[item]), self.consumable_map[item][1]])
-            if num > 1:  # Remove the first item and add the default healing potion in its place
-                potion_data.pop()
-                potion_data.append(['Potion of Healing', str(random.randint(1, 4)), '50'])
+                if item == 'Potion of Healing':
+                    potion_data.append([item, str(potion_stock[item]), '50'])
+                else:
+                    potion_data.append([item, str(potion_stock[item]), self.consumable_map[item][1]])
+
             table.add_rows(sort_stock(potion_data), header=False)
 
         elif shop_type.upper() in ['SCROLL', 'SCROLLS']:
