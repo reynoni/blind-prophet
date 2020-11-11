@@ -376,10 +376,8 @@ class BPdia(commands.Cog):
     def get_asl(self):
         try:
             server_level = self.char_sheet.get('B1')
-            print(server_level)
         except gspread.exceptions.APIError as E:
             print(E)
-
         return int(server_level[0][0])
 
     def get_user_map(self):
@@ -387,7 +385,6 @@ class BPdia(commands.Cog):
         XPLIST_RANGE = 'I3:I'
         try:
             results = self.char_sheet.batch_get([USERLIST_RANGE, XPLIST_RANGE])
-            print(results)
         except gspread.exceptions.APIError as E:
             print(E)
 
