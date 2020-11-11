@@ -374,13 +374,22 @@ class BPdia(commands.Cog):
     # --------------------------- #
 
     def get_asl(self):
-        server_level = self.char_sheet.get('B1')
+        try:
+            server_level = self.char_sheet.get('B1')
+            print(server_level)
+        except gspread.exceptions.APIError as E:
+            print(E)
+
         return int(server_level[0][0])
 
     def get_user_map(self):
         USERLIST_RANGE = 'A3:A'
         XPLIST_RANGE = 'I3:I'
-        results = self.char_sheet.batch_get([USERLIST_RANGE, XPLIST_RANGE])
+        try:
+            results = self.char_sheet.batch_get([USERLIST_RANGE, XPLIST_RANGE])
+            print(results)
+        except gspread.exceptions.APIError as E:
+            print(E)
 
         return {  # Using fancy dictionary comprehension to make the dict
             str(key[0]): int(value[0]) for key, value in zip(results[0], results[1])
