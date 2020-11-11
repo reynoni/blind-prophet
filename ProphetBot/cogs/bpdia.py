@@ -316,10 +316,13 @@ class BPdia(commands.Cog):
             target_id = re.sub(r'\D+', '', log_args[0])
             command_data.append(get_cl(user_map[target_id]))  # Because the sheet formatting has to be a little extra
             command_data.append(self.get_asl())
-            # print(f'DATA: {command_data}')
+            print(f'DATA: {command_data}')
             # flat_data = flatten(command_data)
-            self.log_sheet.append_row(command_data, value_input_option='USER_ENTERED',
-                                      insert_data_option='INSERT_ROWS', table_range='A2')
+            try:
+                self.log_sheet.append_row(command_data, value_input_option='USER_ENTERED',
+                                          insert_data_option='INSERT_ROWS', table_range='A2')
+            except Exception as E:
+                print(f'Exception: {E}')
             # stop = timer()
             # print(f'Elapsed time: {stop - start}')
             await ctx.message.channel.send(f'{log_args} - log_alt submitted by {ctx.author.nick}')
