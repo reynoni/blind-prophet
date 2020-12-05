@@ -364,7 +364,8 @@ class BPdia(commands.Cog):
 
         self.char_sheet.append_row(data, value_input_option='USER_ENTERED',
                                    insert_data_option='INSERT_ROWS', table_range='A2')
-        self.log_sheet.append_row(initial_log_data, insert_data_option='INSERT_ROWS', table_range='A2')
+        self.log_sheet.append_row(initial_log_data, insert_data_option='INSERT_ROWS',
+                                  value_input_option='USER_ENTERED', table_range='A2')
 
         await ctx.message.delete()
         await ctx.message.channel.send(f'{data} - create submitted by {ctx.author.nick}')

@@ -31,11 +31,11 @@ SHOP_TYPE_ERROR = f'Error: The Shop type is unrecognized. Accepted shop types ar
 
 # Help Text
 LEVEL_HELP = '@Tracker only\n\n' \
-             'Usage: >level @user'
+             'Usage: `>level @user`'
 UPDATE_HELP = '@Tracker only\n\n' \
-              'Usage: >update'
+              'Usage: `>update`'
 WEEKLY_HELP = '@Council only\n\n' \
-              'Usage: >weekly'
+              'Usage: `>weekly`'
 LOG_HELP = '**@Trackers only**\n\n' \
            'Logs an activity for a user.\n\n' \
            'General Usage: `>log @player activity [result] [gp] [xp]`\n' \
@@ -46,13 +46,13 @@ LOG_HELP = '**@Trackers only**\n\n' \
            ' \'because reasons\' and GP/XP values of 25\n\n' \
            'Accepted activity types:\n' + str(ACTIVITY_TYPES)
 LOG_ALIAS_HELP = '**@Trackers** only\n\n' \
-               'Shorthand for logging a particular activity. For example, \'>rp @player\' logs a RP for that player,' \
-                ' while \'>bonus @player \"great job\" 50 50\' logs a bonus for that player with a reason of' \
+               'Shorthand for logging a particular activity. For example, `>rp @player` logs a RP for that player,' \
+                ' while `>bonus @player \"great job\" 50 50` logs a bonus for that player with a reason of' \
                 ' \"good job\" and GP and XP values of 50\n\n' \
-               'Usage: >[activity_type] @player [result] [gp] [xp]\n\n' \
+               'Usage: `>[activity_type] @player [result] [gp] [xp]`\n\n' \
                'Accepted activity types:\n' \
                + str(ACTIVITY_TYPES)
-GET_HELP = 'Usage: >get [@user]\n\n' \
+GET_HELP = 'Usage: `>get [@user]`\n\n' \
            'If no @user is specified, it retrieves information for the message author'
 CREATE_HELP = '@Council only\n\n' \
-              'Usage: >create @player name faction class starting_GP'
+              'Usage: `>create @player name faction class starting_GP`'
