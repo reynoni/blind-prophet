@@ -29,11 +29,11 @@ class MyHelpCommand(commands.MinimalHelpCommand):
         await destination.send(embed=e)
 
 
-bot = ProphetBot(command_prefix=os.environ['COMMAND_PREFIX'],
-                 description='ProphetBot - Created and maintained by Nicoalas#5232 and Alesha#0362',
-                 case_insensitive=True,
-                 help_command=MyHelpCommand(),
-                 intents=intents)
+bot = commands.Bot(command_prefix=os.environ['COMMAND_PREFIX'],
+                   description='ProphetBot - Created and maintained by Nicoalas#5232 and Alesha#0362',
+                   case_insensitive=True,
+                   help_command=MyHelpCommand(),
+                   intents=intents)
 
 for filename in listdir('ProphetBot/cogs'):
     if filename.endswith('.py'):
