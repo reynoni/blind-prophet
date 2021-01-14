@@ -73,9 +73,8 @@ class Arenas(commands.Cog):
             return
         else:
             user_map = get_user_map(self.char_sheet)
-            print(user_map)
+
             # Creating a temporary Sheets record of this arena instance
-            # channel_role = discord.utils.get(ctx.guild.roles, name=ctx.channel.name)
             if not (channel_role := discord.utils.get(ctx.guild.roles, name=ctx.channel.name)):
                 await ctx.send(f'Error: Role @{ctx.channel.name} doesn\'t exist. '
                                f'A Council member may need to create it.')
@@ -142,11 +141,12 @@ class Arenas(commands.Cog):
         list_of_dicts = self.arenas_sheet.get_all_records(value_render_option='UNFORMATTED_VALUE')
         arena = self.get_arena(ctx.channel.id)
 
+        # Lots of error checking. Should really make some custom exceptions to raise.
         if len(members) == 0:
             await ctx.send(f'Error: One or more players must be specified. '
                            f'Use `{ctx.prefix}help arena add` for more information.')
             return
-        if not arena:
+        elif not arena:
             await ctx.send(f'Error: {ctx.channel.mention} is already in use.\n'
                            f'Use `{ctx.prefix}arena status to check the current status of this room.')
             return
@@ -187,7 +187,7 @@ class Arenas(commands.Cog):
             await ctx.send(f'Error: One or more players must be specified. '
                            f'Use `{ctx.prefix}help arena add` for more information.')
             return
-        if not arena:
+        elif not arena:
             await ctx.send(f'Error: {ctx.channel.mention} is already in use.\n'
                            f'Use `{ctx.prefix}arena status to check the current status of this room.')
             return
@@ -233,7 +233,8 @@ class Arenas(commands.Cog):
             await ctx.send(f'Error: {ctx.channel.mention} is already in use.\n'
                            f'Use `{ctx.prefix}arena status to check the current status of this room.')
             return
-        elif not ctx.author.id == arena['Host']:
+        elif not (ctx.author.id == arena['Host'] or
+                  discord.utils.get(ctx.guild.roles, name='Council') in ctx.author.roles):
             await ctx.send(f'Error: {ctx.author.mention} is not the current host of this arena.')
             return
         elif result.upper() not in ['WIN', 'LOSS']:

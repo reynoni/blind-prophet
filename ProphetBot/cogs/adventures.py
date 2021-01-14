@@ -51,7 +51,7 @@ class Adventures(commands.Cog):
         print(ctx.channel.overwrites)
 
     @commands.group(
-        name='Adventure'
+        name='Adventure_new'
     )
     async def adventure(self, ctx):
         if ctx.invoked_subcommand is None:
