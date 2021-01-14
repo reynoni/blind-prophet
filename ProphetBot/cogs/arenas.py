@@ -47,7 +47,7 @@ class Arenas(commands.Cog):
         print(f'Cog \'Arenas\' loaded')
 
     @commands.group(
-        name='arena'
+        name='arena_new'
     )
     @commands.has_role('Host')
     async def arena(self, ctx):
