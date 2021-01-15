@@ -53,7 +53,7 @@ class Arenas(commands.Cog):
     @commands.has_role('Host')
     async def arena(self, ctx):
         if ctx.invoked_subcommand is None:
-            await ctx.send(f'Missing or unrecognized subcommand for `{ctx.prefix}arena`. '
+            await ctx.send(f'Missing or unrecognized subcommand for `{ctx.prefix}arena_new`. '
                            f'Use `{ctx.prefix}help arena` for more information')
 
     @arena.command(
@@ -63,14 +63,14 @@ class Arenas(commands.Cog):
         help=f'**@Host only**\n\n'
              f'Used to start an arena match in the current channel. '
              f'This command will fail if the channel already has an arena in progress.\n\n'
-             f'Example usage: `>arena claim`, or `>arena start`'
+             f'Example usage: `>arena_new claim`, or `>arena_new start`'
     )
     @commands.has_role('Host')
     async def claim(self, ctx):
         list_of_dicts = self.arenas_sheet.get_all_records(value_render_option='UNFORMATTED_VALUE')
         if ctx.channel.id in [entry.get('Channel ID', None) for entry in list_of_dicts]:
             await ctx.send(f'Error: {ctx.channel.mention} is already in use.\n'
-                           f'Use `{ctx.prefix}arena status to check the current status of this room.')
+                           f'Use `{ctx.prefix}arena_new status to check the current status of this room.')
             return
         else:
             user_map = get_user_map(self.char_sheet)
@@ -88,8 +88,8 @@ class Arenas(commands.Cog):
                 await ctx.author.add_roles(channel_role, reason=f'{ctx.author.name} claiming {ctx.channel.name}')
                 await ctx.message.delete()
                 await ctx.send(f'Arena {ctx.channel.mention} successfully claimed by {ctx.author.mention}\n'
-                               f'Use `{ctx.prefix}arena add @player1 @player2 etc` to add players to the arena.\n'
-                               f'Alternatively, players can join with `{ctx.prefix}arena join`.')
+                               f'Use `{ctx.prefix}arena_new add @player1 @player2 etc` to add players to the arena.\n'
+                               f'Alternatively, players can join with `{ctx.prefix}arena_new join`.')
 
     @claim.error
     async def claim_error(self, ctx, error):
@@ -101,7 +101,7 @@ class Arenas(commands.Cog):
         brief='Joins an active arena',
         help='Used to join the current arena. '
              'Make sure to use this command in the channel of the arena you wish to join.\n\n'
-             'Example usage: `>arena join`'
+             'Example usage: `>arena_new join`'
     )
     async def join(self, ctx):
         # First we need to determine which arena this is, and whether it is in use.
@@ -110,7 +110,7 @@ class Arenas(commands.Cog):
 
         if not arena:
             await ctx.send(f'Error: {ctx.channel.mention} is already in use.\n'
-                           f'Use `{ctx.prefix}arena status` to check the current status of this room.')
+                           f'Use `{ctx.prefix}arena_new status` to check the current status of this room.')
             return
         else:
             if not (arena_role := discord.utils.get(ctx.guild.roles, id=arena['Role ID'])):
@@ -134,7 +134,7 @@ class Arenas(commands.Cog):
              'Used to add players to the current arena. '
              'Any number of players can be specified, each separated by a space. '
              'The host does not need to be added in this way\n\n'
-             'Example usage: `>arena add @player1 @player2 @player3`'
+             'Example usage: `>arena_new add @player1 @player2 @player3`'
     )
     @commands.has_role('Host')
     async def add(self, ctx, members: Greedy[discord.Member]):
@@ -149,7 +149,7 @@ class Arenas(commands.Cog):
             return
         elif not arena:
             await ctx.send(f'Error: {ctx.channel.mention} is already in use.\n'
-                           f'Use `{ctx.prefix}arena status to check the current status of this room.')
+                           f'Use `{ctx.prefix}arena_new status to check the current status of this room.')
             return
         elif not ctx.author.id == arena['Host']:
             await ctx.send(f'Error: {ctx.author.mention} is not the current host of this arena.')
@@ -177,7 +177,7 @@ class Arenas(commands.Cog):
              'Used to remove players from an arena. Any number of players can be specified, each separated by a space. '
              'To be used in cases where players are inactive or need to leave an arena for whatever reason.\n'
              '**Note:** Do **not** remove players in this way at the end of an arena.\n\n'
-             'Example usage: `>arena remove @player1 @player2`'
+             'Example usage: `>arena_new remove @player1 @player2`'
     )
     @commands.has_role('Host')
     async def remove(self, ctx, members: Greedy[discord.Member]):
@@ -190,7 +190,7 @@ class Arenas(commands.Cog):
             return
         elif not arena:
             await ctx.send(f'Error: {ctx.channel.mention} is already in use.\n'
-                           f'Use `{ctx.prefix}arena status to check the current status of this room.')
+                           f'Use `{ctx.prefix}arena_new status to check the current status of this room.')
             return
         elif not ctx.author.id == arena['Host']:
             await ctx.send(f'Error: {ctx.author.mention} is not the current host of this arena.')
@@ -217,7 +217,7 @@ class Arenas(commands.Cog):
              'Used to log the completion of an arena phase. Accepted `result` values are \'WIN\' or \'LOSS\' '
              '(case-insensitive). '
              'This command does **not** close out an arena or give phase bonuses.\n\n'
-             'Example usage: `>arena phase Win`'
+             'Example usage: `>arena_new phase Win`'
     )
     @commands.has_role('Host')
     async def phase(self, ctx, result: str):
@@ -232,7 +232,7 @@ class Arenas(commands.Cog):
         # Error checking
         if not arena:
             await ctx.send(f'Error: {ctx.channel.mention} is already in use.\n'
-                           f'Use `{ctx.prefix}arena status to check the current status of this room.')
+                           f'Use `{ctx.prefix}arena_new status to check the current status of this room.')
             return
         elif not (ctx.author.id == arena['Host'] or
                   discord.utils.get(ctx.guild.roles, name='Council') in ctx.author.roles):
@@ -272,7 +272,7 @@ class Arenas(commands.Cog):
                            f'  {ctx.author.mention}\n'
                            f'{result.upper()} applied to:\n'
                            f'{members_string}\n'
-                           f'If this was the final phase of the arena, be sure to use `{ctx.prefix}arena close` to '
+                           f'If this was the final phase of the arena, be sure to use `{ctx.prefix}arena_new close` to '
                            f'grant phase bonuses and mark the arena as complete!')
             await ctx.message.delete()
 
@@ -281,7 +281,7 @@ class Arenas(commands.Cog):
         brief='Closes out an active arena',
         help='**@Host only**\n\n'
              'Used to close out a completed arena. This command awards phase bonuses if applicable.\n\n'
-             'Example usage: `>arena close`'
+             'Example usage: `>arena_new close`'
     )
     @commands.has_role('Host')
     async def close(self, ctx):
@@ -291,7 +291,7 @@ class Arenas(commands.Cog):
 
         if not arena:
             await ctx.send(f'Error: {ctx.channel.mention} is already in use.\n'
-                           f'Use `{ctx.prefix}arena status to check the current status of this room.')
+                           f'Use `{ctx.prefix}arena_new status to check the current status of this room.')
             return
         elif not ctx.author.id == arena['Host']:
             await ctx.send(f'Error: {ctx.author.mention} is not the current host of this arena.')
@@ -341,7 +341,7 @@ class Arenas(commands.Cog):
         name='status',
         brief='Displays the status of the current arena',
         help='Used to show the progress of the current arena channel\n\n'
-             'Example usage: `>arena status`'
+             'Example usage: `>arena_new status`'
     )
     async def status(self, ctx):
         arena = self.get_arena(ctx.channel.id)
