@@ -26,7 +26,8 @@ def get_tier(user_map, arena_role: discord.Role, host_id: int):
     # Get a list of levels for each character in the arena
     members = [get_cl(user_map[str(member.id)]) for member in arena_role.members if not(member.id == host_id)]
     # Tier is ceil(avg/4)
-    return int(math.ceil(sum(members) / len(members)))
+    avg_level = sum(members) / len(members)
+    return int(math.ceil(avg_level/4))
 
 
 class Arenas(commands.Cog):
@@ -306,7 +307,7 @@ class Arenas(commands.Cog):
                             f'**Phases Completed:** {arena["Phases"]}\n\n' \
 
             # Get the tier and apply rewards if appropriate
-            if (arena['Phases'] >= arena['Tier']) and (arena['Tier'] > 1):
+            if (arena['Phases'] >= arena['Tier']/4) and (arena['Tier'] > 1):
                 log_data = []
                 for member in arena_role.members:
                     if not member.id == arena['Host']:
@@ -377,6 +378,7 @@ class Arenas(commands.Cog):
         return None
 
     def update_tier(self, user_map, arena_role: discord.Role, host_id: int, list_of_arenas):
+        # Get the updated tier (avg player level / 4) and write it to the sheet
         for item in list_of_arenas:
             if item.get('Role ID', None) == arena_role.id:
                 item['Tier'] = get_tier(user_map, arena_role, host_id)
