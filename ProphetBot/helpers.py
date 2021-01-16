@@ -1,4 +1,5 @@
 from ProphetBot.constants import *
+from datetime import datetime
 import discord.utils
 import gspread
 
@@ -39,3 +40,7 @@ def get_user_map(char_sheet):
 
 def get_cl(char_xp):
     return 1 + int((int(char_xp) / 1000))
+
+
+def sheetstr(time: datetime) -> str:
+    return time.strftime('%d/%m/%Y %H:%M:%S')

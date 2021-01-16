@@ -127,6 +127,10 @@ class Arenas(commands.Cog):
 
             await ctx.message.delete()
 
+    @join.error
+    async def join_error(self, ctx, error):
+        print(f'Error: {error}')
+
     @arena.command(
         name='add',
         brief='Adds player(s) to an active arena',
