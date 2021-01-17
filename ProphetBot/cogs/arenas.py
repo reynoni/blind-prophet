@@ -50,7 +50,6 @@ class Arenas(commands.Cog):
     @commands.group(
         name='arena_new'
     )
-    @commands.has_role('Host')
     async def arena(self, ctx):
         if ctx.invoked_subcommand is None:
             await ctx.send(f'Missing or unrecognized subcommand for `{ctx.prefix}arena_new`. '
