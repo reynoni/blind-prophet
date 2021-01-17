@@ -9,7 +9,7 @@ def is_tracker(ctx):
 
 
 def is_council(ctx):
-    council_role = discord.utils.get(ctx.guild.roles, name='The Council')
+    council_role = discord.utils.get(ctx.guild.roles, name='Council')
     return council_role in ctx.message.author.roles
     # return {COUNCIL_ROLE, COUNCIL_ROLE_BP}.intersection(map(lambda role: role.id, ctx.message.author.roles))
 

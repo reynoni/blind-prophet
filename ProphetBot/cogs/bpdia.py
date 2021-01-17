@@ -97,7 +97,7 @@ class BPdia(commands.Cog):
 
     @commands.command(brief='- Manually levels initiates',
                       help=LEVEL_HELP)
-    @commands.check(is_tracker)
+    @commands.has_role('Tracker')
     async def level(self, ctx, disc_user):
         # TODO: This duplicates XP by adding non-reset XP to reset XP
         user_map = self.get_user_map()
@@ -163,7 +163,7 @@ class BPdia(commands.Cog):
 
     @commands.command(brief='- Processes the weekly reset',
                       help=WEEKLY_HELP)
-    @commands.check(is_council)
+    @commands.has_role('Council')
     async def weekly(self, ctx):
         # Command to process the weekly reset
         await ctx.channel.send("`PROCESSING WEEKLY RESET`")
@@ -220,7 +220,7 @@ class BPdia(commands.Cog):
 
     @commands.command(brief='- Records an activity in the BPdia log',
                       help=LOG_HELP)
-    @commands.check(is_tracker)
+    @commands.has_role('Tracker')
     async def log(self, ctx, *log_args):
         # start = timer()
         command_data = []
@@ -333,7 +333,7 @@ class BPdia(commands.Cog):
 
     @commands.command(brief='- Alias for logging a RP', aliases=ACTIVITY_TYPES,
                       help=LOG_ALIAS_HELP)
-    @commands.check(is_tracker)
+    @commands.has_role('Tracker')
     async def log_alias(self, ctx, *args):
         msg = str(ctx.message.content).split()
         activity = msg[0][1:]
@@ -347,7 +347,7 @@ class BPdia(commands.Cog):
 
     @commands.command(brief='- Creates a new character on the BPdia sheet',
                       help=CREATE_HELP)
-    @commands.check(is_council)
+    @commands.has_role('Council')
     async def create(self, ctx, *args):
         data = list(args)
         print(f'Incoming \'Create\' command. Args: {data}')
