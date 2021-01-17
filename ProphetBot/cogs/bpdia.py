@@ -331,7 +331,7 @@ class BPdia(commands.Cog):
             for error in display_errors:
                 await ctx.message.channel.send(error)
 
-    @commands.command(brief='- Alias for logging a RP', aliases=ACTIVITY_TYPES,
+    @commands.command(brief='- Alias for logging an activity', aliases=ACTIVITY_TYPES,
                       help=LOG_ALIAS_HELP)
     @commands.has_role('Tracker')
     async def log_alias(self, ctx, *args):

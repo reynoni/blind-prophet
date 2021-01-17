@@ -15,6 +15,9 @@ def setup(bot):
 
 
 def format_lod(list_of_dicts):
+    # Format a gspread list of dicts into a list of lists so that we can write it back to the worksheet.
+    # No idea why we can fetch data as a LoD, but not write it using that same format
+    # Only works for entries on the 'Arenas' sheet
     formatted = []
     for item in list_of_dicts:
         formatted.append([str(item['Role ID']), str(item['Channel ID']),
@@ -266,7 +269,9 @@ class Arenas(commands.Cog):
             # Update the Arenas record (number of phases only goes up on a win)
             for arena in list_of_dicts:
                 if (arena['Channel ID'] == ctx.channel.id) and (result.upper() != 'LOSS'):
+                    print(f'Current phases completed: {arena["Phases"]}')
                     arena['Phases'] += 1
+                    print(f'New phases completed: {arena["Phases"]}')
 
             self.arenas_sheet.update('A2:E', format_lod(list_of_dicts))
 
@@ -303,6 +308,7 @@ class Arenas(commands.Cog):
             user_map = get_user_map(self.char_sheet)
             asl = int(get_asl(self.char_sheet))
             arena_role = discord.utils.get(ctx.guild.roles, id=arena['Role ID'])
+            print(f'Arena to be closed: {arena}')
 
             # Create the common part of the close message
             close_message = f'{ctx.channel.mention} complete!\n\n' \
@@ -310,7 +316,7 @@ class Arenas(commands.Cog):
                             f'**Phases Completed:** {arena["Phases"]}\n\n' \
 
             # Get the tier and apply rewards if appropriate
-            if (arena['Phases'] >= arena['Tier']/4) and (arena['Tier'] > 1):
+            if (arena['Phases'] >= arena['Tier']) and (arena['Tier'] > 1):
                 log_data = []
                 for member in arena_role.members:
                     if not member.id == arena['Host']:
@@ -320,9 +326,9 @@ class Arenas(commands.Cog):
                 self.log_sheet.append_rows(log_data, value_input_option='RAW',
                                            insert_data_option='INSERT_ROWS', table_range='A1')
 
-                close_message += f'Phase bonus applied to:\n'  # todo: fill this out
+                close_message += f'Phase bonus applied to:\n'
                 for member in arena_role.members:
-                    close_message += f' {member.id}\n'
+                    close_message += f' {member.nick}\n'
                 close_message += '\n'
 
             # Time to clean up the role and sheet
