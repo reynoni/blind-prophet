@@ -97,7 +97,7 @@ class BPdia(commands.Cog):
 
     @commands.command(brief='- Manually levels initiates',
                       help=LEVEL_HELP)
-    @commands.has_role('Tracker')
+    @commands.has_any_role('Tracker', 'Magewright')
     async def level(self, ctx, disc_user):
         # TODO: This duplicates XP by adding non-reset XP to reset XP
         user_map = self.get_user_map()
@@ -220,7 +220,7 @@ class BPdia(commands.Cog):
 
     @commands.command(brief='- Records an activity in the BPdia log',
                       help=LOG_HELP)
-    @commands.has_role('Tracker')
+    @commands.has_any_role('Tracker', 'Magewright')
     async def log(self, ctx, *log_args):
         # start = timer()
         command_data = []
@@ -333,7 +333,7 @@ class BPdia(commands.Cog):
 
     @commands.command(brief='- Alias for logging an activity', aliases=ACTIVITY_TYPES,
                       help=LOG_ALIAS_HELP)
-    @commands.has_role('Tracker')
+    @commands.has_any_role('Tracker', 'Magewright')
     async def log_alias(self, ctx, *args):
         msg = str(ctx.message.content).split()
         activity = msg[0][1:]
@@ -347,7 +347,7 @@ class BPdia(commands.Cog):
 
     @commands.command(brief='- Creates a new character on the BPdia sheet',
                       help=CREATE_HELP)
-    @commands.has_role('Council')
+    @commands.has_any_role('Tracker', 'Magewright')
     async def create(self, ctx, *args):
         data = list(args)
         print(f'Incoming \'Create\' command. Args: {data}')
