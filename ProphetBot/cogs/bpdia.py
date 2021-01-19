@@ -82,6 +82,10 @@ class BPdia(commands.Cog):
         await ctx.message.delete()
 
     @commands.command()
+    async def time(self, ctx):
+        await ctx.send(f'Current time (in UTC): {sheetstr(datetime.utcnow())}')
+
+    @commands.command()
     @commands.check(is_admin)
     async def find(self, ctx, query):
 

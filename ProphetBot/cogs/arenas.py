@@ -263,7 +263,7 @@ class Arenas(commands.Cog):
                     members_string += f'  {member.mention}\n'
 
             # Actually send the data
-            self.log_sheet.append_rows(log_data, value_input_option='RAW',
+            self.log_sheet.append_rows(log_data, value_input_option='USER_ENTERED',
                                        insert_data_option='INSERT_ROWS', table_range='A1')
 
             # Update the Arenas record (number of phases only goes up on a win)
@@ -323,7 +323,7 @@ class Arenas(commands.Cog):
                         log_data.append(['Blind Prophet', str(datetime.utcnow()), str(member.id), 'ARENA',
                                          'P'+str(arena['Phases']), '', '', get_cl(user_map[str(member.id)]), asl])
 
-                self.log_sheet.append_rows(log_data, value_input_option='RAW',
+                self.log_sheet.append_rows(log_data, value_input_option='USER_ENTERED',
                                            insert_data_option='INSERT_ROWS', table_range='A1')
 
                 close_message += f'Phase bonus applied to:\n'
