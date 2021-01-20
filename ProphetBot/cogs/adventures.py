@@ -83,18 +83,16 @@ class Adventures(commands.Cog):
             overwrites = dict()
             overwrites[adventure_role] = discord.PermissionOverwrite(view_channel=True)
             print('Created role overwrites')
-            # overwrites[discord.utils.get(ctx.guild.roles, name="Dungeon Master")] = discord.PermissionOverwrite(
-            #     manage_channels=True,
-            #     manage_messages=True,
-            # )
-            # print('Created DM overwrites')
+            overwrites[discord.utils.get(ctx.guild.roles, name="Loremaster")] = discord.PermissionOverwrite(
+                view_channel=True
+            )
             overwrites[discord.utils.get(ctx.guild.roles, name="Bots")] = discord.PermissionOverwrite(
                 view_channel=True,
                 send_messages=True,
             )
             print('Created Bots overwrites')
             overwrites[ctx.guild.default_role] = discord.PermissionOverwrite(view_channel=False)
-            print(f'Created {ctx.guild.default_role.id} overwrites')
+            print(f'Created {ctx.guild.default_role.name} overwrites')
 
             # Add DMs to the role & let them manage messages in their channels
             for dm in dms:
@@ -217,6 +215,7 @@ class Adventures(commands.Cog):
     async def addroom_errors(self, ctx, error):
         if isinstance(error, commands.NoPrivateMessage):
             await ctx.send('Error: Command cannot be used via private messages')
+        print(error)
 
     @adventure.command(
         name='status'
