@@ -230,10 +230,7 @@ class Arenas(commands.Cog):
         # First we need to determine which arena this is, and whether it is in use.
         # In this case we need the list_of_dicts later, so we aren't using self.get_arena()
         list_of_dicts = self.arenas_sheet.get_all_records(value_render_option='UNFORMATTED_VALUE')
-        arena = None
-        for item in list_of_dicts:
-            if item.get('Channel ID', None) == ctx.channel.id:
-                arena = item
+        arena = self.get_arena(ctx.channel.id, list_of_dicts)
 
         # Error checking
         if not arena:
@@ -267,15 +264,16 @@ class Arenas(commands.Cog):
                                        insert_data_option='INSERT_ROWS', table_range='A1')
 
             # Update the Arenas record (number of phases only goes up on a win)
-            for arena in list_of_dicts:
-                if (arena['Channel ID'] == ctx.channel.id) and (result.upper() != 'LOSS'):
-                    print(f'Current phases completed: {arena["Phases"]}')
-                    arena['Phases'] += 1
-                    print(f'New phases completed: {arena["Phases"]}')
+            # todo: this is jank and I don't like it
+            if result.upper() != 'LOSS':
+                arena['Phases'] += 1
+                display_phases = arena['Phases']
+            else:
+                display_phases = arena['Phases'] + 1
 
             self.arenas_sheet.update('A2:E', format_lod(list_of_dicts))
 
-            await ctx.send(f'**Phase {arena["Phases"]} complete!**\n\n'
+            await ctx.send(f'**Phase {display_phases} complete!**\n\n'
                            f'HOST award applied to:\n'
                            f'  {ctx.author.mention}\n'
                            f'{result.upper()} applied to:\n'
