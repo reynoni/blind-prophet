@@ -3,14 +3,8 @@ from typing import Dict
 # Users
 ADMIN_USERS = [286360249659817984, 208388527401074688]
 
-# Roles - Maybe these should be in a settings file
-TRACKERS_ROLE_BP = 685693338472415309
-COUNCIL_ROLE_BP = 679752344157945949
-TRACKERS_ROLE = 728637444114874379
-COUNCIL_ROLE = 728637447340032062
-
 # Misc
-ACTIVITY_TYPES = ["RP", "ARENA", "PIT", "BUY", "SELL", "GLOBAL", "BONUS", "QUEST", "CAMPAIGN", "ADVENTURE",
+ACTIVITY_TYPES = ["RP", "ARENA_OLD", "PIT", "BUY", "SELL", "GLOBAL", "BONUS", "QUEST", "CAMPAIGN", "ADVENTURE",
                   "SHOP", "SHOPKEEP", "MOD", "ADMIN"]
 SHOP_TYPES = ['BLACKSMITH', 'CONSUMABLE', 'MAGIC', 'WONDROUS', 'POTION', 'POTIONS', 'SCROLL', 'SCROLLS', 'WEAPON',
               'WEAPONS', 'ARMOR', 'ARMORS', 'ARMOUR', 'ARMOURS']
@@ -47,8 +41,8 @@ LOG_HELP = '**@Trackers only**\n\n' \
            'Accepted activity types:\n' + str(ACTIVITY_TYPES)
 LOG_ALIAS_HELP = '**@Trackers** only\n\n' \
                'Shorthand for logging a particular activity. For example, `>rp @player` logs a RP for that player,' \
-                ' while `>bonus @player \"great job\" 50 50` logs a bonus for that player with a reason of' \
-                ' \"good job\" and GP and XP values of 50\n\n' \
+               ' while `>bonus @player \"great job\" 50 50` logs a bonus for that player with a reason of' \
+               ' \"good job\" and GP and XP values of 50\n\n' \
                'Usage: `>[activity_type] @player [result] [gp] [xp]`\n\n' \
                'Accepted activity types:\n' \
                + str(ACTIVITY_TYPES)
