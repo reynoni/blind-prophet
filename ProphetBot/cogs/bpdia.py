@@ -203,9 +203,9 @@ class BPdia(commands.Cog):
         user_map = self.get_user_map()
         server = ctx.guild
 
-        role_council = discord.utils.get(server.roles, id=COUNCIL_ROLE_BP)
+        role_council = discord.utils.get(server.roles, name='Council')
         council_ids = [member.id for member in role_council.members]
-        role_magewright = discord.utils.get(server.roles, id=680038654785093643)
+        role_magewright = discord.utils.get(server.roles, name='Magewright')
         magewright_ids = [member.id for member in role_magewright.members if member.id not in council_ids]
 
         log_data = []
