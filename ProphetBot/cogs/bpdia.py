@@ -224,7 +224,7 @@ class BPdia(commands.Cog):
 
     @commands.command(brief='- Records an activity in the BPdia log',
                       help=LOG_HELP)
-    @commands.has_any_role('Tracker', 'Magewright')
+    @commands.has_any_role('Tracker', 'Magewright', 'Loremaster')
     async def log(self, ctx, *log_args):
         # start = timer()
         command_data = []
@@ -337,7 +337,7 @@ class BPdia(commands.Cog):
 
     @commands.command(brief='- Alias for logging an activity', aliases=ACTIVITY_TYPES,
                       help=LOG_ALIAS_HELP)
-    @commands.has_any_role('Tracker', 'Magewright')
+    @commands.has_any_role('Tracker', 'Magewright', 'Loremaster')
     async def log_alias(self, ctx, *args):
         msg = str(ctx.message.content).split()
         activity = msg[0][1:]

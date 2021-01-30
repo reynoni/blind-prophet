@@ -52,7 +52,9 @@ class Arenas(commands.Cog):
 
     @commands.group(
         name='arena',
-        aliases=['ar']
+        aliases=['ar'],
+        help='Command group used for Arena tracking. '
+             'Use `>help arena [subcommand]` for detailed information on using that subcommand.'
     )
     async def arena(self, ctx):
         if ctx.invoked_subcommand is None:
@@ -142,6 +144,9 @@ class Arenas(commands.Cog):
              'Used to add players to the current arena. '
              'Any number of players can be specified, each separated by a space. '
              'The host does not need to be added in this way\n\n'
+             '*Args:*\n'
+             '  `members`: The player(s) to be added. Formatted as any number of mentions or Discord IDs.\n'
+             '\n'
              'Example usage: `>arena add @player1 @player2 @player3`'
     )
     @commands.has_role('Host')
@@ -186,6 +191,9 @@ class Arenas(commands.Cog):
              'Used to remove players from an arena. Any number of players can be specified, each separated by a space. '
              'To be used in cases where players are inactive or need to leave an arena for whatever reason.\n'
              '**Note:** Do **not** remove players in this way at the end of an arena.\n\n'
+             '*Args:*\n'
+             '  `members`: The player(s) to be removed. Formatted as any number of mentions or Discord IDs.\n'
+             '\n'
              'Example usage: `>arena remove @player1 @player2`'
     )
     @commands.has_role('Host')
@@ -224,9 +232,12 @@ class Arenas(commands.Cog):
         aliases=['p'],
         brief='Ends an arena phase',
         help='**@Host only**\n\n'
-             'Used to log the completion of an arena phase. Accepted `result` values are \'WIN\' or \'LOSS\' '
-             '(case-insensitive). '
+             'Used to log the completion of an arena phase. '
              'This command does **not** close out an arena or give phase bonuses.\n\n'
+             '*Args:*\n'
+             '  `result`: The result of the arena as a case-insensitive string. '
+             'Accepted values are \'WIN\' or \'LOSS\'\n'
+             '\n'
              'Example usage: `>arena phase Win`'
     )
     @commands.has_role('Host')
