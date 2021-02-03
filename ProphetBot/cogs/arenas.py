@@ -185,7 +185,7 @@ class Arenas(commands.Cog):
 
     @arena.command(
         name='remove',
-        aliases=['r'],
+        aliases=['re'],
         brief='Removes player(s) from an active arena',
         help='**@Host only**\n\n'
              'Used to remove players from an arena. Any number of players can be specified, each separated by a space. '
@@ -218,8 +218,8 @@ class Arenas(commands.Cog):
                 return
             else:
                 for member in members:
-                    if arena_role in member.roles:
-                        await ctx.send(f'{member.mention} is already a part of {ctx.channel.mention}, skipping')
+                    if not(arena_role in member.roles):
+                        await ctx.send(f'{member.mention} is not a member of {ctx.channel.mention}, skipping')
                     else:
                         await member.remove_roles(arena_role, reason=f'{member.name} removed from {arena_role} by '
                                                                      f'{ctx.author.name}')
