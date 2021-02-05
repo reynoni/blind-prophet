@@ -238,7 +238,7 @@ class Arenas(commands.Cog):
              '  `result`: The result of the arena as a case-insensitive string. '
              'Accepted values are \'WIN\' or \'LOSS\'\n'
              '\n'
-             'Example usage: `>arena phase Win`'
+             'Example usage: `>arena phase win`'
     )
     @commands.has_role('Host')
     async def phase(self, ctx, result: str):
@@ -332,17 +332,16 @@ class Arenas(commands.Cog):
             # Get the tier and apply rewards if appropriate
             if (arena['Phases'] >= arena['Tier']) and (arena['Tier'] > 1):
                 log_data = []
+                close_message += f'Phase bonus applied to:\n'
+
                 for member in arena_role.members:
                     if not member.id == arena['Host']:
+                        close_message += f' {member.nick}\n'
                         log_data.append(['Blind Prophet', str(datetime.utcnow()), str(member.id), 'ARENA',
                                          'P'+str(arena['Phases']), '', '', get_cl(user_map[str(member.id)]), asl])
 
                 self.log_sheet.append_rows(log_data, value_input_option='USER_ENTERED',
                                            insert_data_option='INSERT_ROWS', table_range='A1')
-
-                close_message += f'Phase bonus applied to:\n'
-                for member in arena_role.members:
-                    close_message += f' {member.nick}\n'
                 close_message += '\n'
 
             # Time to clean up the role and sheet
