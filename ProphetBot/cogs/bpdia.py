@@ -325,11 +325,12 @@ class BPdia(commands.Cog):
             try:
                 self.log_sheet.append_row(command_data, value_input_option='USER_ENTERED',
                                           insert_data_option='INSERT_ROWS', table_range='A2')
+                await ctx.message.channel.send(f'{log_args} - log_alt submitted by {ctx.author.nick}')
             except Exception as E:
-                print(f'Exception: {E}')
+                if isinstance(E, gspread.exceptions.APIError):
+                    await ctx.message.send('Error: Something went wrong while writing the log entry. Please try again.')
             # stop = timer()
             # print(f'Elapsed time: {stop - start}')
-            await ctx.message.channel.send(f'{log_args} - log_alt submitted by {ctx.author.nick}')
             await ctx.message.delete()
         else:
             for error in display_errors:
