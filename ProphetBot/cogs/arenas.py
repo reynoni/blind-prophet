@@ -33,6 +33,22 @@ def get_tier(user_map, arena_role: discord.Role, host_id: int):
     return int(math.ceil(avg_level/4))
 
 
+async def remove_from_board(ctx, member: discord.Member):
+
+    def predicate(message):
+        return message.author == member
+
+    arena_board = discord.utils.get(ctx.guild.channels, name='arena-board')
+    try:
+        deleted_messages = await arena_board.purge(check=predicate)
+        print(f'{len(deleted_messages)} messages by {member.display_name} deleted from #{arena_board.name}')
+    except Exception as error:
+        if isinstance(error, discord.errors.HTTPException):
+            await ctx.send(f'Warning: deleting user\'s post(s) from {arena_board.mention} failed')
+        else:
+            print(error)
+
+
 class Arenas(commands.Cog):
     # todo: Turn all the multi-line messages into Embeds
     def __init__(self, bot):
@@ -127,6 +143,7 @@ class Arenas(commands.Cog):
                 else:
                     await ctx.author.add_roles(arena_role, reason=f'{ctx.author.name} is adding themself to '
                                                                   f'{arena_role.name}')
+                    await remove_from_board(ctx, ctx.author)
                     await ctx.send(f'{ctx.author.mention} successfully added to {ctx.channel.mention}')
                     self.update_tier(get_user_map(self.char_sheet), arena_role, arena['Host'], list_of_dicts)
 
@@ -178,6 +195,7 @@ class Arenas(commands.Cog):
                     else:
                         await member.add_roles(arena_role, reason=f'{member.name} added to {arena_role} by '
                                                                   f'{ctx.author.name}')
+                        await remove_from_board(ctx, member)
                         await ctx.send(f'{member.mention} successfully added to {ctx.channel.mention}')
 
             self.update_tier(get_user_map(self.char_sheet), arena_role, arena['Host'], list_of_dicts)
