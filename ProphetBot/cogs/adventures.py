@@ -27,6 +27,10 @@ def clean_room_name(room_name: str):
     return room_name.strip().replace(' ', '-')
 
 
+def get_dms(adventure_dict):
+    return str(adventure_dict['DMs']).split(', ')
+
+
 class Adventures(commands.Cog):
 
     def __init__(self, bot):
@@ -60,10 +64,17 @@ class Adventures(commands.Cog):
 
     @adventure.command(
         name='create',
-        help=f'**@Council/Loremaster only**\n\n'
-             f'Creates a channel category and role for the adventure, as well as two private channels.'
-             f'Any number of DMs may be specified. These members will be rewarded as (co-)DMs by `a command to be '
-             f'added later` and will have access to administrative bot commands.'
+        help='**@Council/Loremaster only**\n\n'
+             'Creates a channel category and role for the adventure, as well as two private channels.'
+             'Any number of DMs may be specified. These members will be rewarded as (co-)DMs by `a command to be '
+             'added later` and will have access to administrative bot commands.\n\n'
+             '*Args:*\n'
+             '  `adventure_name`: The name of the adventure as it should show up in the category and channel names\n'
+             '  `role_name`: The name of the Role to be created for adventure participants\n'
+             '  `dms`: The DM(s) of the adventure, formatted as an @mention or as a Discord ID. '
+             'Multiple DMs should each be separated by a space.\n'
+             '\n'
+             'Example usage: `>adventure_new create \"1 Beginner Adventure\" \"Beginners\" @DM1 @DM2`'
     )
     @commands.has_any_role('Council', 'Loremaster')
     async def create(self, ctx, adventure_name: str, role_name: str, dms: Greedy[discord.Member]):
@@ -73,6 +84,9 @@ class Adventures(commands.Cog):
 
         if discord.utils.get(ctx.guild.roles, name=role_name):
             await ctx.send(f'Error: role `@{role_name}` already exists')
+            return
+        elif len(dms) == 0:
+            await ctx.send(f'Error: one or more DMs must be specified, either by @user mention or Discord ID')
             return
         else:
             adventure_role = await ctx.guild.create_role(name=role_name, mentionable=True,
@@ -92,8 +106,9 @@ class Adventures(commands.Cog):
             )
             category_perms[ctx.guild.default_role] = discord.PermissionOverwrite(view_channel=False)
 
+            ooc_overwrites = category_perms.copy()
             quester_role = discord.utils.get(ctx.guild.roles, name='Quester')
-            ooc_overwrites = {quester_role: discord.PermissionOverwrite(view_channel=True)}
+            ooc_overwrites[quester_role] = discord.PermissionOverwrite(view_channel=True)
             print('Done creating category permissions and OoC overwrites')
 
             # Add DMs to the role & let them manage messages in their channels
@@ -154,7 +169,9 @@ class Adventures(commands.Cog):
         name='add'
     )
     @commands.has_role("Dungeon Master")
-    async def add(self, ctx, adventure_role: discord.Role, members: Greedy[discord.Member]):
+    async def add(self, ctx, members: Greedy[discord.Member]):
+        adventure = self.get_adventure(ctx)
+        adventure_role = discord.utils.get(ctx.guild.roles, id=adventure['CategoryChannel ID'])
         # Adds member(s) to a given role
         if self.is_dm(adventure_role, ctx.author):
             for member in members:
@@ -187,11 +204,10 @@ class Adventures(commands.Cog):
         name='addroom'
     )
     @commands.has_role("Dungeon Master")
-    async def addroom(self, ctx, adventure_role: discord.Role, room_name: str):
-        list_of_dicts = self.adventures_sheet.get_all_records(value_render_option='UNFORMATTED_VALUE')
-        adventure = next(item for item in list_of_dicts if item['Adventure Role ID'] == adventure_role.id)
+    async def addroom(self, ctx, room_name: str):
+        adventure = self.get_adventure(ctx)
 
-        if str(ctx.author.id) not in str(adventure['DMs']).split(', '):
+        if str(ctx.author.id) not in get_dms(adventure):
             await ctx.send('Error: You are not a DM of this adventure')
         else:
             category = discord.utils.get(ctx.guild.categories, id=adventure['CategoryChannel ID'])
@@ -221,9 +237,41 @@ class Adventures(commands.Cog):
         print(error)
 
     @adventure.command(
+        name='edit_room'
+    )
+    @commands.has_role("Dungeon Master")
+    async def edit_room(self, ctx, **options):
+        adventure = self.get_adventure(ctx)
+
+        if str(ctx.author.id) not in get_dms(adventure):
+            await ctx.send('Error: You are not a DM of this adventure')
+            return
+        else:
+            channel = ctx.channel
+
+            if 'name' in options.keys():
+                await ctx.channel.edit(name=str(options['name']))
+            if 'public' in options.keys():
+                if options['public'] == False:
+                    await ctx.channel.edit(sync_permissions=True)
+                elif options['public'] == True:
+                    quester_role = discord.utils.get(ctx.guild.roles, name='Quester')
+                    await ctx.channel.edit(overwrites={quester_role: discord.PermissionOverwrite(view_channel=True)})
+                else:
+                    await ctx.send('Error: Invalid value for option \'public\'')
+
+            category = discord.utils.get(ctx.guild.categories, id=adventure['CategoryChannel ID'])
+            new_room = await category.create_text_channel(room_name, reason=f'Additional adventure room created by '
+                                                                            f'{ctx.author.name}')
+            await ctx.send(f'Room {new_room.mention} successfully created by {ctx.author.mention}')
+            await ctx.message.delete()
+
+    @adventure.command(
         name='status'
     )
-    async def adventure_status(self, ctx, adventure_role: discord.Role, members: Greedy[discord.Member] = None):
+    async def adventure_status(self, ctx, members: Greedy[discord.Member] = None):
+        adventure = self.get_adventure(ctx)
+        adventure_role = discord.utils.get(ctx.guild.roles, id=adventure['Adventure Role ID'])
         if members:
             for member in members:
                 if member not in adventure_role.members:
@@ -241,3 +289,9 @@ class Adventures(commands.Cog):
         if str(author.id) in str(adventure['DMs']).split(', '):
             return True
         return False
+
+    def get_adventure(self, ctx):
+        list_of_dicts = self.adventures_sheet.get_all_records(value_render_option='UNFORMATTED_VALUE')
+        adventure = next((item for item in list_of_dicts if item['CategoryChannel ID'] == ctx.channel.category_id),
+                         None)
+        return adventure
