@@ -25,7 +25,7 @@ def format_lod(list_of_dicts):
     return formatted
 
 
-def get_tier(user_map, arena_role: discord.Role, host_id: int):
+def get_tier(user_map, arena_role: discord.Role, host_id: int) -> int:
     # Get a list of levels for each character in the arena
     members = [get_cl(user_map[str(member.id)]) for member in arena_role.members if not(member.id == host_id)]
     # Tier is ceil(avg/4)

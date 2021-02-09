@@ -60,12 +60,12 @@ class Adventures(commands.Cog):
 
     @adventure.command(
         name='create',
-        help=f'**@Dungeon Masters only**\n\n'
+        help=f'**@Council/Loremaster only**\n\n'
              f'Creates a channel category and role for the adventure, as well as two private channels.'
-             f'Any number of DMs may be specified. These members will be rewarded as (co-)DMs by `adventure checkpoint`'
-             f'and will have access to administrative bot commands.'
+             f'Any number of DMs may be specified. These members will be rewarded as (co-)DMs by `a command to be '
+             f'added later` and will have access to administrative bot commands.'
     )
-    @commands.has_role('Council')
+    @commands.has_any_role('Council', 'Loremaster')
     async def create(self, ctx, adventure_name: str, role_name: str, dms: Greedy[discord.Member]):
 
         # Not sure if necessary, but Discord doesn't like spaces in channel names
@@ -73,6 +73,7 @@ class Adventures(commands.Cog):
 
         if discord.utils.get(ctx.guild.roles, name=role_name):
             await ctx.send(f'Error: role `@{role_name}` already exists')
+            return
         else:
             adventure_role = await ctx.guild.create_role(name=role_name, mentionable=True,
                                                          reason=f'Created by {ctx.author.nick} for adventure '
@@ -80,29 +81,30 @@ class Adventures(commands.Cog):
             print(f'Role {adventure_role} created')
 
             # Create overwrites for the new category. All channels will be synced to these overwrites
-            overwrites = dict()
-            overwrites[adventure_role] = discord.PermissionOverwrite(view_channel=True)
-            print('Created role overwrites')
-            overwrites[discord.utils.get(ctx.guild.roles, name="Loremaster")] = discord.PermissionOverwrite(
+            category_perms = dict()
+            category_perms[adventure_role] = discord.PermissionOverwrite(view_channel=True)
+            category_perms[discord.utils.get(ctx.guild.roles, name="Loremaster")] = discord.PermissionOverwrite(
                 view_channel=True
             )
-            overwrites[discord.utils.get(ctx.guild.roles, name="Bots")] = discord.PermissionOverwrite(
+            category_perms[discord.utils.get(ctx.guild.roles, name="Bots")] = discord.PermissionOverwrite(
                 view_channel=True,
                 send_messages=True,
             )
-            print('Created Bots overwrites')
-            overwrites[ctx.guild.default_role] = discord.PermissionOverwrite(view_channel=False)
-            print(f'Created {ctx.guild.default_role.name} overwrites')
+            category_perms[ctx.guild.default_role] = discord.PermissionOverwrite(view_channel=False)
+
+            quester_role = discord.utils.get(ctx.guild.roles, name='Quester')
+            ooc_overwrites = {quester_role: discord.PermissionOverwrite(view_channel=True)}
+            print('Done creating category permissions and OoC overwrites')
 
             # Add DMs to the role & let them manage messages in their channels
             for dm in dms:
                 await dm.add_roles(adventure_role, reason=f'Creating adventure {adventure_name}')
-                overwrites[dm] = discord.PermissionOverwrite(manage_messages=True)
+                category_perms[dm] = discord.PermissionOverwrite(manage_messages=True)
 
             # Create category for the adventure
             new_adventure_category = await ctx.guild.create_category_channel(
                 name=adventure_name,
-                overwrites=overwrites,
+                overwrites=category_perms,
                 reason=f'Creating category for {adventure_name}'
             )
 
@@ -115,6 +117,7 @@ class Adventures(commands.Cog):
             ooc_channel = await ctx.guild.create_text_channel(
                 name=f'{room_name}-ooc',
                 category=new_adventure_category,
+                overwrites=ooc_overwrites,
                 reason=f'Creating adventure {adventure_name} OOC Room'
             )
 
