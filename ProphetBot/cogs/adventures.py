@@ -1,21 +1,10 @@
-import logging
-import re
-import gspread
 import os
 import json
-import typing
 import discord
-import asyncio
-from timeit import default_timer as timer
 
 from discord.ext.commands import Greedy
-from discord import Guild, Role, RoleTags
-
-from ProphetBot.constants import *
-from datetime import datetime
 from ProphetBot.helpers import *
 from discord.ext import commands
-from texttable import Texttable
 
 
 def setup(bot):
