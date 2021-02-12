@@ -159,8 +159,10 @@ class Adventures(commands.Cog):
     )
     @commands.has_role("Dungeon Master")
     async def add(self, ctx, members: Greedy[discord.Member]):
+
         adventure = self.get_adventure(ctx)
-        adventure_role = discord.utils.get(ctx.guild.roles, id=adventure['CategoryChannel ID'])
+        adventure_role = discord.utils.get(ctx.guild.roles, id=adventure['Adventure Role ID'])
+
         # Adds member(s) to a given role
         if self.is_dm(adventure_role, ctx.author):
             for member in members:
