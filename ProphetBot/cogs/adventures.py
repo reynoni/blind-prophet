@@ -44,7 +44,7 @@ class Adventures(commands.Cog):
         print(ctx.channel.overwrites)
 
     @commands.group(
-        name='Adventure_new'
+        name='adventure'
     )
     async def adventure(self, ctx):
         if ctx.invoked_subcommand is None:
@@ -63,7 +63,7 @@ class Adventures(commands.Cog):
              '  `dms`: The DM(s) of the adventure, formatted as an @mention or as a Discord ID. '
              'Multiple DMs should each be separated by a space.\n'
              '\n'
-             'Example usage: `>adventure_new create \"1 Beginner Adventure\" \"Beginners\" @DM1 @DM2`'
+             'Example usage: `>adventure create \"1 Beginner Adventure\" \"Beginners\" @DM1 @DM2`'
     )
     @commands.has_any_role('Council', 'Loremaster')
     async def create(self, ctx, adventure_name: str, role_name: str, dms: Greedy[discord.Member]):
@@ -207,20 +207,6 @@ class Adventures(commands.Cog):
             await ctx.send(f'Room {new_room.mention} successfully created by {ctx.author.mention}')
             await ctx.message.delete()
 
-            # author_perms = ctx.message.channel.permissions_for(ctx.author)
-            # if not author_perms.manage_messages:
-            #     print('Things')
-            #
-            # old_channel = ctx.message.channel
-            # overwrites = old_channel.overwrites
-            # category = old_channel.category
-            # new_channel = await category.create_text_channel(
-            #     name=f'{room_name}',
-            #     overwrites=overwrites,
-            #     reason=f'Creating additional room for {adventure_role.name} - {ctx.author.name}',
-            #     position=old_channel.position
-            # )
-
     @addroom.error
     async def addroom_errors(self, ctx, error):
         if isinstance(error, commands.NoPrivateMessage):
@@ -228,37 +214,62 @@ class Adventures(commands.Cog):
         print(error)
 
     @adventure.command(
-        name='edit_room'
+        name='edit_room',
+        hidden=True  # Still in dev
     )
     @commands.has_role("Dungeon Master")
     async def edit_room(self, ctx, **options):
         adventure = self.get_adventure(ctx)
+        adventure_category = discord.utils.get(ctx.guild.categories, id=adventure['CategoryChannel ID'])
 
         if str(ctx.author.id) not in get_dms(adventure):
-            await ctx.send('Error: You are not a DM of this adventure')
+            await ctx.send('Error: You are not a DM of this adventure, '
+                           'or there is no adventure associated with this channel')
             return
         else:
-            channel = ctx.channel
+            adventure_channel = ctx.channel
 
             if 'name' in options.keys():
+                '''Changing the channel's name'''
                 await ctx.channel.edit(name=str(options['name']))
+
             if 'public' in options.keys():
-                if options['public'] == False:
+                '''Changing whether the channel is visible to the @Quester role or not'''
+                if str(options['public']).lower() == 'false':
                     await ctx.channel.edit(sync_permissions=True)
-                elif options['public'] == True:
+                elif str(options['public']).lower() == 'false':
                     quester_role = discord.utils.get(ctx.guild.roles, name='Quester')
                     await ctx.channel.edit(overwrites={quester_role: discord.PermissionOverwrite(view_channel=True)})
                 else:
                     await ctx.send('Error: Invalid value for option \'public\'')
 
-            category = discord.utils.get(ctx.guild.categories, id=adventure['CategoryChannel ID'])
-            new_room = await category.create_text_channel(room_name, reason=f'Additional adventure room created by '
-                                                                            f'{ctx.author.name}')
-            await ctx.send(f'Room {new_room.mention} successfully created by {ctx.author.mention}')
+            if 'pos' in options.keys():
+                '''Messing around with the channel's position. 0 is the top position.'''
+                if str(options['pos']).lower() == 'top':
+                    await ctx.channel.edit(position=0)
+                    for channel in adventure_category.channels:
+                        if not (channel == adventure_channel):
+                            await channel.edit(position=(channel.position + 1))
+                elif str(options['pos']).lower() == 'up':
+                    if adventure_channel.position == 0:
+                        await ctx.send('Warning: Channel position already at 0. Skipping. '
+                                       'Use `pos=top` if you wish to make this the new top channel.')
+                    else:
+                        current_pos = adventure_channel.position
+                        positions = [x.position for x in adventure_category.channels if x != adventure_channel]
+                        closest = min(positions, key=lambda x: (current_pos - x))  # Issue: This gets the *lowest*, which would be negative for channels below the current.
+                        if closest > 0:
+                            await adventure_channel.edit(position=(closest - 1))
+                        else:
+                            await ctx.send('Warning: ')
+
+
+
             await ctx.message.delete()
 
     @adventure.command(
-        name='status'
+        name='status',
+        hidden=True  # Still in dev
     )
     async def adventure_status(self, ctx, members: Greedy[discord.Member] = None):
         adventure = self.get_adventure(ctx)
@@ -266,7 +277,7 @@ class Adventures(commands.Cog):
         if members:
             for member in members:
                 if member not in adventure_role.members:
-                    await ctx.send(f'Error: <{member.mention}> not found in <{adventure_role.mention}>')
+                    await ctx.send(f'Error: <{member.mention}> not found in <{adventure_role.name}>')
                     return
         else:
             members = adventure_role.members

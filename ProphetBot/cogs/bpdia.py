@@ -4,12 +4,14 @@ import gspread
 import os
 import json
 import discord
+from sqlalchemy.orm import sessionmaker
 from timeit import default_timer as timer
 from ProphetBot.constants import *
 from datetime import datetime
 from ProphetBot.helpers import *
 from discord.ext import commands
 from texttable import Texttable
+from sqlalchemy.ext.asyncio import create_async_engine
 
 
 def setup(bot):
@@ -290,7 +292,7 @@ class BPdia(commands.Cog):
                         display_errors.append(EXTRA_FIELD_ERROR)
 
                 # Handle PIT/ARENA
-                elif activity in ['ARENA', 'PIT']:
+                elif activity in ['ARENA_OLD', 'PIT']:
                     if len(log_args) < 3 or log_args[2].upper() not in ['WIN', 'LOSS', 'HOST']:
                         display_errors.append(RESULT_ERROR)
                     else:
@@ -306,7 +308,7 @@ class BPdia(commands.Cog):
                     parse_activity('str', 'int')
 
                 # Handle QUEST/ACTIVITY/ADVENTURE, as well as BONUS/GLOBAL
-                elif activity in ['QUEST', 'ACTIVITY', 'ADVENTURE', 'BONUS', 'GLOBAL']:
+                elif activity in ['QUEST', 'ACTIVITY', 'ADVENTURE', 'BONUS', 'GLOBAL', 'CHECKPOINT']:
                     parse_activity('str', 'int', 'int')
 
                 else:
