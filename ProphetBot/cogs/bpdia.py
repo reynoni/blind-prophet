@@ -290,7 +290,7 @@ class BPdia(commands.Cog):
                         display_errors.append(EXTRA_FIELD_ERROR)
 
                 # Handle PIT/ARENA
-                elif activity in ['ARENA', 'PIT']:
+                elif activity in ['ARENA_OLD', 'PIT']:
                     if len(log_args) < 3 or log_args[2].upper() not in ['WIN', 'LOSS', 'HOST']:
                         display_errors.append(RESULT_ERROR)
                     else:
@@ -306,7 +306,7 @@ class BPdia(commands.Cog):
                     parse_activity('str', 'int')
 
                 # Handle QUEST/ACTIVITY/ADVENTURE, as well as BONUS/GLOBAL
-                elif activity in ['QUEST', 'ACTIVITY', 'ADVENTURE', 'BONUS', 'GLOBAL']:
+                elif activity in ['QUEST', 'ACTIVITY', 'CAMPAIGN', 'BONUS', 'GLOBAL']:
                     parse_activity('str', 'int', 'int')
 
                 else:

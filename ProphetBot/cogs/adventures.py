@@ -44,7 +44,7 @@ class Adventures(commands.Cog):
         print(ctx.channel.overwrites)
 
     @commands.group(
-        name='Adventure_new'
+        name='adventure'
     )
     async def adventure(self, ctx):
         if ctx.invoked_subcommand is None:
@@ -63,7 +63,7 @@ class Adventures(commands.Cog):
              '  `dms`: The DM(s) of the adventure, formatted as an @mention or as a Discord ID. '
              'Multiple DMs should each be separated by a space.\n'
              '\n'
-             'Example usage: `>adventure_new create \"1 Beginner Adventure\" \"Beginners\" @DM1 @DM2`'
+             'Example usage: `>adventure create \"1 Beginner Adventure\" \"Beginners\" @DM1 @DM2`'
     )
     @commands.has_any_role('Council', 'Loremaster')
     async def create(self, ctx, adventure_name: str, role_name: str, dms: Greedy[discord.Member]):
