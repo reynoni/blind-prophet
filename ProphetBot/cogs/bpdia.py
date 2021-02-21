@@ -55,6 +55,10 @@ def get_cl(char_xp):
     return 1 + int((int(char_xp) / 1000))
 
 
+async def test_bi(self, ctx):
+    ctx.test = 5
+
+
 class BPdia(commands.Cog):
 
     def __init__(self, bot):
@@ -81,8 +85,10 @@ class BPdia(commands.Cog):
         await ctx.message.channel.send(f'The BPdia public sheet can be found at:\n{link}')
         await ctx.message.delete()
 
+    @commands.before_invoke(test_bi)
     @commands.command()
     async def time(self, ctx):
+        print(ctx.test)
         await ctx.send(f'Current time (in UTC): {sheetstr(datetime.utcnow())}')
 
     @commands.command()
@@ -191,8 +197,9 @@ class BPdia(commands.Cog):
 
         # Archive old log entries
         pending_logs = self.log_sheet.get('A2:I')
+
         try:
-            self.log_archive.append_rows(pending_logs, value_input_option='USER_ENTERED',
+            self.log_archive.append_rows(pending_logs, value_input_option='RAW',
                                          insert_data_option='INSERT_ROWS', table_range='A2')
             self.bpdia_sheet.values_clear('Log!A2:I')
         except gspread.exceptions.APIError:
@@ -325,7 +332,7 @@ class BPdia(commands.Cog):
             try:
                 self.log_sheet.append_row(command_data, value_input_option='USER_ENTERED',
                                           insert_data_option='INSERT_ROWS', table_range='A2')
-                await ctx.message.channel.send(f'{log_args} - log_alt submitted by {ctx.author.nick}')
+                await ctx.message.channel.send(f'{log_args} - log submitted by {ctx.author.nick}')
             except Exception as E:
                 if isinstance(E, gspread.exceptions.APIError):
                     await ctx.message.send('Error: Something went wrong while writing the log entry. Please try again.')
