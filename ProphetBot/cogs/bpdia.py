@@ -199,7 +199,7 @@ class BPdia(commands.Cog):
         pending_logs = self.log_sheet.get('A2:I')
 
         try:
-            self.log_archive.append_rows(pending_logs, value_input_option='RAW',
+            self.log_archive.append_rows(pending_logs, value_input_option='USER_ENTERED',
                                          insert_data_option='INSERT_ROWS', table_range='A2')
             self.bpdia_sheet.values_clear('Log!A2:I')
         except gspread.exceptions.APIError:
