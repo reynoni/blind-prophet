@@ -4,6 +4,7 @@ import gspread
 import os
 import json
 import discord
+import discord.errors
 from timeit import default_timer as timer
 from ProphetBot.constants import *
 from datetime import datetime
@@ -360,18 +361,12 @@ class BPdia(commands.Cog):
     @commands.command(brief='- Creates a new character on the BPdia sheet',
                       help=CREATE_HELP)
     @commands.has_any_role('Tracker', 'Magewright')
-    async def create(self, ctx, *args):
-        data = list(args)
+    async def create(self, ctx, member: discord.Member, name: str, character_class: str, gp: int):
+        data = [str(member.id), name, 'Initiate', character_class, gp]
         print(f'Incoming \'Create\' command. Args: {data}')
 
-        if not len(data) == 5:  # [@user, name, faction, class, starting gp]
-            # Error case
-            await ctx.message.channel.send(INPUT_ERROR)
-            return
-
-        data[0] = re.sub(r'\D+', '', data[0])
         data.extend(['', '', 0])
-        initial_log_data = ['Blind Prophet', str(datetime.utcnow()), str(data[0]), 'BONUS', 'Initial',
+        initial_log_data = ['Blind Prophet', str(datetime.utcnow()), str(member.id), 'BONUS', 'Initial',
                             0, 0, 1, int(self.get_asl())]
 
         self.char_sheet.append_row(data, value_input_option='USER_ENTERED',
@@ -381,6 +376,16 @@ class BPdia(commands.Cog):
 
         await ctx.message.delete()
         await ctx.message.channel.send(f'{data} - create submitted by {ctx.author.nick}')
+
+    @create.error
+    async def bpdia_errors(self, ctx, error):
+        message = 'Error: {error}'
+        if isinstance(error, commands.MemberNotFound):
+            message += f' Make sure this argument is a @Mention or a Discord ID'
+        elif isinstance(error, commands.MissingAnyRole) or isinstance(error, commands.MissingRole):
+            message = f'Naughty, naughty {ctx.author.mention}'
+
+        await ctx.send(message)
 
     # --------------------------- #
     # Helper functions
