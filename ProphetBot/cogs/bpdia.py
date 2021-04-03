@@ -4,12 +4,15 @@ import gspread
 import os
 import json
 import discord
+import discord.errors
+from sqlalchemy.orm import sessionmaker
 from timeit import default_timer as timer
 from ProphetBot.constants import *
 from datetime import datetime
 from ProphetBot.helpers import *
 from discord.ext import commands
 from texttable import Texttable
+# from sqlalchemy.ext.asyncio import create_async_engine
 
 
 def setup(bot):
@@ -360,27 +363,38 @@ class BPdia(commands.Cog):
     @commands.command(brief='- Creates a new character on the BPdia sheet',
                       help=CREATE_HELP)
     @commands.has_any_role('Tracker', 'Magewright')
-    async def create(self, ctx, *args):
-        data = list(args)
+    async def create(self, ctx, member: discord.Member, name: str, character_class: str, gp: int):
+
+        data = [str(member.id), name, 'Initiate', character_class, gp]
         print(f'Incoming \'Create\' command. Args: {data}')
 
-        if not len(data) == 5:  # [@user, name, faction, class, starting gp]
-            # Error case
-            await ctx.message.channel.send(INPUT_ERROR)
+        if character_class not in ['Artificer', 'Barbarian', 'Bard', 'Cleric', 'Druid', 'Fighter', 'Monk', 'Paladin',
+                                   'Ranger', 'Rogue', 'Sorcerer', 'Warlock', 'Wizard']:
+            ctx.send(f"Error: Class \'{character_class}\' Unrecognized. Was your capitalization correct?")
             return
+        else:
+            data.extend(['', '', 0])
+            initial_log_data = ['Blind Prophet', str(datetime.utcnow()), str(member.id), 'BONUS', 'Initial',
+                                0, 0, 1, int(self.get_asl())]
 
-        data[0] = re.sub(r'\D+', '', data[0])
-        data.extend(['', '', 0])
-        initial_log_data = ['Blind Prophet', str(datetime.utcnow()), str(data[0]), 'BONUS', 'Initial',
-                            0, 0, 1, int(self.get_asl())]
+            self.char_sheet.append_row(data, value_input_option='USER_ENTERED',
+                                       insert_data_option='INSERT_ROWS', table_range='A2')
+            self.log_sheet.append_row(initial_log_data, insert_data_option='INSERT_ROWS',
+                                      value_input_option='USER_ENTERED', table_range='A2')
 
-        self.char_sheet.append_row(data, value_input_option='USER_ENTERED',
-                                   insert_data_option='INSERT_ROWS', table_range='A2')
-        self.log_sheet.append_row(initial_log_data, insert_data_option='INSERT_ROWS',
-                                  value_input_option='USER_ENTERED', table_range='A2')
+            await ctx.message.channel.send(f'{data} - create submitted by {ctx.author.nick}')
+            await ctx.message.delete()
 
-        await ctx.message.delete()
-        await ctx.message.channel.send(f'{data} - create submitted by {ctx.author.nick}')
+
+    @create.error
+    async def bpdia_errors(self, ctx, error):
+        message = 'Error: {error}'
+        if isinstance(error, commands.MemberNotFound):
+            message += f' Make sure this argument is a @Mention or a Discord ID'
+        elif isinstance(error, commands.MissingAnyRole) or isinstance(error, commands.MissingRole):
+            message = f'Naughty, naughty {ctx.author.mention}'
+
+        await ctx.send(message)
 
     # --------------------------- #
     # Helper functions

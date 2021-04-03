@@ -49,4 +49,4 @@ LOG_ALIAS_HELP = '**@Magewright/Council only**\n\n' \
 GET_HELP = 'Usage: `>get [@user]`\n\n' \
            'If no @user is specified, it retrieves information for the message author'
 CREATE_HELP = '**@Magewright/Council** only\n\n' \
-              'Usage: `>create @player name faction class starting_GP`'
+              'Usage: `>create @player name class starting_GP`'

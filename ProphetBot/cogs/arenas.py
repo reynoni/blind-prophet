@@ -162,7 +162,7 @@ class Arenas(commands.Cog):
              'Any number of players can be specified, each separated by a space. '
              'The host does not need to be added in this way\n\n'
              '*Args:*\n'
-             '  `members`: The player(s) to be added. Formatted as any number of mentions or Discord IDs.\n'
+             '  `players`: The player(s) to be added. Formatted as any number of mentions or Discord IDs.\n'
              '\n'
              'Example usage: `>arena add @player1 @player2 @player3`'
     )
@@ -210,7 +210,7 @@ class Arenas(commands.Cog):
              'To be used in cases where players are inactive or need to leave an arena for whatever reason.\n'
              '**Note:** Do **not** remove players in this way at the end of an arena.\n\n'
              '*Args:*\n'
-             '  `members`: The player(s) to be removed. Formatted as any number of mentions or Discord IDs.\n'
+             '  `players`: The player(s) to be removed. Formatted as any number of mentions or Discord IDs.\n'
              '\n'
              'Example usage: `>arena remove @player1 @player2`'
     )
