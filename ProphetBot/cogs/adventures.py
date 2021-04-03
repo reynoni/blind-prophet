@@ -288,15 +288,15 @@ class Adventures(commands.Cog):
             await ctx.message.delete()
 
     @room.command(
-        name='public',
-        aliases=['show', 'pub'],
+        name='open',
+        aliases=['show', 'public'],
         brief="Opens a channel for public viewing",
         help='**Dungeon Master only**\n\n'
              'Makes the current channel viewable by `@Quester`s.\n\n'
              '*Args:*\n'
              '**None**\n'
              '\n'
-             'Example usage: `>adventure room public`'
+             'Example usage: `>adventure room show`'
     )
     async def room_public(self, ctx):
         adventure = self.get_adventure_by_channel(ctx)
@@ -317,15 +317,15 @@ class Adventures(commands.Cog):
                 await ctx.send("Couldn't find @Quester role, weird")
 
     @room.command(
-        name='private',
-        aliases=['hide', 'priv'],
+        name='close',
+        aliases=['hide', 'private'],
         brief="Hides a channel from the public",
         help='**Dungeon Master only**\n\n'
              'Hides the current channel from `@Quester`s.\n\n'
              '*Args:*\n'
              '**None**\n'
              '\n'
-             'Example usage: `>adventure room private`'
+             'Example usage: `>adventure room close`'
     )
     async def room_private(self, ctx):
         adventure = self.get_adventure_by_channel(ctx)
