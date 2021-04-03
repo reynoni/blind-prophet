@@ -4,7 +4,6 @@ from os import listdir, path
 import time, logging, os, sys
 from datetime import datetime
 from discord import Intents
-# from ProphetBot.localsettings import *
 
 dow = datetime.date(datetime.now()).weekday()
 logging.basicConfig(level=logging.INFO, filename='log.txt')

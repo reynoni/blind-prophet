@@ -12,7 +12,7 @@ from datetime import datetime
 from ProphetBot.helpers import *
 from discord.ext import commands
 from texttable import Texttable
-from sqlalchemy.ext.asyncio import create_async_engine
+# from sqlalchemy.ext.asyncio import create_async_engine
 
 
 def setup(bot):
@@ -364,20 +364,27 @@ class BPdia(commands.Cog):
                       help=CREATE_HELP)
     @commands.has_any_role('Tracker', 'Magewright')
     async def create(self, ctx, member: discord.Member, name: str, character_class: str, gp: int):
+
         data = [str(member.id), name, 'Initiate', character_class, gp]
         print(f'Incoming \'Create\' command. Args: {data}')
 
-        data.extend(['', '', 0])
-        initial_log_data = ['Blind Prophet', str(datetime.utcnow()), str(member.id), 'BONUS', 'Initial',
-                            0, 0, 1, int(self.get_asl())]
+        if character_class not in ['Artificer', 'Barbarian', 'Bard', 'Cleric', 'Druid', 'Fighter', 'Monk', 'Paladin',
+                                   'Ranger', 'Rogue', 'Sorcerer', 'Warlock', 'Wizard']:
+            ctx.send(f"Error: Class \'{character_class}\' Unrecognized. Was your capitalization correct?")
+            return
+        else:
+            data.extend(['', '', 0])
+            initial_log_data = ['Blind Prophet', str(datetime.utcnow()), str(member.id), 'BONUS', 'Initial',
+                                0, 0, 1, int(self.get_asl())]
 
-        self.char_sheet.append_row(data, value_input_option='USER_ENTERED',
-                                   insert_data_option='INSERT_ROWS', table_range='A2')
-        self.log_sheet.append_row(initial_log_data, insert_data_option='INSERT_ROWS',
-                                  value_input_option='USER_ENTERED', table_range='A2')
+            self.char_sheet.append_row(data, value_input_option='USER_ENTERED',
+                                       insert_data_option='INSERT_ROWS', table_range='A2')
+            self.log_sheet.append_row(initial_log_data, insert_data_option='INSERT_ROWS',
+                                      value_input_option='USER_ENTERED', table_range='A2')
 
-        await ctx.message.delete()
-        await ctx.message.channel.send(f'{data} - create submitted by {ctx.author.nick}')
+            await ctx.message.channel.send(f'{data} - create submitted by {ctx.author.nick}')
+            await ctx.message.delete()
+
 
     @create.error
     async def bpdia_errors(self, ctx, error):
