@@ -100,15 +100,15 @@ class Adventures(commands.Cog):
             )
             category_perms[ctx.guild.default_role] = discord.PermissionOverwrite(view_channel=False)
 
-            ooc_overwrites = category_perms.copy()
-            quester_role = discord.utils.get(ctx.guild.roles, name='Quester')
-            ooc_overwrites[quester_role] = discord.PermissionOverwrite(view_channel=True)
-            print('Done creating category permissions and OoC overwrites')
-
             # Add DMs to the role & let them manage messages in their channels
             for dm in dms:
                 await dm.add_roles(adventure_role, reason=f'Creating adventure {adventure_name}')
                 category_perms[dm] = discord.PermissionOverwrite(manage_messages=True)
+
+            ooc_overwrites = category_perms.copy()
+            quester_role = discord.utils.get(ctx.guild.roles, name='Quester')
+            ooc_overwrites[quester_role] = discord.PermissionOverwrite(view_channel=True)
+            print('Done creating category permissions and OoC overwrites')
 
             # Create category for the adventure
             new_adventure_category = await ctx.guild.create_category_channel(
