@@ -1,10 +1,10 @@
-from attr import attrs
+import gspread
+import os
+import json
 from discord.ext import commands
-from os import listdir
 from ProphetBot.helpers import *
-from ProphetBot.localsettings import *
-from ProphetBot.cogs.mod.gsheet import gsheet
 from texttable import Texttable
+from timeit import default_timer as timer
 import re
 import random
 
@@ -52,12 +52,17 @@ class Items(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.sheet = gsheet()
-        self.weapons_map = self.build_map(INV_SPREADSHEET_ID, 'Weapons!A2:H')
-        self.armor_map = self.build_map(INV_SPREADSHEET_ID, 'Armor!A2:H')
-        self.consumable_map = self.build_map(INV_SPREADSHEET_ID, 'Consumables!A2:E')
-        self.scroll_map = self.build_map(INV_SPREADSHEET_ID, 'Scrolls!A2:J')
-        self.wondrous_map = self.build_map(INV_SPREADSHEET_ID, 'Wondrous!A2:F')
+        self.weapons_map = dict()
+        self.armor_map = dict()
+        self.consumable_map = dict()
+        self.scroll_map = dict()
+        self.wondrous_map = dict()
+        try:
+            self.drive = gspread.service_account_from_dict(json.loads(os.environ['GOOGLE_SA_JSON']))
+            self.inv_sheet = self.drive.open_by_key(os.environ["INV_SPREADSHEET_ID"])
+            self.build_maps()
+        except Exception as E:
+            print(f'Exception: {type(E)} when trying to use service account')
 
         print(f'Cog \'Items\' loaded')
 
@@ -72,8 +77,8 @@ class Items(commands.Cog):
             return
 
         # We pass so many args directly from the command that this may as well be private within said command
-        # def roll_stock(item_map, rarity_ind, cost_ind, max_qty):
-        def roll_stock(item_map, max_qty):
+        # And then I added num_offset... :\
+        def roll_stock(item_map, max_qty, num_offset=0):
             print(f'roll_stock, max_cost = {max_cost}')
             rarity_value = RARITY_MAP[rarity.upper()]
             available_items = list()
@@ -88,7 +93,7 @@ class Items(commands.Cog):
                 else:
                     print(f'Item \'{key}\' excluded for exceeding cost of {max_cost}')
 
-            for i in range(num):
+            for i in range(num + num_offset):
                 rand_item = random.randint(0, len(available_items) - 1)
                 item_name = available_items[rand_item]
                 item_qty = random.randint(1, max_qty) if max_qty > 1 else 1
@@ -140,7 +145,6 @@ class Items(commands.Cog):
             table.add_rows(sort_stock(armor_data), header=False)
 
         elif shop_type.upper() in ['MAGIC', 'WONDROUS']:
-            # wondrous_stock = roll_stock(self.wondrous_map, rarity_ind=1, cost_ind=5, max_qty=1)
             wondrous_stock = roll_stock(self.wondrous_map, max_qty=1)
             print(f'Magic Stock: {wondrous_stock}')
             table.header(['Item', 'Qty', 'Cost'])
@@ -151,26 +155,32 @@ class Items(commands.Cog):
             table.add_rows(sort_stock(shop_data), header=False)
 
         elif shop_type.upper() in ['POTION', 'POTIONS', 'POT']:
-            potion_stock = roll_stock(self.consumable_map, max_qty=4)
+            if num > 1:  # This is so jank
+                potion_stock = {'Potion of Healing': str(random.randint(1, 4))}
+                potion_stock.update(roll_stock(self.consumable_map, max_qty=4, num_offset=-1))
+            else:
+                potion_stock = roll_stock(self.consumable_map, max_qty=4)
             print(f'Potion Stock: {potion_stock}')
             table.header(['Item', 'Qty', 'Cost'])
 
             potion_data = []
             for item in potion_stock:
-                potion_data.append([item, str(potion_stock[item]), self.consumable_map[item][1]])
-            if num > 1:  # Remove the first item and add the default healing potion in its place
-                potion_data.pop()
-                potion_data.append(['Potion of Healing', str(random.randint(1, 4)), '50'])
+                if item == 'Potion of Healing':
+                    potion_data.append([item, str(potion_stock[item]), '50'])
+                else:
+                    potion_data.append([item, str(potion_stock[item]), self.consumable_map[item][1]])
+
             table.add_rows(sort_stock(potion_data), header=False)
 
         elif shop_type.upper() in ['SCROLL', 'SCROLLS']:
             scroll_stock = roll_stock(self.scroll_map, max_qty=2)
             print(f'Scroll Stock: {scroll_stock}')
-            table.header(['Item', 'Qty', 'Lvl'])
+            table.header(['Item (lvl)', 'Qty', 'Cost'])
 
             scroll_data = []
             for item in scroll_stock:
-                scroll_data.append([item, str(scroll_stock[item]), self.scroll_map[item][1]])
+                display_name = str(item) + ' (' + self.scroll_map[item][2] + ')'  # Appending the spell level
+                scroll_data.append([display_name, str(scroll_stock[item]), self.scroll_map[item][1]])
             table.add_rows(sort_stock(scroll_data), header=False)
 
         output = '`' + table.draw() + '`'
@@ -180,7 +190,10 @@ class Items(commands.Cog):
     @commands.command(aliases=['armour', 'arm'])
     async def armor(self, ctx, item_name):
         matches = [key for key in self.armor_map.keys() if item_name.lower() in key.lower()]
-        if len(matches) > 5:
+        if len(matches) == 0:
+            await ctx.send(f'Error: Search query \"{item_name}\" returned no results.')
+            return False
+        elif len(matches) > 5:
             await ctx.send(f'Search \'{item_name}\' returned {len(matches)} results. Displaying top 5.')
             matches = matches[:5]
 
@@ -193,7 +206,10 @@ class Items(commands.Cog):
     @commands.command(aliases=['weapons', 'weap'])
     async def weapon(self, ctx, item_name):
         matches = [key for key in self.weapons_map.keys() if item_name.lower() in key.lower()]
-        if len(matches) > 5:
+        if len(matches) == 0:
+            await ctx.send(f'Error: Search query \"{item_name}\" returned no results.')
+            return False
+        elif len(matches) > 5:
             await ctx.send(f'Search \'{item_name}\' returned {len(matches)} results. Displaying top 5.')
             matches = matches[:5]
 
@@ -204,10 +220,13 @@ class Items(commands.Cog):
         await ctx.send(table)
         await ctx.message.delete()
 
-    @commands.command(aliases=['magic'])
+    @commands.command(aliases=['magic', 'wonderous'])
     async def wondrous(self, ctx, item_name):
         matches = [key for key in self.wondrous_map.keys() if item_name.lower() in key.lower()]
-        if len(matches) > 5:
+        if len(matches) == 0:
+            await ctx.send(f'Error: Search query \"{item_name}\" returned no results.')
+            return False
+        elif len(matches) > 5:
             await ctx.send(f'Search \'{item_name}\' returned {len(matches)} results. Displaying top 5.')
             matches = matches[:5]
 
@@ -221,7 +240,10 @@ class Items(commands.Cog):
     @commands.command(aliases=['consumable', 'pot'])
     async def potion(self, ctx, item_name):
         matches = [key for key in self.consumable_map.keys() if item_name.lower() in key.lower()]
-        if len(matches) > 5:
+        if len(matches) == 0:
+            await ctx.send(f'Error: Search query \"{item_name}\" returned no results.')
+            return False
+        elif len(matches) > 5:
             await ctx.send(f'Search \'{item_name}\' returned {len(matches)} results. Displaying top 5.')
             matches = matches[:5]
 
@@ -231,10 +253,13 @@ class Items(commands.Cog):
         await ctx.send(table)
         await ctx.message.delete()
 
-    def build_map(self, sheet_id, sheet_range):
-        result_list = self.sheet.get(sheet_id, sheet_range, "FORMATTED_VALUE")
-        result_list = result_list['values']
-        print(f'{result_list}')
-        return {  # Using fancy dictionary comprehension to make the dict
-            item[0]: item[1:] for item in result_list
-        }
+    def build_maps(self):
+        result_dict = self.inv_sheet.values_batch_get(list(['Weapons!A2:H', 'Armor!A2:H', 'Consumables!A2:E',
+                                                            'Scrolls!A2:G', 'Wondrous!A2:F']))
+        values_list = result_dict['valueRanges']  # This result is something beautiful
+
+        self.weapons_map = {item[0]: item[1:] for item in values_list[0]['values']}
+        self.armor_map = {item[0]: item[1:] for item in values_list[1]['values']}
+        self.consumable_map = {item[0]: item[1:] for item in values_list[2]['values']}
+        self.scroll_map = {item[0]: item[1:] for item in values_list[3]['values']}
+        self.wondrous_map = {item[0]: item[1:] for item in values_list[4]['values']}

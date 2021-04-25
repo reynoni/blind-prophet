@@ -1,11 +1,14 @@
 from discord.ext import commands
+import discord
 from os import listdir, path
 import time, logging, os, sys
 from datetime import datetime
-from ProphetBot.localsettings import *
+from discord import Intents
 
 dow = datetime.date(datetime.now()).weekday()
 logging.basicConfig(level=logging.INFO, filename='log.txt')
+intents = Intents.default()
+intents.members = True
 
 
 class ProphetBot(commands.Bot):
@@ -16,7 +19,21 @@ class ProphetBot(commands.Bot):
             return
 
 
-bot = ProphetBot(command_prefix=COMMAND_PREFIX, description=BOT_DESCRIPTION, case_insensitive=True)
+class MyHelpCommand(commands.MinimalHelpCommand):
+    async def send_pages(self):
+        destination = self.get_destination()
+        e = discord.Embed(color=discord.Color.blurple(), description='')
+        for page in self.paginator.pages:
+            e.description += page
+        await destination.send(embed=e)
+
+
+bot = commands.Bot(command_prefix=os.environ['COMMAND_PREFIX'],
+                   description='ProphetBot - Created and maintained by Nicoalas#5232 and Alesha#0362',
+                   case_insensitive=True,
+                   help_command=MyHelpCommand(),
+                   intents=intents)
+
 for filename in listdir('ProphetBot/cogs'):
     if filename.endswith('.py'):
         bot.load_extension(f'ProphetBot.cogs.{filename[:-3]}')
@@ -26,4 +43,4 @@ for filename in listdir('ProphetBot/cogs'):
 async def ping(ctx):
     await ctx.send(f'Pong! Latency is {round(bot.latency * 1000)}ms.')
 
-bot.run(token, bot=True, reconnect=True)
+bot.run(os.environ['bot_token'], bot=True, reconnect=True)
