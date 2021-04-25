@@ -376,9 +376,9 @@ class BPdia(commands.Cog):
     @commands.command(brief='- Creates a new character on the BPdia sheet',
                       help=CREATE_HELP)
     @commands.has_any_role('Tracker', 'Magewright')
-    async def create(self, ctx, member: discord.Member, name: str, character_class: str, gp: int):
+    async def create(self, ctx, member: discord.Member, name: str, character_race: str, character_subrace: str, character_class: str, character_subclass: str, gp: int):
 
-        data = [str(member.id), name, 'Initiate', character_class, gp]
+        data = [str(member.id), name, 'Initiate', character_race, character_subrace, character_class, character_subclass gp]
         print(f'Incoming \'Create\' command. Args: {data}')
 
         if character_class not in ['Artificer', 'Barbarian', 'Bard', 'Cleric', 'Druid', 'Fighter', 'Monk', 'Paladin',
