@@ -145,7 +145,7 @@ class BPdia(commands.Cog):
 
         print(new_xp)
         index = list(user_map.keys()).index(target)  # Dicts preserve order in Python 3. Fancy.
-        xp_range = 'H' + str(index + 3)  # Could find the index in this same line, but that's messy
+        xp_range = 'O' + str(index + 3)  # Could find the index in this same line, but that's messy
         try:
             self.char_sheet.update(xp_range, new_xp)
         except Exception as E:
@@ -195,16 +195,16 @@ class BPdia(commands.Cog):
         await ctx.channel.send("`PROCESSING WEEKLY RESET`")
 
         # Process pending GP/XP
-        pending_gp_xp = self.char_sheet.batch_get(['F3:F', 'I3:I'])
+        pending_gp_xp = self.char_sheet.batch_get(['M3:M', 'P3:P'])
         gp_total = list(pending_gp_xp[0])
         xp_total = list(pending_gp_xp[1])
 
         try:
             self.char_sheet.batch_update([{
-                'range': 'E3:E',
+                'range': 'L3:L',
                 'values': gp_total
             }, {
-                'range': 'H3:H',
+                'range': 'O3:O',
                 'values': xp_total
             }])
         except gspread.exceptions.APIError:
@@ -422,7 +422,7 @@ class BPdia(commands.Cog):
 
     def get_user_map(self):
         USERLIST_RANGE = 'A3:A'
-        XPLIST_RANGE = 'I3:I'
+        XPLIST_RANGE = 'P3:P'
         try:
             results = self.char_sheet.batch_get([USERLIST_RANGE, XPLIST_RANGE])
         except gspread.exceptions.APIError as E:

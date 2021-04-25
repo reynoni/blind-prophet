@@ -18,7 +18,7 @@ def get_asl(char_sheet):
 
 def get_user_map(char_sheet):
     userlist_range = 'A3:A'
-    xplist_range = 'I3:I'
+    xplist_range = 'P3:P'
     try:
         results = char_sheet.batch_get([userlist_range, xplist_range])
         return {  # Using "fancy" dictionary comprehension to make the dict
