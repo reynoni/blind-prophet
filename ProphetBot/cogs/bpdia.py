@@ -23,7 +23,20 @@ def build_table(data):
     level = int(data['Level'])
     character_data = []
     character_data.append(['Name', data['Name']])
-    character_data.append(['Class', data['Class']])
+    if str(data['Subrace']):
+        character_data.append(['Race', data['Subrace'] + ' ' +data['Race']])
+    else
+        character_data.append(['Race', data['Race']])
+    if str(data['Subclass 1']):
+        character_data.append(['Class', data['Subclass 1'] + ' ' + data['Class 1']])
+    else:
+        character_data.append(['Class', data['Class 1']])
+    
+    if str(data['Class 2']):
+        if str(data['Subclass 2']):
+            character_data.append(['Class', data['Subclass 1'] + ' ' + data['Class 1']])
+        else:
+            character_data.append(['Class', data['Class 1']])
     character_data.append(['Faction', data['Faction']])
     character_data.append(['Level', data['Level']])
     character_data.append(['Wealth', data['Total GP']])
