@@ -21,7 +21,7 @@ def setup(bot):
 
 def build_table(data):
     level = int(data['Level'])
-    character_data = []
+    character_data = list()
     character_data.append(['Name', data['Name']])
     character_data.append(['Class', data['Class']])
     character_data.append(['Faction', data['Faction']])
@@ -38,10 +38,8 @@ def build_table(data):
         needed_rp = 1 if level == 1 else 2
         num_arena = int(data['L1 Arena']) if level == 1 else (int(data['L2 Arena 1/2']) + int(data['L2 Arena 2/2']))
         num_rp = int(data['L1 RP']) if level == 1 else (int(data['L2 RP 1/2']) + int(data['L2 RP 2/2']))
-        num_pit = int(data['L1 Pit']) if level == 1 else int(data['L2 Pit'])
         character_data.append(['RP', str(num_rp) + '/' + str(needed_rp)])
         character_data.append(['Arena', str(num_arena) + '/' + str(needed_arena)])
-        character_data.append(['Pit', str(num_pit) + '/1'])
 
     table = Texttable()
     table.set_cols_align(["l", "r"])
