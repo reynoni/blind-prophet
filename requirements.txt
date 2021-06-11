@@ -29,7 +29,7 @@ six==1.15.0
 texttable==1.6.2
 uritemplate==3.0.1
 urllib3==1.25.9
-websockets==8.1
+websockets==9.1
 yarl==1.4.2
 gspread==3.7.0
 # git+git://github.com/burnash/gspread@master#egg=gspread
