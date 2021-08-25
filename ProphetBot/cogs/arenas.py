@@ -1,12 +1,10 @@
-import os
-import json
-import discord
 import math
 
-from discord.ext.commands import Greedy
-from datetime import datetime
+import discord
 from discord.ext import commands
+from discord.ext.commands import Greedy
 
+from ProphetBot.bot import BP_Bot
 from ProphetBot.helpers import *
 
 
@@ -33,7 +31,7 @@ def get_tier(user_map, arena_role: discord.Role, host_id: int) -> int:
     return int(math.ceil(avg_level/4))
 
 
-async def remove_from_board(ctx, member: discord.Member):
+async def _remove_from_board(ctx, member: discord.Member):
 
     def predicate(message):
         return message.author == member
@@ -51,19 +49,10 @@ async def remove_from_board(ctx, member: discord.Member):
 
 class Arenas(commands.Cog):
     # todo: Turn all the multi-line messages into Embeds
-    def __init__(self, bot):
-        # Setting up some objects
-        self.bot = bot
-        try:
-            self.drive = gspread.service_account_from_dict(json.loads(os.environ['GOOGLE_SA_JSON']))
-            self.bpdia_sheet = self.drive.open_by_key(os.environ['SPREADSHEET_ID'])
-            self.char_sheet = self.bpdia_sheet.worksheet('Characters')
-            self.log_sheet = self.bpdia_sheet.worksheet('Log')
-            self.arenas_sheet = self.bpdia_sheet.worksheet('Arenas')
-        except Exception as E:
-            print(E)
-            print(f'Exception: {type(E)} when trying to use service account')
+    bot: BP_Bot  # Typing annotation for my IDE's sake
 
+    def __init__(self, bot):
+        self.bot = bot
         print(f'Cog \'Arenas\' loaded')
 
     @commands.group(
@@ -88,7 +77,7 @@ class Arenas(commands.Cog):
     )
     @commands.has_role('Host')
     async def claim(self, ctx):
-        list_of_dicts = self.arenas_sheet.get_all_records(value_render_option='UNFORMATTED_VALUE')
+        list_of_dicts = self.bot.sheets.arenas_sheet.get_all_records(value_render_option='UNFORMATTED_VALUE')
         if ctx.channel.id in [entry.get('Channel ID', None) for entry in list_of_dicts]:
             await ctx.send(f'Error: {ctx.channel.mention} is already in use.\n'
                            f'Use `{ctx.prefix}arena status to check the current status of this room.')
@@ -100,7 +89,7 @@ class Arenas(commands.Cog):
                 await ctx.send(f'Error: Role @{ctx.channel.name} doesn\'t exist. '
                                f'A Council member may need to create it.')
             else:
-                self.arenas_sheet.append_row([str(channel_role.id), str(ctx.channel.id),
+                self.bot.sheets.arenas_sheet.append_row([str(channel_role.id), str(ctx.channel.id),
                                               str(ctx.author.id), 0, 1],
                                              value_input_option='RAW',
                                              insert_data_option='INSERT_ROWS',
@@ -126,7 +115,7 @@ class Arenas(commands.Cog):
     )
     async def join(self, ctx):
         # First we need to determine which arena this is, and whether it is in use.
-        list_of_dicts = self.arenas_sheet.get_all_records(value_render_option='UNFORMATTED_VALUE')
+        list_of_dicts = self.bot.sheets.arenas_sheet.get_all_records(value_render_option='UNFORMATTED_VALUE')
         arena = self.get_arena(ctx.channel.id)
 
         if not arena:
@@ -143,9 +132,9 @@ class Arenas(commands.Cog):
                 else:
                     await ctx.author.add_roles(arena_role, reason=f'{ctx.author.name} is adding themself to '
                                                                   f'{arena_role.name}')
-                    await remove_from_board(ctx, ctx.author)
+                    await _remove_from_board(ctx, ctx.author)
                     await ctx.send(f'{ctx.author.mention} successfully added to {ctx.channel.mention}')
-                    self.update_tier(get_user_map(self.char_sheet), arena_role, arena['Host'], list_of_dicts)
+                    self.update_tier(get_user_map(self.bot.sheets.char_sheet), arena_role, arena['Host'], list_of_dicts)
 
             await ctx.message.delete()
 
@@ -169,7 +158,7 @@ class Arenas(commands.Cog):
     @commands.has_role('Host')
     async def add(self, ctx, members: Greedy[discord.Member]):
         # First we need to determine which arena this is, and whether it is in use.
-        list_of_dicts = self.arenas_sheet.get_all_records(value_render_option='UNFORMATTED_VALUE')
+        list_of_dicts = self.bot.sheets.arenas_sheet.get_all_records(value_render_option='UNFORMATTED_VALUE')
         arena = self.get_arena(ctx.channel.id)
 
         # Lots of error checking. Should really make some custom exceptions to raise.
@@ -195,10 +184,10 @@ class Arenas(commands.Cog):
                     else:
                         await member.add_roles(arena_role, reason=f'{member.name} added to {arena_role} by '
                                                                   f'{ctx.author.name}')
-                        await remove_from_board(ctx, member)
+                        await _remove_from_board(ctx, member)
                         await ctx.send(f'{member.mention} successfully added to {ctx.channel.mention}')
 
-            self.update_tier(get_user_map(self.char_sheet), arena_role, arena['Host'], list_of_dicts)
+            self.update_tier(get_user_map(self.bot.sheets.char_sheet), arena_role, arena['Host'], list_of_dicts)
             await ctx.message.delete()
 
     @arena.command(
@@ -262,7 +251,7 @@ class Arenas(commands.Cog):
     async def phase(self, ctx, result: str):
         # First we need to determine which arena this is, and whether it is in use.
         # In this case we need the list_of_dicts later, so we aren't using self.get_arena()
-        list_of_dicts = self.arenas_sheet.get_all_records(value_render_option='UNFORMATTED_VALUE')
+        list_of_dicts = self.bot.sheets.arenas_sheet.get_all_records(value_render_option='UNFORMATTED_VALUE')
         arena = self.get_arena(ctx.channel.id, list_of_dicts)
 
         # Error checking
@@ -278,8 +267,8 @@ class Arenas(commands.Cog):
             await ctx.send(f'Error: result must be \'win\' or \'loss\'')
             return
         else:
-            user_map = get_user_map(self.char_sheet)
-            asl = int(get_asl(self.char_sheet))
+            user_map = get_user_map(self.bot.sheets.char_sheet)
+            asl = int(get_asl(self.bot.sheets.char_sheet))
             arena_role = discord.utils.get(ctx.guild.roles, id=arena['Role ID'])
 
             # Time to build the list of lists that we will send to Sheets
@@ -293,7 +282,7 @@ class Arenas(commands.Cog):
                     members_string += f'  {member.mention}\n'
 
             # Actually send the data
-            self.log_sheet.append_rows(log_data, value_input_option='USER_ENTERED',
+            self.bot.sheets.log_sheet.append_rows(log_data, value_input_option='USER_ENTERED',
                                        insert_data_option='INSERT_ROWS', table_range='A1')
 
             # Update the Arenas record (number of phases only goes up on a win)
@@ -304,7 +293,7 @@ class Arenas(commands.Cog):
             else:
                 display_phases = arena['Phases'] + 1
 
-            self.arenas_sheet.update('A2:E', format_lod(list_of_dicts))
+            self.bot.sheets.arenas_sheet.update('A2:E', format_lod(list_of_dicts))
 
             await ctx.send(f'**Phase {display_phases} complete!**\n\n'
                            f'HOST award applied to:\n'
@@ -326,7 +315,7 @@ class Arenas(commands.Cog):
     @commands.has_role('Host')
     async def close(self, ctx):
         # First we need to determine which arena this is, and whether it is in use.
-        list_of_dicts = self.arenas_sheet.get_all_records(value_render_option='UNFORMATTED_VALUE')
+        list_of_dicts = self.bot.sheets.arenas_sheet.get_all_records(value_render_option='UNFORMATTED_VALUE')
         arena = self.get_arena(ctx.channel.id, list_of_dicts=list_of_dicts)
 
         if not arena:
@@ -337,8 +326,8 @@ class Arenas(commands.Cog):
             await ctx.send(f'Error: {ctx.author.mention} is not the current host of this arena.')
             return
         else:
-            user_map = get_user_map(self.char_sheet)
-            asl = int(get_asl(self.char_sheet))
+            user_map = get_user_map(self.bot.sheets.char_sheet)
+            asl = int(get_asl(self.bot.sheets.char_sheet))
             arena_role = discord.utils.get(ctx.guild.roles, id=arena['Role ID'])
             print(f'Arena to be closed: {arena}')
 
@@ -358,7 +347,7 @@ class Arenas(commands.Cog):
                         log_data.append(['Blind Prophet', str(datetime.utcnow()), str(member.id), 'ARENA',
                                          'P'+str(arena['Phases']), '', '', get_cl(user_map[str(member.id)]), asl])
 
-                self.log_sheet.append_rows(log_data, value_input_option='USER_ENTERED',
+                self.bot.sheets.log_sheet.append_rows(log_data, value_input_option='USER_ENTERED',
                                            insert_data_option='INSERT_ROWS', table_range='A1')
                 close_message += '\n'
 
@@ -368,8 +357,8 @@ class Arenas(commands.Cog):
 
             # Recreate the LoD without the current arena & update the sheet
             list_of_dicts = [item for item in list_of_dicts if (item['Channel ID'] != ctx.channel.id)]
-            self.arenas_sheet.delete_row(len(list_of_dicts)+2)  # Update will leave us with an extra row if we don't
-            self.arenas_sheet.update('A2:E', format_lod(list_of_dicts))
+            self.bot.sheets.arenas_sheet.delete_row(len(list_of_dicts)+2)  # Update will leave us with an extra row if we don't
+            self.bot.sheets.arenas_sheet.update('A2:E', format_lod(list_of_dicts))
 
             close_message += f'Host! Please be sure to use `!br` once RP is finished so that others ' \
                              f'know this room is available.'
@@ -412,7 +401,7 @@ class Arenas(commands.Cog):
     def get_arena(self, channel_id: int, list_of_dicts=None):
         # No point in getting the LoD again if the command already has it (for writing purposes)
         if not list_of_dicts:
-            list_of_dicts = self.arenas_sheet.get_all_records(value_render_option='UNFORMATTED_VALUE')
+            list_of_dicts = self.bot.sheets.arenas_sheet.get_all_records(value_render_option='UNFORMATTED_VALUE')
         for item in list_of_dicts:
             if item.get('Channel ID', None) == channel_id:
                 return item
@@ -423,4 +412,4 @@ class Arenas(commands.Cog):
         for item in list_of_arenas:
             if item.get('Role ID', None) == arena_role.id:
                 item['Tier'] = get_tier(user_map, arena_role, host_id)
-        self.arenas_sheet.update('A2:E', format_lod(list_of_arenas))
+        self.bot.sheets.arenas_sheet.update('A2:E', format_lod(list_of_arenas))

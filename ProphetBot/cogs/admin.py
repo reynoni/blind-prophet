@@ -1,6 +1,8 @@
 from discord.ext import commands
+from gspread.exceptions import APIError
 from os import listdir
 from ProphetBot.helpers import *
+from ProphetBot.bot import BP_Bot
 
 
 def setup(bot):
@@ -8,6 +10,7 @@ def setup(bot):
 
 
 class Admin(commands.Cog):
+    bot: BP_Bot  # Typing annotation for my IDE's sake
 
     def __init__(self, bot):
         self.bot = bot
@@ -41,6 +44,19 @@ class Admin(commands.Cog):
             self.bot.load_extension(f'ProphetBot.cogs.{ext}')
         await ctx.send("Cogs Reloaded.")
         await ctx.message.delete()
+
+    @commands.command()
+    @commands.check(is_admin)
+    async def refresh_sheets(self, ctx):
+        await ctx.trigger_typing()
+        try:
+            self.bot.sheets.reload()
+        except APIError as e:
+            await ctx.send(f"Error opening BPdia sheet(s)\n\n"
+                           f"**Details:**\n"
+                           f"{e}")
+            return
+        await ctx.send("Connection to BPdia reloaded")
 
     @commands.command()
     @commands.check(is_admin)

@@ -1,12 +1,11 @@
-import gspread
-import os
-import json
-from discord.ext import commands
-from ProphetBot.helpers import *
-from texttable import Texttable
-from timeit import default_timer as timer
-import re
 import random
+import re
+
+from discord.ext import commands
+from texttable import Texttable
+
+from ProphetBot.bot import BP_Bot
+from ProphetBot.helpers import *
 
 
 def setup(bot):
@@ -43,12 +42,12 @@ def build_table(matches, result_map, headers):
 
 def sort_stock(stock):
     # reverse = None (Sorts in Ascending order)
-    # key is set to sort using third element of
-    # sublist lambda has been used
+    # key is set to sort using third element of sublist
     return sorted(stock, key=lambda x: int(re.sub(r'\D+', '', x[2])))
 
 
 class Items(commands.Cog):
+    bot: BP_Bot  # Typing annotation for my IDE's sake
 
     def __init__(self, bot):
         self.bot = bot
@@ -57,20 +56,13 @@ class Items(commands.Cog):
         self.consumable_map = dict()
         self.scroll_map = dict()
         self.wondrous_map = dict()
-        try:
-            self.drive = gspread.service_account_from_dict(json.loads(os.environ['GOOGLE_SA_JSON']))
-            self.inv_sheet = self.drive.open_by_key(os.environ["INV_SPREADSHEET_ID"])
-            self.build_maps()
-        except Exception as E:
-            print(f'Exception: {type(E)} when trying to use service account')
-
+        self._build_item_maps()
         print(f'Cog \'Items\' loaded')
 
     @commands.command(aliases=['inv', 'i', 'roll'])
-    async def inventory(self, ctx, shop_type, rarity, num=1, max_cost=1000000):
+    async def inventory(self, ctx, shop_type, num=1, max_cost=1000000):
         print(f'Incoming \'Inventory\' command, args:\n'
               f'shop_type: {shop_type}\n'
-              f'rarity: {rarity}\n'
               f'num: {num}')
         if shop_type.upper() not in SHOP_TYPES:
             await ctx.send(SHOP_TYPE_ERROR)
@@ -80,7 +72,7 @@ class Items(commands.Cog):
         # And then I added num_offset... :\
         def roll_stock(item_map, max_qty, num_offset=0):
             print(f'roll_stock, max_cost = {max_cost}')
-            rarity_value = RARITY_MAP[rarity.upper()]
+            rarity_value = self.bot.sheets.get_tier()
             available_items = list()
             item_stock = dict()
             for key in item_map.keys():
@@ -183,13 +175,24 @@ class Items(commands.Cog):
                 scroll_data.append([display_name, str(scroll_stock[item]), self.scroll_map[item][1]])
             table.add_rows(sort_stock(scroll_data), header=False)
 
-        output = '`' + table.draw() + '`'
-        await ctx.send(output)
+        table_str = table.draw()
+
+        async def _paginate(result: str):
+            if len(result) > 1998:
+                lines = result.split('\n')
+                partial_table = '\n'.join(lines[:46])
+                await ctx.send(f'`{partial_table}`')
+                await _paginate('\n'.join(lines[46:]))
+            else:
+                await ctx.send(f'`{result}`')
+
+        await _paginate(table_str)
         await ctx.message.delete()
 
     @commands.command(aliases=['armour', 'arm'])
     async def armor(self, ctx, item_name):
         matches = [key for key in self.armor_map.keys() if item_name.lower() in key.lower()]
+
         if len(matches) == 0:
             await ctx.send(f'Error: Search query \"{item_name}\" returned no results.')
             return False
@@ -206,6 +209,7 @@ class Items(commands.Cog):
     @commands.command(aliases=['weapons', 'weap'])
     async def weapon(self, ctx, item_name):
         matches = [key for key in self.weapons_map.keys() if item_name.lower() in key.lower()]
+
         if len(matches) == 0:
             await ctx.send(f'Error: Search query \"{item_name}\" returned no results.')
             return False
@@ -223,6 +227,7 @@ class Items(commands.Cog):
     @commands.command(aliases=['magic', 'wonderous'])
     async def wondrous(self, ctx, item_name):
         matches = [key for key in self.wondrous_map.keys() if item_name.lower() in key.lower()]
+
         if len(matches) == 0:
             await ctx.send(f'Error: Search query \"{item_name}\" returned no results.')
             return False
@@ -240,6 +245,7 @@ class Items(commands.Cog):
     @commands.command(aliases=['consumable', 'pot'])
     async def potion(self, ctx, item_name):
         matches = [key for key in self.consumable_map.keys() if item_name.lower() in key.lower()]
+
         if len(matches) == 0:
             await ctx.send(f'Error: Search query \"{item_name}\" returned no results.')
             return False
@@ -253,9 +259,10 @@ class Items(commands.Cog):
         await ctx.send(table)
         await ctx.message.delete()
 
-    def build_maps(self):
-        result_dict = self.inv_sheet.values_batch_get(list(['Weapons!A2:H', 'Armor!A2:H', 'Consumables!A2:E',
-                                                            'Scrolls!A2:G', 'Wondrous!A2:F']))
+    def _build_item_maps(self):
+        result_dict = self.bot.sheets.inv_workbook.values_batch_get(list(['Weapons!A2:H', 'Armor!A2:H',
+                                                                          'Consumables!A2:E', 'Scrolls!A2:G',
+                                                                          'Wondrous!A2:F']))
         values_list = result_dict['valueRanges']  # This result is something beautiful
 
         self.weapons_map = {item[0]: item[1:] for item in values_list[0]['values']}

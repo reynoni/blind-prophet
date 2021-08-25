@@ -1,10 +1,9 @@
-import os
-import json
 import discord
-
-from discord.ext.commands import Greedy
-from ProphetBot.helpers import *
 from discord.ext import commands
+from discord.ext.commands import Greedy
+
+from ProphetBot.bot import BP_Bot
+from ProphetBot.helpers import *
 
 
 def setup(bot):
@@ -25,22 +24,11 @@ def get_dms(adventure_dict):
 
 
 class Adventures(commands.Cog):
+    bot: BP_Bot  # Typing annotation for my IDE's sake
 
     def __init__(self, bot):
         # Setting up some objects
         self.bot = bot
-        try:
-            # self.sheets = self.bot.get_cog('Sheets')
-            self.drive = gspread.service_account_from_dict(json.loads(os.environ['GOOGLE_SA_JSON']))
-            self.bpdia_sheet = self.drive.open_by_key(os.environ['SPREADSHEET_ID'])
-            self.char_sheet = self.bpdia_sheet.worksheet('Characters')
-            self.log_sheet = self.bpdia_sheet.worksheet('Log')
-            self.log_archive = self.bpdia_sheet.worksheet('Archive Log')
-            self.adventures_sheet = self.bpdia_sheet.worksheet('Adventures')
-            self.adventures_pending_rewards = self.bpdia_sheet.worksheet('Pending Rewards')
-        except Exception as E:
-            print(E)
-            print(f'Exception: {type(E)} when trying to use service account')
 
         print(f'Cog \'Adventures\' loaded')
 
@@ -134,7 +122,7 @@ class Adventures(commands.Cog):
 
             # Join up the DMs' ids into a Sheets-friendly format & write the row
             dm_ids = ', '.join([str(dm.id) for dm in dms])
-            self.adventures_sheet.append_row(
+            self.bot.sheets.adventures_sheet.append_row(
                 [str(adventure_role.id), str(new_adventure_category.id), adventure_name, dm_ids],
                 value_input_option='RAW', insert_data_option='INSERT_ROWS', table_range='A1'
             )
@@ -176,7 +164,7 @@ class Adventures(commands.Cog):
     )
     async def add(self, ctx, players: Greedy[discord.Member]):
 
-        adventure = self.get_adventure_by_channel(ctx)
+        adventure = self._get_adventure_by_channel(ctx)
 
         if str(ctx.author.id) not in get_dms(adventure):
             await ctx.send('Error: You are not a DM of this adventure, '
@@ -203,7 +191,7 @@ class Adventures(commands.Cog):
              'Example usage: `>adventure remove @Player1 @Player2`'
     )
     async def remove(self, ctx, players: Greedy[discord.Member]):
-        adventure = self.get_adventure_by_channel(ctx)
+        adventure = self._get_adventure_by_channel(ctx)
 
         if str(ctx.author.id) not in get_dms(adventure):
             await ctx.send('Error: You are not a DM of this adventure, '
@@ -234,7 +222,7 @@ class Adventures(commands.Cog):
              'Example usage: `>adventure addroom "99 Best Adventure Ever"`'
     )
     async def addroom(self, ctx, room_name: str):
-        adventure = self.get_adventure_by_channel(ctx)
+        adventure = self._get_adventure_by_channel(ctx)
 
         if str(ctx.author.id) not in get_dms(adventure):
             await ctx.send('Error: You are not a DM of this adventure, '
@@ -276,7 +264,7 @@ class Adventures(commands.Cog):
              'Example usage: `>adventure room name "99 Bestest Adventure Ever"`'
     )
     async def room_name(self, ctx, room_name: str):
-        adventure = self.get_adventure_by_channel(ctx)
+        adventure = self._get_adventure_by_channel(ctx)
 
         if str(ctx.author.id) not in get_dms(adventure):
             await ctx.send('Error: You are not a DM of this adventure, '
@@ -299,7 +287,7 @@ class Adventures(commands.Cog):
              'Example usage: `>adventure room show`'
     )
     async def room_public(self, ctx):
-        adventure = self.get_adventure_by_channel(ctx)
+        adventure = self._get_adventure_by_channel(ctx)
 
         if str(ctx.author.id) not in get_dms(adventure):
             await ctx.send('Error: You are not a DM of this adventure, '
@@ -328,7 +316,7 @@ class Adventures(commands.Cog):
              'Example usage: `>adventure room close`'
     )
     async def room_private(self, ctx):
-        adventure = self.get_adventure_by_channel(ctx)
+        adventure = self._get_adventure_by_channel(ctx)
 
         if str(ctx.author.id) not in get_dms(adventure):
             await ctx.send('Error: You are not a DM of this adventure, '
@@ -356,7 +344,7 @@ class Adventures(commands.Cog):
              'Example usage: `>adventure room move top`, `>adventure room move down`, etc'
     )
     async def room_move(self, ctx, position: str):
-        adventure = self.get_adventure_by_channel(ctx)
+        adventure = self._get_adventure_by_channel(ctx)
 
         if str(ctx.author.id) not in get_dms(adventure):
             await ctx.send('Error: You are not a DM of this adventure, '
@@ -409,14 +397,14 @@ class Adventures(commands.Cog):
     )
     @commands.has_role('Council')
     async def get_order(self, ctx):
-        self.get_channel_order(ctx.channel.category)
+        self._get_channel_order(ctx.channel.category)
 
     @adventure.command(
         name='status',
         hidden=True  # Still in dev
     )
     async def adventure_status(self, ctx, members: Greedy[discord.Member] = None):
-        adventure = self.get_adventure_by_channel(ctx)
+        adventure = self._get_adventure_by_channel(ctx)
         adventure_role = discord.utils.get(ctx.guild.roles, id=adventure['Adventure Role ID'])
         if members:
             for member in members:
@@ -430,20 +418,20 @@ class Adventures(commands.Cog):
     # /--------------Helpers----------------\
     # /-------------------------------------\
 
-    def is_dm(self, adventure_role: discord.Role, author: discord.Member):
-        list_of_dicts = self.adventures_sheet.get_all_records(value_render_option='UNFORMATTED_VALUE')
+    def _is_dm(self, adventure_role: discord.Role, author: discord.Member):
+        list_of_dicts = self.bot.sheets.adventures_sheet.get_all_records(value_render_option='UNFORMATTED_VALUE')
         adventure = next(item for item in list_of_dicts if item['Adventure Role ID'] == adventure_role.id)
         if str(author.id) in str(adventure['DMs']).split(', '):
             return True
         return False
 
-    def get_adventure_by_channel(self, ctx):
-        list_of_dicts = self.adventures_sheet.get_all_records(value_render_option='UNFORMATTED_VALUE')
+    def _get_adventure_by_channel(self, ctx):
+        list_of_dicts = self.bot.sheets.adventures_sheet.get_all_records(value_render_option='UNFORMATTED_VALUE')
         adventure = next((item for item in list_of_dicts if item['CategoryChannel ID'] == ctx.channel.category_id),
                          None)
         return adventure
 
-    def get_channel_order(self, adventure_category: discord.CategoryChannel):
+    def _get_channel_order(self, adventure_category: discord.CategoryChannel):
         channels = adventure_category.text_channels
         order = [(channel.name, channel.position) for channel in channels]
         print(order)

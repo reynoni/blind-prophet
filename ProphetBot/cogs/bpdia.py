@@ -1,17 +1,16 @@
-import logging
 import re
-import gspread
-import os
-import json
+
 import discord
 import discord.errors
-from sqlalchemy.orm import sessionmaker
-from timeit import default_timer as timer
-from ProphetBot.constants import *
-from datetime import datetime
-from ProphetBot.helpers import *
+import discord.utils
 from discord.ext import commands
+from discord.ext.commands.context import Context
 from texttable import Texttable
+
+from ProphetBot.bot import BP_Bot
+from ProphetBot.helpers import *
+from ProphetBot.models import Character
+
 # from sqlalchemy.ext.asyncio import create_async_engine
 
 
@@ -48,8 +47,122 @@ def build_table(data):
     return table.draw()
 
 
-def flatten(thicc_list):
-    return [item for sublist in thicc_list for item in sublist]
+def build_get_embed(character, member: discord.Member):
+    def _add_fields(fields):
+        for field in fields:
+            embed.add_field(name=field['name'], value=field['value'], inline=field['inline'])
+
+    embed = discord.Embed(
+        title=f'{character.name}',
+        type="rich",
+        color=0xbe0d34,
+        url=character.sheet_link
+    )
+    base_fields = [
+        {
+            'name': 'Class',
+            'value': character.character_class,
+            'inline': True
+        },
+        {
+            'name': 'Level',
+            'value': str(character.level),
+            'inline': True
+        },
+        {
+            'name': 'Faction',
+            'value': character.faction,
+            'inline': True
+        },
+        {
+            'name': discord.utils.escape_markdown('___________________________________________'),
+            'value': '\u200B',
+            'inline': False
+        },
+        {
+            'name': 'Experience',
+            'value': f'{str(character.experience)} xp',
+            'inline': True
+        },
+        {
+            'name': 'Wealth',
+            'value': f'{str(character.wealth)} gp',
+            'inline': True
+        },
+        {
+            'name': discord.utils.escape_markdown('___________________________________________'),
+            'value': '\u200B',
+            'inline': False
+        }
+    ]
+    _add_fields(base_fields)
+    embed.set_author(
+        name=f'{member.name}#{member.discriminator}',
+        icon_url=str(member.avatar_url_as())
+    )
+    if character.image_link:
+        embed.set_thumbnail(url=character.image_link)
+    else:
+        embed.set_thumbnail(url=str(member.avatar_url_as()))
+    if character.level < 3:
+        intro_fields = [
+            {
+                'name': f'Level {character.level} Arenas',
+                'value': f'{character.completed_arenas}/{character.needed_arenas}',
+                'inline': True
+            },
+            {
+                'name': f'Level {character.level} RPs',
+                'value': f'{character.completed_rps}/{character.needed_rps}',
+                'inline': True
+            },
+            {
+                'name': discord.utils.escape_markdown('___________________________________________'),
+                'value': "\u200B",
+                'inline': False
+            }
+        ]
+        _add_fields(intro_fields)
+    else:
+        div_fields = [
+            {
+                'name': 'Diversion GP',
+                'value': f'{character.div_gp}/{character.max_gp}',
+                'inline': True
+            },
+            {
+                'name': 'Diversion XP',
+                'value': f'{character.div_xp}/{character.max_xp}',
+                'inline': True
+            },
+            {
+                'name': 'ASL Mod',
+                'value': character.asl_mod,
+                'inline': True
+            },
+            {
+                'name': discord.utils.escape_markdown('___________________________________________'),
+                'value': "\u200B",
+                'inline': False
+            }
+        ]
+        _add_fields(div_fields)
+        embed.add_field(name='Description',
+                        value="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor "
+                              "incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud "
+                              "exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure "
+                              "dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. "
+                              "Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt "
+                              "mollit anim id est laborum.",
+                        inline=True)
+    embed.set_footer(text="Use >image \"https://link.to.image.png\" to set your character's image\n"
+                          "Use >sheet \"https://link.to.sheet\" to set your character's sheet")
+
+    return embed
+
+
+# def flatten(thicc_list):
+#     return [item for sublist in thicc_list for item in sublist]
 
 
 def get_cl(char_xp):
@@ -61,24 +174,12 @@ async def test_bi(self, ctx):
 
 
 class BPdia(commands.Cog):
+    bot: BP_Bot  # Typing annotation for my IDE's sake
 
     def __init__(self, bot):
-        # Setting up some objects
+        # All GSheet endpoints are in the bot object now
         self.bot = bot
-        try:
-            self.drive = gspread.service_account_from_dict(json.loads(os.environ['GOOGLE_SA_JSON']))
-            self.bpdia_sheet = self.drive.open_by_key(os.environ['SPREADSHEET_ID'])
-            self.char_sheet = self.bpdia_sheet.worksheet('Characters')
-            self.log_sheet = self.bpdia_sheet.worksheet('Log')
-            self.log_archive = self.bpdia_sheet.worksheet('Archive Log')
-        except Exception as E:
-            print(E)
-            print(f'Exception: {type(E)} when trying to use service account')
-        # self.user_map = self.build_user_map()
-        # self.get_asl()
-
         print(f'Cog \'BPdia\' loaded')
-        # print(f'User Map: {self.user_map}')
 
     @commands.command(brief='- Provides a link to the public BPdia sheet')
     async def sheet(self, ctx):
@@ -94,11 +195,11 @@ class BPdia(commands.Cog):
 
     @commands.command()
     @commands.check(is_admin)
-    async def find(self, ctx, query):
+    async def find(self, ctx: Context, query: str):
 
         try:
-            cell = self.char_sheet.find(str(query))
-        except gspread.exceptions.CellNotFound as e:
+            cell = self.bot.sheets.char_sheet.find(query)
+        except gspread.exceptions.CellNotFound:
             print("Failed to find anything")
             await ctx.message.channel.send(f'String \'{query}\' not found')
             return
@@ -132,7 +233,7 @@ class BPdia(commands.Cog):
         index = list(user_map.keys()).index(target)  # Dicts preserve order in Python 3. Fancy.
         xp_range = 'H' + str(index + 3)  # Could find the index in this same line, but that's messy
         try:
-            self.char_sheet.update(xp_range, new_xp)
+            self.bot.sheets.char_sheet.update(xp_range, new_xp)
         except Exception as E:
             await ctx.message.channel.send(f'Error occurred while sending data to the sheet')
             print(f'level exception: {type(E)}')
@@ -140,9 +241,13 @@ class BPdia(commands.Cog):
         await ctx.message.channel.send(f'{disc_user} - level submitted by {ctx.author.nick}')
         await ctx.message.delete()
 
-    @commands.command(brief='- Displays character information for a user',
-                      help=GET_HELP)
-    async def get(self, ctx, target=None):
+    @commands.command(
+        name='get',
+        brief='Displays character information for a user',
+        help='Usage: `>get [@user]`\n\n'
+             'If no @user is specified, it retrieves information for the message author'
+    )
+    async def get(self, ctx: Context, target=None):
         if not target:
             target = str(ctx.author.id)
         else:
@@ -150,7 +255,7 @@ class BPdia(commands.Cog):
         print(f'Incoming \'Get_Alt\' command. Args: {target}')
 
         try:
-            target_cell = self.char_sheet.find(target, in_column=1)
+            target_cell = self.bot.sheets.char_sheet.find(target, in_column=1)
         except gspread.exceptions.CellNotFound:
             await ctx.send(
                 "'" + target + "' is not a valid input... >get for your own stats, >get @name for someone else.")
@@ -158,7 +263,7 @@ class BPdia(commands.Cog):
 
         header_row = '2:2'
         user_row = str(target_cell.row) + ':' + str(target_cell.row)
-        data = self.char_sheet.batch_get([header_row, user_row])
+        data = self.bot.sheets.char_sheet.batch_get([header_row, user_row])
 
         header_data = list(data[0][0])
         char_data = list(data[1][0])
@@ -172,37 +277,66 @@ class BPdia(commands.Cog):
         await ctx.send("`" + table + "`")
         await ctx.message.delete()
 
+    @commands.command(brief='- Displays character information for a user',
+                      help=GET_HELP)
+    async def get_embed(self, ctx, target=None):
+        if not target:
+            target = str(ctx.author.id)
+        else:
+            target = re.sub(r'\D+', '', target)
+        print(f'Incoming \'Get_Alt\' command. Args: {target}')
+
+        try:
+            character = self.get_character_from_id(target)
+        except gspread.exceptions.CellNotFound:
+            await ctx.send(
+                "'" + target + "' is not a valid input... >get for your own stats, >get @name for someone else.")
+            return
+        except Exception as e:
+            print(e)
+            await ctx.send("Something went terribly wrong...")
+            return
+
+        player = await character.get_member(ctx)
+        character_embed = build_get_embed(character, player)  # This is where the fun stuff lives, tbh
+        await ctx.send(embed=character_embed)
+        await ctx.message.delete()
+
     @commands.command(brief='- Processes the weekly reset',
                       help=WEEKLY_HELP)
     @commands.has_role('Council')
     async def weekly(self, ctx):
         # Command to process the weekly reset
         await ctx.channel.send("`PROCESSING WEEKLY RESET`")
+        await ctx.trigger_typing()
 
         # Process pending GP/XP
-        pending_gp_xp = self.char_sheet.batch_get(['F3:F', 'I3:I'])
+        pending_gp_xp = self.bot.sheets.char_sheet.batch_get(['F3:F', 'I3:I'])
         gp_total = list(pending_gp_xp[0])
         xp_total = list(pending_gp_xp[1])
+        print(f'gp: {gp_total}\n'
+              f'xp: {xp_total}')
 
         try:
-            self.char_sheet.batch_update([{
+            self.bot.sheets.char_sheet.batch_update([{
                 'range': 'E3:E',
                 'values': gp_total
             }, {
                 'range': 'H3:H',
                 'values': xp_total
             }])
-        except gspread.exceptions.APIError:
+        except gspread.exceptions.APIError as e:
+            print(e)
             await ctx.channel.send("Error: Trouble getting GP/XP values. Aborting.")
             return
 
         # Archive old log entries
-        pending_logs = self.log_sheet.get('A2:I')
+        pending_logs = self.bot.sheets.log_sheet.get('A2:I')
 
         try:
-            self.log_archive.append_rows(pending_logs, value_input_option='USER_ENTERED',
-                                         insert_data_option='INSERT_ROWS', table_range='A2')
-            self.bpdia_sheet.values_clear('Log!A2:I')
+            self.bot.sheets.log_archive.append_rows(pending_logs, value_input_option='USER_ENTERED',
+                                                    insert_data_option='INSERT_ROWS', table_range='A2')
+            self.bot.sheets.bpdia_workbook.values_clear('Log!A2:I')
         except gspread.exceptions.APIError:
             await ctx.channel.send("Error: Trouble archiving log entries. Aborting.")
             return
@@ -219,13 +353,14 @@ class BPdia(commands.Cog):
         log_data = []
         for member_id in council_ids:
             log_data.append(['Blind Prophet', str(datetime.utcnow()), str(member_id), 'ADMIN', '',
-                             '', '', get_cl(user_map[str(member_id)]), int(self.get_asl())])
+                             '', '', get_cl(user_map[str(member_id)]), int(self.bot.sheets.get_asl())])
         for member_id in magewright_ids:
             log_data.append(['Blind Prophet', str(datetime.utcnow()), str(member_id), 'MOD', '',
-                             '', '', get_cl(user_map[str(member_id)]), int(self.get_asl())])
+                             '', '', get_cl(user_map[str(member_id)]), int(self.bot.sheets.get_asl())])
 
-        self.log_sheet.append_rows(log_data, value_input_option='USER_ENTERED', insert_data_option='INSERT_ROWS',
-                                   table_range='A2')
+        self.bot.sheets.log_sheet.append_rows(log_data, value_input_option='USER_ENTERED',
+                                              insert_data_option='INSERT_ROWS',
+                                              table_range='A2')
 
         await ctx.message.delete()
         await ctx.channel.send("`WEEKLY RESET HAS OCCURRED.`")
@@ -327,12 +462,12 @@ class BPdia(commands.Cog):
                 command_data.append('')  # Pad until CL and ASL
             target_id = re.sub(r'\D+', '', log_args[0])
             command_data.append(get_cl(user_map[target_id]))  # Because the sheet formatting has to be a little extra
-            command_data.append(self.get_asl())
+            command_data.append(self.bot.sheets.get_asl())
             print(f'DATA: {command_data}')
             # flat_data = flatten(command_data)
             try:
-                self.log_sheet.append_row(command_data, value_input_option='USER_ENTERED',
-                                          insert_data_option='INSERT_ROWS', table_range='A2')
+                self.bot.sheets.log_sheet.append_row(command_data, value_input_option='USER_ENTERED',
+                                                     insert_data_option='INSERT_ROWS', table_range='A2')
                 await ctx.message.channel.send(f'{log_args} - log submitted by {ctx.author.nick}')
             except Exception as E:
                 if isinstance(E, gspread.exceptions.APIError):
@@ -373,16 +508,15 @@ class BPdia(commands.Cog):
         else:
             data.extend(['', '', 0])
             initial_log_data = ['Blind Prophet', str(datetime.utcnow()), str(member.id), 'BONUS', 'Initial',
-                                0, 0, 1, int(self.get_asl())]
+                                0, 0, 1, int(self.bot.sheets.get_asl())]
 
-            self.char_sheet.append_row(data, value_input_option='USER_ENTERED',
-                                       insert_data_option='INSERT_ROWS', table_range='A2')
-            self.log_sheet.append_row(initial_log_data, insert_data_option='INSERT_ROWS',
-                                      value_input_option='USER_ENTERED', table_range='A2')
+            self.bot.sheets.char_sheet.append_row(data, value_input_option='USER_ENTERED',
+                                                  insert_data_option='INSERT_ROWS', table_range='A2')
+            self.bot.sheets.log_sheet.append_row(initial_log_data, insert_data_option='INSERT_ROWS',
+                                                 value_input_option='USER_ENTERED', table_range='A2')
 
             await ctx.message.channel.send(f'{data} - create submitted by {ctx.author.nick}')
             await ctx.message.delete()
-
 
     @create.error
     async def bpdia_errors(self, ctx, error):
@@ -398,21 +532,37 @@ class BPdia(commands.Cog):
     # Helper functions
     # --------------------------- #
 
-    def get_asl(self):
-        try:
-            server_level = self.char_sheet.get('B1')
-        except gspread.exceptions.APIError as E:
-            print(E)
-        return int(server_level[0][0])
+    # def get_asl(self):
+    #     try:
+    #         server_level = self.bot.sheets.char_sheet.get('B1')
+    #     except gspread.exceptions.APIError as E:
+    #         print(E)
+    #     return int(server_level[0][0])
+
+    # async def _character_from_row(self, row):
+    #     header_row = '2:2'
+    #     user_row = f'{row}:{row}'
+    #     data = self.bot.sheets.char_sheet.batch_get([header_row, user_row])
+    #
+    #     return await Character.create(data)
 
     def get_user_map(self):
         USERLIST_RANGE = 'A3:A'
         XPLIST_RANGE = 'I3:I'
         try:
-            results = self.char_sheet.batch_get([USERLIST_RANGE, XPLIST_RANGE])
+            results = self.bot.sheets.char_sheet.batch_get([USERLIST_RANGE, XPLIST_RANGE])
         except gspread.exceptions.APIError as E:
             print(E)
 
         return {  # Using fancy dictionary comprehension to make the dict
             str(key[0]): int(value[0]) for key, value in zip(results[0], results[1])
         }
+
+    def get_character_from_id(self, discord_id: str) -> Character:
+        header_row = '2:2'
+        target_cell = self.bot.sheets.char_sheet.find(discord_id, in_column=1)
+        user_row = str(target_cell.row) + ':' + str(target_cell.row)
+        
+        data = self.bot.sheets.char_sheet.batch_get([header_row, user_row])
+        return Character(data)
+
