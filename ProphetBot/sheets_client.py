@@ -3,7 +3,7 @@ import gspread
 import json
 import os
 from time import perf_counter
-from ProphetBot.constants import TIERS
+from ProphetBot.constants import TIERS, SHOP_TIERS
 
 
 class gsheetsClient(object):
@@ -40,4 +40,7 @@ class gsheetsClient(object):
         return int(server_level.first())
 
     def get_tier(self) -> int:
-        return int(bisect.bisect(TIERS, self.get_asl()))
+        return bisect.bisect(TIERS, self.get_asl())
+
+    def get_shop_tier(self) -> int:
+        return bisect.bisect(SHOP_TIERS, self.get_asl())

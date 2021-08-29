@@ -72,7 +72,7 @@ class Items(commands.Cog):
         # And then I added num_offset... :\
         def roll_stock(item_map, max_qty, num_offset=0):
             print(f'roll_stock, max_cost = {max_cost}')
-            rarity_value = self.bot.sheets.get_tier()
+            rarity_value = self.bot.sheets.get_shop_tier()
             available_items = list()
             item_stock = dict()
             for key in item_map.keys():
