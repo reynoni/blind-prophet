@@ -41,7 +41,7 @@ class Admin(commands.Cog):
                     self.bot.load_extension(f'ProphetBot.cogs.{ext}')
             await ctx.send("All cogs reloaded")
             await self._reload_sheets(ctx)
-        elif str(ext).upper() in ['SHEETS', 'BPDIA']:
+        elif str(ext).upper() in ['SHEETS', 'SHEET']:
             await self._reload_sheets(ctx)
         else:
             self.bot.unload_extension(f'ProphetBot.cogs.{ext}')
