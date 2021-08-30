@@ -31,7 +31,7 @@ class Admin(commands.Cog):
         await ctx.message.delete()
 
     @commands.command()
-    @commands.check(is_admin)
+    @commands.has_role('Council')
     async def reload(self, ctx, ext):
         if str(ext).upper() == 'ALL':
             for file_name in listdir('./ProphetBot/cogs'):
@@ -39,15 +39,25 @@ class Admin(commands.Cog):
                     ext = file_name.replace('.py', '')
                     self.bot.unload_extension(f'ProphetBot.cogs.{ext}')
                     self.bot.load_extension(f'ProphetBot.cogs.{ext}')
+            await ctx.send("All cogs reloaded")
+            await self._reload_sheets(ctx)
+        elif str(ext).upper() in ['SHEETS', 'BPDIA']:
+            await self._reload_sheets(ctx)
         else:
             self.bot.unload_extension(f'ProphetBot.cogs.{ext}')
             self.bot.load_extension(f'ProphetBot.cogs.{ext}')
-        await ctx.send("Cogs Reloaded.")
+            await ctx.send(f"Cog '{ext}' reloaded")
         await ctx.message.delete()
 
     @commands.command()
     @commands.check(is_admin)
-    async def refresh_sheets(self, ctx):
+    async def list(self, ctx):
+        for file_name in listdir('./ProphetBot/cogs'):
+            if file_name.endswith('.py'):
+                await ctx.send(f'`ProphetBot.cogs.{file_name[:-3]}`')
+        await ctx.message.delete()
+
+    async def _reload_sheets(self, ctx):
         await ctx.trigger_typing()
         try:
             self.bot.sheets.reload()
@@ -57,11 +67,3 @@ class Admin(commands.Cog):
                            f"{e}")
             return
         await ctx.send("Connection to BPdia reloaded")
-
-    @commands.command()
-    @commands.check(is_admin)
-    async def list(self, ctx):
-        for file_name in listdir('./ProphetBot/cogs'):
-            if file_name.endswith('.py'):
-                await ctx.send(f'`ProphetBot.cogs.{file_name[:-3]}`')
-        await ctx.message.delete()

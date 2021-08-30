@@ -6,8 +6,7 @@ attrs==19.3.0
 cachetools==4.1.1
 certifi==2020.6.20
 chardet==3.0.4
-discord.py==1.6.0
-# git+git://github.com/Rapptz/discord.py@master
+discord.py==1.7.3
 google-api-core==1.21.0
 google-api-python-client==1.9.3
 google-auth==1.25.0
@@ -31,11 +30,8 @@ uritemplate==3.0.1
 urllib3==1.25.9
 websockets==8.1
 yarl==1.4.2
-gspread==3.7.0
-# git+git://github.com/burnash/gspread@master#egg=gspread
+gspread==4.0.1
 
 # DB Stuff
 psycopg2-binary==2.8.6
 sqlalchemy==1.4.4
-
-discord~=1.0.1
