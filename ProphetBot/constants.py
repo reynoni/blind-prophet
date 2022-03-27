@@ -9,7 +9,7 @@ ACTIVITY_TYPES = ["RP", "ARENA_OLD", "PIT", "BUY", "SELL", "GLOBAL", "BONUS", "Q
 SHOP_TYPES = ['BLACKSMITH', 'CONSUMABLE', 'MAGIC', 'WONDROUS', 'POTION', 'POTIONS', 'SCROLL', 'SCROLLS', 'WEAPON',
               'WEAPONS', 'ARMOR', 'ARMORS', 'ARMOUR', 'ARMOURS']
 TIERS = [0, 5, 9, 13, 17]
-SHOP_TIERS = [0, 5, 8, 12, 17]
+SHOP_TIERS = [0, 5, 8, 12, 18]
 RARITY_MAP: Dict[str, int] = {'COMMON': 1, 'UNCOMMON': 2, 'RARE': 3, 'VERY RARE': 4, 'VERY': 4, 'LEGENDARY': 5,
                               'C': 1, 'U': 2, 'R': 3, 'V': 4, 'VR': 4, 'L': 5}
 
