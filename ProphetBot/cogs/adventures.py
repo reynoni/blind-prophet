@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 from discord.ext.commands import Greedy
 
-from ProphetBot.bot import BP_Bot
+from ProphetBot.bot import BpBot
 from ProphetBot.helpers import *
 
 
@@ -24,7 +24,7 @@ def get_dms(adventure_dict):
 
 
 class Adventures(commands.Cog):
-    bot: BP_Bot  # Typing annotation for my IDE's sake
+    bot: BpBot  # Typing annotation for my IDE's sake
 
     def __init__(self, bot):
         # Setting up some objects

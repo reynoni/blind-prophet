@@ -7,12 +7,11 @@ import discord
 from discord import Intents
 from discord.ext import commands
 
-from ProphetBot.bot import BP_Bot
+from ProphetBot.bot import BpBot
 
-dow = datetime.date(datetime.now()).weekday()
-logging.basicConfig(level=logging.INFO, filename='log.txt')
 intents = Intents.default()
 intents.members = True
+intents.message_content = True
 
 
 class MyHelpCommand(commands.MinimalHelpCommand):
@@ -24,11 +23,12 @@ class MyHelpCommand(commands.MinimalHelpCommand):
         await destination.send(embed=e)
 
 
-bot = BP_Bot(command_prefix=os.environ['COMMAND_PREFIX'],
-             description='ProphetBot - Created and maintained by Nicoalas#5232 and Alesha#0362',
-             case_insensitive=True,
-             help_command=MyHelpCommand(),
-             intents=intents)
+bot = BpBot(command_prefix=os.environ['COMMAND_PREFIX'],
+            description='ProphetBot - Created and maintained by Nicoalas#5232 and Alesha#0362',
+            case_insensitive=True,
+            help_command=MyHelpCommand(),
+            intents=intents,
+            debug_guilds=[728613916510388286])
 
 for filename in listdir('ProphetBot/cogs'):
     if filename.endswith('.py'):
@@ -37,7 +37,8 @@ for filename in listdir('ProphetBot/cogs'):
 
 @bot.command()
 async def ping(ctx):
+    print("Pong")
     await ctx.send(f'Pong! Latency is {round(bot.latency * 1000)}ms.')
 
 
-bot.run(os.environ['bot_token'], bot=True, reconnect=True)
+bot.run(os.environ['BOT_TOKEN'])

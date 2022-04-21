@@ -4,7 +4,7 @@ import discord
 from discord.ext import commands
 from discord.ext.commands import Greedy
 
-from ProphetBot.bot import BP_Bot
+from ProphetBot.bot import BpBot
 from ProphetBot.helpers import *
 
 
@@ -49,7 +49,7 @@ async def _remove_from_board(ctx, member: discord.Member):
 
 class Arenas(commands.Cog):
     # todo: Turn all the multi-line messages into Embeds
-    bot: BP_Bot  # Typing annotation for my IDE's sake
+    bot: BpBot  # Typing annotation for my IDE's sake
 
     def __init__(self, bot):
         self.bot = bot

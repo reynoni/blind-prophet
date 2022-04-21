@@ -4,7 +4,7 @@ import re
 from discord.ext import commands
 from texttable import Texttable
 
-from ProphetBot.bot import BP_Bot
+from ProphetBot.bot import BpBot
 from ProphetBot.helpers import *
 
 
@@ -47,7 +47,7 @@ def sort_stock(stock):
 
 
 class Items(commands.Cog):
-    bot: BP_Bot  # Typing annotation for my IDE's sake
+    bot: BpBot  # Typing annotation for my IDE's sake
 
     def __init__(self, bot):
         self.bot = bot

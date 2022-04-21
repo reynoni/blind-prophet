@@ -6,7 +6,7 @@ from time import perf_counter
 from ProphetBot.constants import TIERS, SHOP_TIERS
 
 
-class gsheetsClient(object):
+class GsheetsClient(object):
     
     def __init__(self):
         # Initial _auth
