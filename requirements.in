@@ -3,3 +3,4 @@ gspread
 aiopg
 aiopg[sa]
 pip-tools
+texttable

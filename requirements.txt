@@ -78,6 +78,8 @@ six==1.16.0
     # via google-auth
 sqlalchemy[postgresql_psycopg2binary]==1.4.35
     # via aiopg
+texttable==1.6.4
+    # via -r requirements.in
 tomli==2.0.1
     # via pep517
 urllib3==1.26.9
