@@ -3,6 +3,10 @@ from typing import Dict
 # Users
 ADMIN_USERS = [286360249659817984, 208388527401074688]
 
+# Role IDs
+ROLES = {"host": 679787498976837635,
+         "host_dev": 795007163625766923}
+
 # Misc
 ACTIVITY_TYPES = ["RP", "ARENA_OLD", "PIT", "BUY", "SELL", "GLOBAL", "BONUS", "QUEST", "CAMPAIGN",
                   "SHOP", "SHOPKEEP", "MOD", "ADMIN"]

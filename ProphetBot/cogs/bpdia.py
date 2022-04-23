@@ -9,7 +9,7 @@ from texttable import Texttable
 
 from ProphetBot.bot import BpBot
 from ProphetBot.helpers import *
-from ProphetBot.models import Character
+from ProphetBot.models.sheets_objects import Character
 
 # from sqlalchemy.ext.asyncio import create_async_engine
 

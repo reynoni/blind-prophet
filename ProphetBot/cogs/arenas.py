@@ -1,10 +1,18 @@
+import aiopg.sa
 import math
 
 import discord
+from discord import ButtonStyle, Embed
+from discord.commands import SlashCommandGroup, CommandPermission
+from discord.commands.context import ApplicationContext
 from discord.ext import commands
 from discord.ext.commands import Greedy
+from discord.ui import Button
+
+from gspread.spreadsheet import Spreadsheet
 
 from ProphetBot.bot import BpBot
+from ProphetBot.queries import select_active_arena_by_channel, insert_new_arena
 from ProphetBot.helpers import *
 
 
@@ -25,14 +33,13 @@ def format_lod(list_of_dicts):
 
 def get_tier(user_map, arena_role: discord.Role, host_id: int) -> int:
     # Get a list of levels for each character in the arena
-    members = [get_cl(user_map[str(member.id)]) for member in arena_role.members if not(member.id == host_id)]
+    members = [get_cl(user_map[str(member.id)]) for member in arena_role.members if not (member.id == host_id)]
     # Tier is ceil(avg/4)
     avg_level = sum(members) / len(members)
-    return int(math.ceil(avg_level/4))
+    return int(math.ceil(avg_level / 4))
 
 
 async def _remove_from_board(ctx, member: discord.Member):
-
     def predicate(message):
         return message.author == member
 
@@ -47,9 +54,26 @@ async def _remove_from_board(ctx, member: discord.Member):
             print(error)
 
 
+async def join_arena(member_id: int, guild_id: int, db: aiopg.sa.Engine, sheet: Spreadsheet):
+    return
+
+
+class JoinArenaView(discord.ui.View):
+    db: aiopg.sa.Engine
+
+    def __init__(self, db: aiopg.sa.Engine):
+        super().__init__(timeout=None)
+        self.db = db
+
+    @discord.ui.button(label="Join Arena", custom_id="join_arena", style=ButtonStyle.primary)
+    async def view_callback(self, button: Button, interaction: discord.Interaction):
+        return
+
+
 class Arenas(commands.Cog):
     # todo: Turn all the multi-line messages into Embeds
     bot: BpBot  # Typing annotation for my IDE's sake
+    arena_commands = SlashCommandGroup("arena", "Commands related to arena management.")
 
     def __init__(self, bot):
         self.bot = bot
@@ -65,6 +89,35 @@ class Arenas(commands.Cog):
         if ctx.invoked_subcommand is None:
             await ctx.send(f'Missing or unrecognized subcommand for `{ctx.prefix}arena`. '
                            f'Use `{ctx.prefix}help arena` for more information')
+
+    @discord.commands.permissions.has_role("Host")
+    @arena_commands.command(
+        name="claim",
+        description="Opens an arena in this channel and sets you as the host.",
+    )
+    async def arena_claim(self, ctx: ApplicationContext):
+        async with self.bot.db.acquire() as conn:
+            results = await conn.execute(select_active_arena_by_channel(ctx.channel_id))
+            row = await results.first()
+
+        # First check to see if there is already an active arena in this channel,
+        # then check to see if the associated role exists
+        if row:
+            await ctx.respond(f'Error: {ctx.channel.mention} is already in use.\n'
+                              f'Use `/arena status` to check the current status of this room.')
+            return
+        if not (channel_role := discord.utils.get(ctx.guild.roles, name=ctx.channel.name)):
+            await ctx.respond(f'Error: Role @{ctx.channel.name} doesn\'t exist. '
+                              f'A Council member may need to create it.')
+            return
+
+        # Everything looks good, so we can create the arena record
+        async with self.bot.db.acquire() as conn:
+            await conn.execute(insert_new_arena(ctx.channel_id, channel_role.id, ctx.author.id))
+
+        await ctx.send(embed=Embed(), view=JoinArenaView(db=self.bot.db))
+
+
 
     @arena.command(
         name='claim',
@@ -90,10 +143,10 @@ class Arenas(commands.Cog):
                                f'A Council member may need to create it.')
             else:
                 self.bot.sheets.arenas_sheet.append_row([str(channel_role.id), str(ctx.channel.id),
-                                              str(ctx.author.id), 0, 1],
-                                             value_input_option='RAW',
-                                             insert_data_option='INSERT_ROWS',
-                                             table_range='A1')
+                                                         str(ctx.author.id), 0, 1],
+                                                        value_input_option='RAW',
+                                                        insert_data_option='INSERT_ROWS',
+                                                        table_range='A1')
                 await ctx.author.add_roles(channel_role, reason=f'{ctx.author.name} claiming {ctx.channel.name}')
                 await ctx.message.delete()
                 await ctx.send(f'Arena {ctx.channel.mention} successfully claimed by {ctx.author.mention}\n'
@@ -174,7 +227,7 @@ class Arenas(commands.Cog):
             await ctx.send(f'Error: {ctx.author.mention} is not the current host of this arena.')
             return
         else:
-            if not(arena_role := discord.utils.get(ctx.guild.roles, id=arena['Role ID'])):
+            if not (arena_role := discord.utils.get(ctx.guild.roles, id=arena['Role ID'])):
                 await ctx.send(f'Error: Role for {ctx.channel.mention} not found. Maybe Discord is having issues?')
                 return
             else:
@@ -220,12 +273,12 @@ class Arenas(commands.Cog):
             await ctx.send(f'Error: {ctx.author.mention} is not the current host of this arena.')
             return
         else:
-            if not(arena_role := discord.utils.get(ctx.guild.roles, id=arena['Role ID'])):
+            if not (arena_role := discord.utils.get(ctx.guild.roles, id=arena['Role ID'])):
                 await ctx.send(f'Error: Role for {ctx.channel.mention} not found. Maybe Discord is having issues?')
                 return
             else:
                 for member in members:
-                    if not(arena_role in member.roles):
+                    if not (arena_role in member.roles):
                         await ctx.send(f'{member.mention} is not a member of {ctx.channel.mention}, skipping')
                     else:
                         await member.remove_roles(arena_role, reason=f'{member.name} removed from {arena_role} by '
@@ -273,7 +326,7 @@ class Arenas(commands.Cog):
 
             # Time to build the list of lists that we will send to Sheets
             log_data = [['Blind Prophet', str(datetime.utcnow()), str(ctx.author.id), 'ARENA',
-                        'HOST', '', '', get_cl(user_map[str(ctx.author.id)]), asl]]
+                         'HOST', '', '', get_cl(user_map[str(ctx.author.id)]), asl]]
             members_string = ''
             for member in arena_role.members:
                 if not member.id == arena['Host']:
@@ -283,7 +336,7 @@ class Arenas(commands.Cog):
 
             # Actually send the data
             self.bot.sheets.log_sheet.append_rows(log_data, value_input_option='USER_ENTERED',
-                                       insert_data_option='INSERT_ROWS', table_range='A1')
+                                                  insert_data_option='INSERT_ROWS', table_range='A1')
 
             # Update the Arenas record (number of phases only goes up on a win)
             # todo: display_phases is jank and I don't like it
@@ -335,8 +388,8 @@ class Arenas(commands.Cog):
             close_message = f'{ctx.channel.mention} complete!\n\n' \
                             f'**Tier:** {arena["Tier"]}\n' \
                             f'**Phases Completed:** {arena["Phases"]}\n\n' \
-
-            # Get the tier and apply rewards if appropriate
+ \
+                # Get the tier and apply rewards if appropriate
             if (arena['Phases'] >= arena['Tier']) and (arena['Tier'] > 1):
                 log_data = []
                 close_message += f'Phase bonus applied to:\n'
@@ -345,10 +398,10 @@ class Arenas(commands.Cog):
                     if not member.id == arena['Host']:
                         close_message += f' {member.nick}\n'
                         log_data.append(['Blind Prophet', str(datetime.utcnow()), str(member.id), 'ARENA',
-                                         'P'+str(arena['Phases']), '', '', get_cl(user_map[str(member.id)]), asl])
+                                         'P' + str(arena['Phases']), '', '', get_cl(user_map[str(member.id)]), asl])
 
                 self.bot.sheets.log_sheet.append_rows(log_data, value_input_option='USER_ENTERED',
-                                           insert_data_option='INSERT_ROWS', table_range='A1')
+                                                      insert_data_option='INSERT_ROWS', table_range='A1')
                 close_message += '\n'
 
             # Time to clean up the role and sheet
@@ -357,7 +410,8 @@ class Arenas(commands.Cog):
 
             # Recreate the LoD without the current arena & update the sheet
             list_of_dicts = [item for item in list_of_dicts if (item['Channel ID'] != ctx.channel.id)]
-            self.bot.sheets.arenas_sheet.delete_row(len(list_of_dicts)+2)  # Update will leave us with an extra row if we don't
+            self.bot.sheets.arenas_sheet.delete_row(
+                len(list_of_dicts) + 2)  # Update will leave us with an extra row if we don't
             self.bot.sheets.arenas_sheet.update('A2:E', format_lod(list_of_dicts))
 
             close_message += f'Host! Please be sure to use `!br` once RP is finished so that others ' \
