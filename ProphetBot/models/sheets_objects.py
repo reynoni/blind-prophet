@@ -51,7 +51,7 @@ class Character(object):
 
     def __init__(self, raw_input):
         char_dict = _clean_input(raw_input)
-        self.player_id = str(char_dict["Discord ID"])
+        self.player_id = int(char_dict["Discord ID"])
         self.name = char_dict["Name"]
         self._character_class = CharacterClass(char_dict["Class"].title())
         self._faction = Faction(char_dict["Faction"].title())
@@ -66,6 +66,7 @@ class Character(object):
         self.div_xp = int(char_dict["Div XP"])
         self.max_xp = int(char_dict["XP Max"])
         self.asl_mod = char_dict["ASL Mod"]
+        self.active = char_dict["Active"]
 
         if self.level < 3:
             self.needed_arenas = 1 if self.level == 1 else 2
