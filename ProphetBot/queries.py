@@ -18,3 +18,9 @@ def insert_new_arena(channel_id: int, role_id: int, host_id: int) -> TableClause
         role_id=role_id,
         host_id=host_id
     )
+
+
+def update_arena_tier(arena_id: int, new_tier: int):
+    return arenas_table.update()\
+        .where(arenas_table.c.id == arena_id)\
+        .values(tier=new_tier)
