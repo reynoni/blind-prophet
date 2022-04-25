@@ -17,5 +17,5 @@ arenas_table = sa.Table(
     Column("tier", Integer, default=0, nullable=False),
     Column("completed_phases", Integer, default=0),
     Column("created_ts", DateTime, default=datetime.utcnow()),
-    Column("end_ts", DateTime, default=null)
+    Column("end_ts", DateTime, default=null())
 )
