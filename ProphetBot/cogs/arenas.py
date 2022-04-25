@@ -1,8 +1,12 @@
+import asyncio
+import bisect
+from typing import List
+
 import aiopg.sa
 import math
 
 import discord
-from discord import ButtonStyle, Embed
+from discord import ButtonStyle, Embed, Option, Member
 from discord.commands import SlashCommandGroup, CommandPermission
 from discord.commands.context import ApplicationContext
 from discord.ext import commands
@@ -11,13 +15,23 @@ from discord.ui import Button
 
 from gspread.spreadsheet import Spreadsheet
 
+from time import perf_counter
+
 from ProphetBot.bot import BpBot
-from ProphetBot.queries import select_active_arena_by_channel, insert_new_arena
+from ProphetBot.models.sheets_objects import Character
+from ProphetBot.queries import select_active_arena_by_channel, insert_new_arena, update_arena_tier
 from ProphetBot.helpers import *
+from ProphetBot.sheets_client import GsheetsClient
+
+from statistics import mean
 
 
 def setup(bot):
     bot.add_cog(Arenas(bot))
+
+
+def format_player_list(players: List[Member]):
+    return "\n".join([f"-{p.mention}" for p in players])
 
 
 def format_lod(list_of_dicts):
@@ -54,20 +68,42 @@ async def _remove_from_board(ctx, member: discord.Member):
             print(error)
 
 
-async def join_arena(member_id: int, guild_id: int, db: aiopg.sa.Engine, sheet: Spreadsheet):
-    return
-
-
-class JoinArenaView(discord.ui.View):
-    db: aiopg.sa.Engine
-
-    def __init__(self, db: aiopg.sa.Engine):
-        super().__init__(timeout=None)
-        self.db = db
-
-    @discord.ui.button(label="Join Arena", custom_id="join_arena", style=ButtonStyle.primary)
-    async def view_callback(self, button: Button, interaction: discord.Interaction):
+async def add_to_arena(interaction: discord.Interaction, db: aiopg.sa.Engine,
+                       sheets_client: GsheetsClient, player: discord.Member):
+    async with db.acquire() as conn:
+        results = await conn.execute(select_active_arena_by_channel(interaction.channel_id))
+        arena_row = await results.first()
+    # Check to make sure the arena and role exist. Send an error message and abort if they don't
+    if not arena_row:
+        await interaction.response.send_message(f"Error: No active arena present in this channel", ephemeral=True)
         return
+    if not (channel_role := discord.utils.get(interaction.guild.roles, id=arena_row.role_id)):
+        await interaction.response.send_message(f"Error: Role @{interaction.channel.name} doesn\'t exist. "
+                                                f"A Council member may need to create it.", ephemeral=True)
+        return
+    if discord.utils.get(channel_role.members, id=player.id):
+        await interaction.response.send_message(f"Error: {player.mention} is already a participant in this arena.",
+                                                ephemeral=True)
+        return
+
+    # Everything looks good, so we can add the user to the role and determine the tier
+    await player.add_roles(channel_role, reason=f"Joining {interaction.channel.name}")
+
+    members_in_arena = [m.id for m in channel_role.members if m.id != arena_row.host_id]
+    characters = sheets_client.get_all_characters()
+    characters_in_arena = [c for c in characters if c.player_id in members_in_arena]
+    tier = determine_tier(characters_in_arena)
+
+    async with db.acquire() as conn:
+        await conn.execute(update_arena_tier(arena_id=arena_row.id, new_tier=tier))
+
+    await _remove_from_board(interaction, player)
+    await interaction.response.send_message(f"{player.mention} has joined the arena!")
+
+
+def determine_tier(characters: List[Character]):
+    average_level = mean([c.level for c in characters])
+    return bisect.bisect(TIERS, average_level)
 
 
 class Arenas(commands.Cog):
@@ -75,9 +111,27 @@ class Arenas(commands.Cog):
     bot: BpBot  # Typing annotation for my IDE's sake
     arena_commands = SlashCommandGroup("arena", "Commands related to arena management.")
 
+    class JoinArenaView(discord.ui.View):
+        db: aiopg.sa.Engine
+        sheets_client: GsheetsClient
+
+        def __init__(self, db: aiopg.sa.Engine, sheets_client: GsheetsClient):
+            super().__init__(timeout=None)
+            self.db = db
+            self.sheets_client = sheets_client
+
+        @discord.ui.button(label="Join Arena", custom_id="join_arena", style=ButtonStyle.primary)
+        async def view_callback(self, button: Button, interaction: discord.Interaction):
+            await add_to_arena(interaction, self.db, self.sheets_client, interaction.user)
+
     def __init__(self, bot):
         self.bot = bot
         print(f'Cog \'Arenas\' loaded')
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        await asyncio.sleep(0.5)
+        self.bot.add_view(self.JoinArenaView(self.bot.db, self.bot.sheets))
 
     @commands.group(
         name='arena',
@@ -90,10 +144,50 @@ class Arenas(commands.Cog):
             await ctx.send(f'Missing or unrecognized subcommand for `{ctx.prefix}arena`. '
                            f'Use `{ctx.prefix}help arena` for more information')
 
-    @discord.commands.permissions.has_role("Host")
+    @arena_commands.command(
+        name="test",
+        description="Used for testing stuff"
+    )
+    async def general_test(self, ctx: ApplicationContext):
+        start = perf_counter()
+        self.bot.sheets.get_all_characters()
+        stop = perf_counter()
+        print(f"Time to get all characters: {stop - start}s")
+
+    @arena_commands.command(
+        name="status",
+        description="Shows the current participants in and status of this arena"
+    )
+    async def arena_status(self, ctx: ApplicationContext):
+        async with self.bot.db.acquire() as conn:
+            results = await conn.execute(select_active_arena_by_channel(ctx.channel_id))
+            arena_row = await results.first()
+
+        embed = Embed(color=discord.Color.random(), title=f"{ctx.channel.name.title()} Status")
+
+        if arena_row:
+            host = discord.utils.get(ctx.guild.members, id=arena_row.host_id)
+            channel_role = discord.utils.get(ctx.guild.channels, id=arena_row.channel_id)
+            players = [p for p in channel_role.members if p.id != host.id]
+            embed.description = f"**Tier:** {arena_row.tier if arena_row.tier > 0 else 'N/A'}\n" \
+                                f"**Completed Phases:** {arena_row.completed_phases} / {MAX_PHASES[arena_row.tier]}"
+            embed.add_field(name="Host:",
+                            value=f"-{host.mention}",
+                            inline=False)
+            embed.add_field(name="Players:",
+                            value=format_player_list(players),
+                            inline=False)
+        else:
+            embed.description = f"{ctx.channel.mention} is not currently in use. " \
+                                f"Use `/arena claim` if you would like to start an arena!"
+
+        await ctx.response.send_message(embed=embed, ephemeral=False)
+
+    # @discord.commands.permissions.has_role("Host")
     @arena_commands.command(
         name="claim",
         description="Opens an arena in this channel and sets you as the host.",
+        permissions=[CommandPermission(795007163625766923, 1)]
     )
     async def arena_claim(self, ctx: ApplicationContext):
         async with self.bot.db.acquire() as conn:
@@ -113,10 +207,62 @@ class Arenas(commands.Cog):
 
         # Everything looks good, so we can create the arena record
         async with self.bot.db.acquire() as conn:
-            await conn.execute(insert_new_arena(ctx.channel_id, channel_role.id, ctx.author.id))
+            await conn.execute(insert_new_arena(ctx.channel_id, channel_role.id, ctx.user.id))
 
-        await ctx.send(embed=Embed(), view=JoinArenaView(db=self.bot.db))
+        await ctx.user.add_roles(channel_role, reason=f"Claiming {ctx.channel.name}")
+        await ctx.respond(embed=Embed(title="Arena Claimed", color=discord.Color.random(),
+                                      description=f"{ctx.user.mention} has begun an arena in this channel!\n\n"
+                                                  f"Click the button below or use `/arena join` to join in!"),
+                          view=self.JoinArenaView(db=self.bot.db, sheets_client=self.bot.sheets))
 
+    @arena_commands.command(
+        name="join",
+        description="Joins the arena in this channel"
+    )
+    async def arena_join(self, ctx: ApplicationContext):
+        await add_to_arena(ctx.interaction, self.bot.db, self.bot.sheets, ctx.user)
+
+    @discord.commands.permissions.has_role("Host")
+    @arena_commands.command(
+        name="add",
+        description="Adds the specified player to the arena in this channel"
+    )
+    async def arena_add(self, ctx: ApplicationContext,
+                        player: Option(Member, "The player to add", required=True)):
+        await add_to_arena(ctx.interaction, self.bot.db, self.bot.sheets, player)
+
+    @discord.commands.permissions.has_role("Host")
+    @arena_commands.command(
+        name="remove",
+        description="Removes the specified player from the arena"
+    )
+    async def arena_remove(self, ctx: ApplicationContext,
+                           player: Option(Member, "The player to remove", required=True)):
+        async with self.bot.db.acquire() as conn:
+            results = await conn.execute(select_active_arena_by_channel(ctx.channel_id))
+            arena_row = await results.first()
+        if not arena_row:
+            await ctx.response.send_message(f"Error: No active arena present in this channel", ephemeral=True)
+            return
+        channel_role = discord.utils.get(ctx.guild.roles, id=arena_row.role_id)
+        if not (discord.utils.get(channel_role.members, id=player.id)):
+            await ctx.response.send_message(f"Error: {player.mention} is not a participant in this arena.",
+                                            ephemeral=True)
+            return
+
+        await player.remove_roles(channel_role, reason=f"Leaving {ctx.channel.name}")
+
+        # We only want to recalculate the tier if the arena hasn't started/is in the first phase
+        if arena_row.completed_phases == 0:
+            members_in_arena = [m.id for m in channel_role.members if m.id != arena_row.host_id]
+            characters = self.bot.sheets.get_all_characters()
+            characters_in_arena = [c for c in characters if c.player_id in members_in_arena]
+            new_tier = determine_tier(characters_in_arena)
+
+            async with self.bot.db.acquire() as conn:
+                await conn.execute(update_arena_tier(arena_row.id, new_tier))
+
+        await ctx.response.send_message(f"{player.mention} has been removed from the arena")
 
 
     @arena.command(
