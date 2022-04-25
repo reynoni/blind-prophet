@@ -1,11 +1,13 @@
 import bisect
+import datetime
+
 import gspread
 import json
 import os
 from time import perf_counter
 from typing import List, Optional
 from ProphetBot.constants import TIERS, SHOP_TIERS
-from ProphetBot.models.sheets_objects import Character
+from ProphetBot.models.sheets_objects import Character, Activity, LogEntry
 
 
 class GsheetsClient(object):
@@ -62,3 +64,31 @@ class GsheetsClient(object):
         data = self.char_sheet.batch_get([header_row, user_row])
 
         return Character(data)
+
+    def log_activity(self, log_entry: LogEntry):
+        """
+        Logs a single activity to the BPdia Log worksheet
+
+        :param log_entry: A LogEntry (or usually a subclass thereof) to be logged
+        """
+
+        server_level = self.get_asl()
+        log_data = log_entry.to_sheets_row(server_level)
+
+        print(f"Logging activity with data {log_data}")
+        self.log_sheet.append_row(log_data, value_input_option='USER_ENTERED',
+                                  insert_data_option='INSERT_ROWS', table_range='A2')
+
+    def log_activities(self, log_entries: List[LogEntry]):
+        """
+        Logs multiple activities to the BPdia Log worksheet. Gspread calls are expensive, so use this for 2+ logs.
+
+        :param log_entries: A list of LogEntry (or usually a subclass thereof) to be logged
+        """
+
+        server_level = self.get_asl()
+        log_data = [entry.to_sheets_row(server_level) for entry in log_entries]
+
+        print(f"Logging activity with data {log_data}")
+        self.log_sheet.append_rows(log_data, value_input_option='USER_ENTERED',
+                                   insert_data_option='INSERT_ROWS', table_range='A2')
