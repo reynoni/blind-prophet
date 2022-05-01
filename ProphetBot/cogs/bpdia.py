@@ -1,4 +1,5 @@
 import re
+import time
 
 import discord
 import discord.errors
@@ -11,7 +12,21 @@ from ProphetBot.bot import BpBot
 from ProphetBot.helpers import *
 from ProphetBot.models.sheets_objects import Character
 
-# from sqlalchemy.ext.asyncio import create_async_engine
+import aiopg.sa
+import discord
+from discord import ButtonStyle, Embed, Member
+from discord.commands import SlashCommandGroup, CommandPermission, Option, OptionChoice
+from discord.commands.context import ApplicationContext
+from discord.ext import commands
+from discord.ext.commands import Greedy
+from discord.ui import Button
+
+from ProphetBot.bot import BpBot
+from ProphetBot.models.sheets_objects import Character, ArenaEntry, BonusEntry, Faction, CharacterClass
+from ProphetBot.models.embeds import ErrorEmbed
+from ProphetBot.queries import select_active_arena_by_channel, insert_new_arena, update_arena_tier, \
+    update_arena_completed_phases, close_arena_by_id
+from ProphetBot.sheets_client import GsheetsClient
 
 
 def setup(bot):
@@ -161,16 +176,8 @@ def build_get_embed(character, member: discord.Member):
     return embed
 
 
-# def flatten(thicc_list):
-#     return [item for sublist in thicc_list for item in sublist]
-
-
 def get_cl(char_xp):
     return 1 + int((int(char_xp) / 1000))
-
-
-async def test_bi(self, ctx):
-    ctx.test = 5
 
 
 class BPdia(commands.Cog):
@@ -181,17 +188,58 @@ class BPdia(commands.Cog):
         self.bot = bot
         print(f'Cog \'BPdia\' loaded')
 
+    @commands.slash_command(
+        name="create",
+        description="Creates a new character"
+    )
+    async def create_character(
+            self, ctx: ApplicationContext,
+            player: Option(Member, "Character's player", required=True),
+            name: Option(str, "Character's name", required=True),
+            character_class: Option(str, "Character's (initial) class", choices=CharacterClass.option_list(), required=True),
+            gp: Option(int, "Unspent starting gold", required=True),
+            level: Option(int, "Starting level for higher-level characters", min_value=1, max_value=20, default=1)
+    ):
+        start = time.time()
+        print(f'Incoming \'Create\' command invoked by {ctx.author.name}. '
+              f'Args: [ {player}, {name}, {character_class}, {gp}, {level} ]')
+
+        # Everything is built off the assumption that each player only has one active character, so check for that
+        if self.bot.sheets.get_character_from_id(player.id) is not None:
+            print(f"Found existing character for {player.id}, aborting")
+            await ctx.response.send_message(
+                embed=ErrorEmbed(description=f"Player {player.mention} already has a character. Have a Council member "
+                                             f"archive the old character before creating a new one."),
+                ephemeral=True
+            )
+            return
+
+        xp = (level - 1) * 1000
+        new_character = Character(player.id, name, CharacterClass(character_class), Faction.INITIATE, gp, xp)
+        initial_log = BonusEntry(f"{ctx.author.name}#{ctx.author.discriminator}", new_character, "Initial Log", 0, 0)
+
+        self.bot.sheets.create_character(new_character)
+        self.bot.sheets.log_activity(initial_log)
+
+        embed = Embed(title=f"Character Created - {name}",
+                      description=f"**Player:** {player.mention}\n"
+                                  f"**Class:** {character_class}\n"
+                                  f"**Starting Gold:** {gp}\n"
+                                  f"**Starting Level:** {level}",
+                      color=discord.Color.random())
+        embed.set_thumbnail(url=player.display_avatar.url)
+        embed.set_footer(text=f"Created by: {ctx.author.name}#{ctx.author.discriminator}",
+                         icon_url=ctx.author.display_avatar.url)
+
+        await ctx.response.send_message(embed=embed)
+        end = time.time()
+        print(f"Time to create character: {end - start}s")
+
     @commands.command(brief='- Provides a link to the public BPdia sheet')
     async def sheet(self, ctx):
         link = '<https://docs.google.com/spreadsheets/d/' + '1Ps6SWbnlshtJ33Yf30_1e0RkwXpaPy0YVFYaiETnbns' + '/>'
         await ctx.message.channel.send(f'The BPdia public sheet can be found at:\n{link}')
         await ctx.message.delete()
-
-    @commands.before_invoke(test_bi)
-    @commands.command()
-    async def time(self, ctx):
-        print(ctx.test)
-        await ctx.send(f'Current time (in UTC): {sheetstr(datetime.utcnow())}')
 
     @commands.command()
     @commands.check(is_admin)

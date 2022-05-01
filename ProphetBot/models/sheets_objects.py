@@ -1,11 +1,23 @@
 import datetime
 import enum
+import math
+from math import floor
+from typing import Dict, Any
 
 import discord
 from discord.ext import commands
+from discord.commands.context import ApplicationContext
+from discord import OptionChoice
 
 
-class CharacterClass(enum.Enum):
+class CommandOptionEnum(enum.Enum):
+
+    @classmethod
+    def option_list(cls):
+        return list(map(lambda o: OptionChoice(o.value), cls))
+
+
+class CharacterClass(CommandOptionEnum):
     ARTIFICER = 'Artificer'
     BARBARIAN = 'Barbarian'
     BARD = 'Bard'
@@ -21,24 +33,21 @@ class CharacterClass(enum.Enum):
     WIZARD = 'Wizard'
 
 
-class Faction(enum.Enum):
-    BOROMAR_CAPTAIN = 'Boromar Captain'
-    REDCLOAK_CAPTAIN = 'Redcloak Captain'
-    GATEKEEPERS_CAPTAIN = 'Gatekeepers Captain'
-    MAGISTER_CAPTAIN = 'Magister Captain'
-
-    BOROMAR = 'Boromar'
-    REDCLOAK = 'Redcloak'
-    DIRECTORATE = 'Directorate'
-    GATEKEEPER = 'Gatekeeper'
-    STARLIGHT = 'Starlight'
-    FREELANCER = 'Freelancer'
-    ADEPT = 'Adept'
+class Faction(CommandOptionEnum):
     INITIATE = 'Initiate'
+    FREELANCER = 'Freelancer'
+    COPPER_DRAGONS = 'Order of the Copper Dragon'
+    SILENT_WHISPERS = 'Silent Whispers'
+    SILVER_WOLVES = 'Silver Wolves'
+    CRIMSON_BLADES = 'Crimson Blades'
+    CLOVER_CONCLAVE = 'Clover Conclave'
+    SUNSTONE_LOTUS = 'Sunstone Lotus'
+    FALCON_EYES = 'The Falcon Eyes'
 
 
 class Activity(enum.Enum):
     arena = "ARENA"
+    bonus = "BONUS"
 
 
 def _clean_input(raw_imput):
@@ -54,44 +63,82 @@ def _clean_input(raw_imput):
 
 
 class Character(object):
+    player_id: int
+    name: str
+    _character_class: CharacterClass
+    _faction: Faction
+    wealth: int
+    experience: int
+    level: int
+    div_gp: int
+    max_gp: int
+    div_xp: int
+    max_xp: int
+    active: bool
+    _l1_arena: int
+    _l2_arenas: int
+    _l1_rps: int
+    _l2_rps: int
 
-    def __init__(self, char_dict):
-        # char_dict = _clean_input(raw_input)
-        self.player_id = int(char_dict["Discord ID"])
-        self.name = char_dict["Name"]
-        self._character_class = CharacterClass(char_dict["Class"].title())
-        self._faction = Faction(char_dict["Faction"].title())
-        self.level = int(char_dict["Level"])
-        self.wealth = int(char_dict["Current GP"])
-        self.experience = int(char_dict["Current XP"])
-        self.image_link = char_dict.get("Image URL")
-        self.sheet_link = char_dict.get("Sheet URL")
+    def __init__(self, player_id: int, name: str, char_class: CharacterClass,
+                 faction: Faction, gold: int, experience: int):
+        self.player_id = player_id
+        self.name = name
+        self._character_class = char_class
+        self._faction = faction
+        self.wealth = gold
+        self.experience = experience
 
-        self.div_gp = int(char_dict["Div GP"])
-        self.max_gp = int(char_dict["GP Max"])
-        self.div_xp = int(char_dict["Weekly XP"])
-        self.max_xp = int(char_dict["XP Max"])
-        self.active = char_dict["Active"]
+    @classmethod
+    def from_dict(cls, char_dict: Dict[str, Any]):
+        character = cls(player_id=int(char_dict["Discord ID"]), name=char_dict["Name"],
+                        char_class=CharacterClass(char_dict["Class"]), faction=Faction(char_dict["Faction"]),
+                        gold=int(char_dict["Current GP"]), experience=int(char_dict["Current XP"]))
 
-        if self.level < 3:
-            self.needed_arenas = 1 if self.level == 1 else 2
-            self.needed_rps = 1 if self.level == 1 else 2
-            self.completed_arenas = int(char_dict["L1 Arena"]) if self.level == 1 else (
-                    int(char_dict["L2 Arena 1/2"]) + int(char_dict["L2 Arena 2/2"]))
-            self.completed_rps = int(char_dict["L1 RP"]) if self.level == 1 else (
-                    int(char_dict["L2 RP 1/2"]) + int(char_dict["L2 RP 2/2"]))
+        character.div_gp = int(char_dict["Div GP"])
+        character.max_gp = int(char_dict["GP Max"])
+        character.div_xp = int(char_dict["Weekly XP"])
+        character.max_xp = int(char_dict["XP Max"])
+        character.active = bool(char_dict["Active"])
+
+        character._l1_arena = int(char_dict["L1 Arena"])
+        character._l2_arenas = int(char_dict["L2 Arena 1/2"]) + int(char_dict["L2 Arena 2/2"])
+        character._l1_rps = int(char_dict["L1 RP"])
+        character._l2_rps = int(char_dict["L2 RP 1/2"]) + int(char_dict["L2 RP 2/2"])
+
+        return character
 
     @property
-    def character_class(self):
+    def needed_arenas(self):
+        return 1 if self.level == 1 else 2
+
+    @property
+    def needed_rps(self):
+        return 1 if self.level == 1 else 2
+
+    @property
+    def completed_arenas(self):
+        return self._l1_arena if self.level == 1 else self._l2_arenas
+
+    @property
+    def completed_rps(self):
+        return self._l1_rps if self.level == 1 else self._l2_rps
+
+    @property
+    def character_class(self) -> str:
         return self._character_class.value
 
     @property
-    def faction(self):
+    def faction(self) -> str:
         return self._faction.value
 
-    async def get_member(self, ctx: commands.Context) -> discord.Member:
-        member_converter = commands.MemberConverter()
-        return await member_converter.convert(ctx, self.player_id)
+    @property
+    def level(self):
+        level = math.ceil((self.experience + 1) / 1000)
+        return level if level <= 20 else 20
+
+    def get_member(self, ctx: ApplicationContext) -> discord.Member:
+        return discord.utils.get(ctx.guild.members, id=self.player_id)
 
 
 class LogEntry(object):
@@ -102,8 +149,8 @@ class LogEntry(object):
     gp: int
     xp: int
 
-    def __init__(self, author: str, character: Character, activity: Activity, outcome: int | str = None,
-                      gp: int = None, xp: int = None):
+    def __init__(self, author: str, character: Character, activity: Activity,
+                 outcome: int | str = None, gp: int = None, xp: int = None):
         """
         Base object to log an activity to the BPdia Log worksheet.
         Don't call this directly unless you have a very good reason to do so
@@ -123,17 +170,18 @@ class LogEntry(object):
         self.gp = gp
         self.xp = xp
 
-    def to_sheets_row(self, server_level: int):
+    def to_sheets_row(self):
+        print(f"self.gp: {self.gp}, self.xp: {self.xp}")
+
         return [
             self.author,
-            datetime.datetime.utcnow(),
-            self.character.player_id,
-            self.activity,
-            self.outcome or '',
-            self.gp or '',
-            self.xp or '',
-            self.character.level,
-            server_level
+            datetime.datetime.utcnow().isoformat(),
+            str(self.character.player_id),
+            self.activity.value,
+            self.outcome if self.outcome is not None else '',
+            self.gp if self.gp is not None else '',
+            self.xp if self.gp is not None else '',
+            self.character.level
         ]
 
 
@@ -142,3 +190,8 @@ class ArenaEntry(LogEntry):
     def __init__(self, author: str, character: Character, outcome: str):
         super().__init__(author, character, Activity.arena, outcome)
 
+
+class BonusEntry(LogEntry):
+
+    def __init__(self, author: str, character: Character, reason: str, gp: int, xp: int):
+        super().__init__(author, character, Activity.bonus, reason, gp, xp)

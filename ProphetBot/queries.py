@@ -24,3 +24,15 @@ def update_arena_tier(arena_id: int, new_tier: int):
     return arenas_table.update()\
         .where(arenas_table.c.id == arena_id)\
         .values(tier=new_tier)
+
+
+def update_arena_completed_phases(arena_id: int, completed_phases: int):
+    return arenas_table.update() \
+        .where(arenas_table.c.id == arena_id) \
+        .values(tier=completed_phases)
+
+
+def close_arena_by_id(arena_id: int):
+    return arenas_table.update() \
+        .where(arenas_table.c.id == arena_id) \
+        .values(end_ts=datetime.utcnow())
