@@ -16,6 +16,10 @@ class CommandOptionEnum(enum.Enum):
     def option_list(cls):
         return list(map(lambda o: OptionChoice(o.value), cls))
 
+    @classmethod
+    def values_list(cls):
+        return list(map(lambda v: v.value, cls))
+
 
 class CharacterClass(CommandOptionEnum):
     ARTIFICER = 'Artificer'
@@ -48,6 +52,11 @@ class Faction(CommandOptionEnum):
 class Activity(enum.Enum):
     arena = "ARENA"
     bonus = "BONUS"
+    rp = "RP"
+    buy = "BUY"
+    sell = "SELL"
+    global_event = "GLOBAL"
+    campaign = "CAMPAIGN"
 
 
 def _clean_input(raw_imput):
@@ -186,12 +195,51 @@ class LogEntry(object):
 
 
 class ArenaEntry(LogEntry):
-
     def __init__(self, author: str, character: Character, outcome: str):
+        """
+        Log Entry for an Arena activity
+
+        :param author: Name of the individual who initiated the command. Formatted as "username#1234"
+        :param character: Character object the activity is being logged for
+        :param outcome: The arena outcome; "WIN", "LOSS", or "BONUS
+        """
         super().__init__(author, character, Activity.arena, outcome)
 
 
 class BonusEntry(LogEntry):
-
     def __init__(self, author: str, character: Character, reason: str, gp: int, xp: int):
+        """
+        Log Entry for a Bonus activity
+
+        :param author: Name of the individual who initiated the command. Formatted as "username#1234"
+        :param character: Character object the activity is being logged for
+        :param reason: The reason for the bonus being awarded
+        :param gp: Amount of bonus gold awarded
+        :param xp: amount of bonus experience awarded
+        """
         super().__init__(author, character, Activity.bonus, reason, gp, xp)
+
+
+class RpEntry(LogEntry):
+    def __init__(self, author: str, character: Character):
+        super().__init__(author, character, Activity.rp)
+
+
+class BuyEntry(LogEntry):
+    def __init__(self, author: str, character: Character, item: str, cost: int):
+        super().__init__(author, character, Activity.buy, item, cost)
+
+
+class SellEntry(LogEntry):
+    def __init__(self, author: str, character: Character, item: str, cost: int):
+        super().__init__(author, character, Activity.sell, item, cost)
+
+
+class GlobalEntry(LogEntry):
+    def __init__(self, author: str, character: Character, global_name: str, gp: int, xp: int):
+        super().__init__(author, character, Activity.global_event, global_name, gp, xp)
+
+
+class CampaignEntry(LogEntry):
+    def __init__(self, author: str, character: Character, campaign_name: str, gp: int, xp: int):
+        super().__init__(author, character, Activity.campaign, campaign_name, gp, xp)
