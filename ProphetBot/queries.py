@@ -6,7 +6,7 @@ from sqlalchemy.sql.selectable import FromClause, TableClause
 
 def select_active_arena_by_channel(channel_id: int) -> FromClause:
     return arenas_table.select().where(
-        and_(arenas_table.c.channel_id == channel_id, arenas_table.c.end_ts is null)
+        and_(arenas_table.c.channel_id == channel_id, arenas_table.c.end_ts == null())
     )
 
 
