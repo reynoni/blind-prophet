@@ -108,8 +108,7 @@ class GsheetsClient(object):
         :param log_entries: A list of LogEntry (or usually a subclass thereof) to be logged
         """
 
-        server_level = self.get_asl()
-        log_data = [entry.to_sheets_row(server_level) for entry in log_entries]
+        log_data = [entry.to_sheets_row() for entry in log_entries]
 
         print(f"Logging activity with data {log_data}")
         self.log_sheet.append_rows(log_data, value_input_option='USER_ENTERED',
