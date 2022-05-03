@@ -1,34 +1,23 @@
 import re
 import time
-from typing import List
+import timeit
+from timeit import default_timer as timer
 
 import discord
 import discord.errors
 import discord.utils
+from discord import Embed, Member, Role, Color, CommandPermission
+from discord.commands import Option, permissions
+from discord.commands.context import ApplicationContext
 from discord.ext import commands
-from discord.ext.commands.context import Context
-from discord.types.embed import EmbedField
 from texttable import Texttable
 
 from ProphetBot.bot import BpBot
 from ProphetBot.helpers import *
-from ProphetBot.models.sheets_objects import Character, BuyEntry, SellEntry, GlobalEntry
-
-import aiopg.sa
-import discord
-from discord import ButtonStyle, Embed, Member, Role, Color
-from discord.commands import SlashCommandGroup, CommandPermission, Option, OptionChoice, permissions
-from discord.commands.context import ApplicationContext
-from discord.ext import commands
-from discord.ext.commands import Greedy
-from discord.ui import Button
-
-from ProphetBot.bot import BpBot
-from ProphetBot.models.sheets_objects import Character, ArenaEntry, BonusEntry, RpEntry, Faction, CharacterClass
-from ProphetBot.models.embeds import ErrorEmbed, LogEmbed, linebreak
-from ProphetBot.queries import select_active_arena_by_channel, insert_new_arena, update_arena_tier, \
-    update_arena_completed_phases, close_arena_by_id
-from ProphetBot.sheets_client import GsheetsClient
+from ProphetBot.models.embeds import ErrorEmbed, LogEmbed
+from ProphetBot.models.sheets_objects import BuyEntry, SellEntry, GlobalEntry, CouncilEntry, MagewrightEntry, \
+    ShopkeepEntry
+from ProphetBot.models.sheets_objects import Character, BonusEntry, RpEntry, Faction, CharacterClass
 
 
 def setup(bot):
@@ -73,13 +62,12 @@ def build_get_embed(character: Character, player: Member) -> Embed:
     :return: Embed object fully formatted and ready to go
     """
 
+    # Initial setup
     description = f"**Class:** {character.character_class}\n" \
                   f"**Faction:** {character.faction}\n" \
                   f"**Level:** {character.level}\n" \
                   f"**Experience:** {character.experience} xp\n" \
                   f"**Wealth:** {character.wealth} gp"
-
-    # Initial setup
     faction_role = discord.utils.get(player.roles, name=character.faction)
     embed = Embed(
         title=f"Character Info - {character.name}",
@@ -93,16 +81,6 @@ def build_get_embed(character: Character, player: Member) -> Embed:
                     value=f"\u200b \u200b \u200b Diversion GP: {character.div_gp}/{character.max_gp}\n"
                           f"\u200b \u200b \u200b Diversion XP: {character.div_xp}/{character.max_xp}",
                     inline=False)
-    # embed.add_field(name="Class", value=character.character_class, inline=True)
-    # embed.add_field(name="Level", value=character.level, inline=True)
-    # embed.add_field(name="Faction", value=character.faction, inline=True)
-    # embed.add_field(**linebreak())
-    # embed.add_field(name="Experience", value=f"{character.experience} xp", inline=True)
-    # embed.add_field(name="Wealth", value=f"{character.wealth} gp", inline=True)
-    # embed.add_field(**linebreak())
-    # embed.add_field(name="Diversion GP", value=f"{character.div_gp}/{character.max_gp}", inline=True)
-    # embed.add_field(name="Diversion XP", value=f"{character.div_xp}/{character.max_xp}", inline=True)
-    # embed.add_field(**linebreak())
 
     # Then we add some new player quest info for level 1 & 2s
     if character.level < 3:
@@ -111,10 +89,6 @@ def build_get_embed(character: Character, player: Member) -> Embed:
                               f"{character.completed_rps}/{character.needed_rps}\n"
                               f"\u200b \u200b \u200b Level {character.level} Arenas: "
                               f"{character.completed_arenas}/{character.needed_arenas}")
-        # embed.add_field(name=f"Level {character.level} RPs",
-        #                 value=f"{character.completed_rps}/{character.needed_rps}", inline=True)
-        # embed.add_field(name=f"Level {character.level} Arenas",
-        #                 value=f"{character.completed_arenas}/{character.needed_arenas}", inline=True)
 
     return embed
 
@@ -210,12 +184,13 @@ class BPdia(commands.Cog):
 
         await ctx.response.send_message(embed=build_get_embed(character, player), ephemeral=False)
 
+    @permissions.has_any_role("Magewright", "Council")
     @commands.slash_command(
         name="rp",
         description="Logs a completed RP",
-        default_permission=False
+        default_permission=False,
+        permissions=[CommandPermission("Magewright", 1, True)]
     )
-    @permissions.has_any_role("Magewright", "Council")
     async def log_rp(self, ctx: ApplicationContext,
                      player: Option(Member, description="Player who participated in the RP", required=True)):
         if (character := self.bot.sheets.get_character_from_id(player.id)) is None:
@@ -231,12 +206,12 @@ class BPdia(commands.Cog):
 
         await ctx.response.send_message(embed=LogEmbed(ctx, log_entry), ephemeral=False)
 
+    @permissions.has_any_role("Magewright", "Council")
     @commands.slash_command(
         name="bonus",
         description="Gives bonus GP and/or XP to a player",
         default_permission=False
     )
-    @permissions.has_any_role("Magewright", "Council")
     async def log_bonus(self, ctx: ApplicationContext,
                         player: Option(Member, description="Player receiving the bonus", required=True),
                         reason: Option(str, description="The reason for the bonus", required=True),
@@ -326,6 +301,90 @@ class BPdia(commands.Cog):
 
         await ctx.response.send_message(embed=LogEmbed(ctx, log_entry), ephemeral=False)
 
+    @commands.slash_command(
+        name="weekly",
+        description="Performs the weekly reset",
+        default_permission=False
+    )
+    @permissions.has_role("Council")
+    async def weekly_reset(self, ctx: ApplicationContext):
+        print(f"Weekly reset initiate by {ctx.author}")
+        async with ctx.typing():  # Have the bot show as typing, as this may take a while
+
+            # Process pending GP/XP
+            start = timer()
+            pending_gp_xp = self.bot.sheets.char_sheet.batch_get(['F3:F', 'I3:I', 'J1'])
+            gp_total = list(pending_gp_xp[0])
+            xp_total = list(pending_gp_xp[1])
+            server_xp = list(pending_gp_xp[2])
+            print(f'gp: {gp_total}\n'
+                  f'xp: {xp_total}\n'
+                  f'server_xp: {server_xp}')
+
+            try:
+                self.bot.sheets.char_sheet.batch_update([{
+                    'range': 'E3:E',
+                    'values': gp_total
+                }, {
+                    'range': 'H3:H',
+                    'values': xp_total
+                }, {
+                    'range': 'F1',
+                    'values': server_xp
+                }])
+            except gspread.exceptions.APIError as e:
+                print(e)
+                await ctx.response.send_message("Error: Trouble setting GP/XP values. Aborting.", ephemeral=True)
+                return
+            else:
+                end = timer()
+                print(f"Successfully copied GP and XP values in {end - start}s")
+
+            # Archive old log entries
+            start = timer()
+            pending_logs = self.bot.sheets.log_sheet.get('A2:H')
+
+            try:
+                self.bot.sheets.log_archive.append_rows(pending_logs, value_input_option='USER_ENTERED',
+                                                        insert_data_option='INSERT_ROWS', table_range='A2')
+                self.bot.sheets.bpdia_workbook.values_clear('Log!A2:H')
+            except gspread.exceptions.APIError:
+                await ctx.response.send_message("Error: Trouble archiving log entries. Aborting.", ephemeral=True)
+                return
+            else:
+                end = timer()
+                print(f"Successfully archived old log entries in {end - start}s")
+
+            # Finally, hand out weekly stipends
+            start = timer()
+            characters = self.bot.sheets.get_all_characters()
+            council_role = discord.utils.get(ctx.guild.roles, name="Council")
+            magewright_role = discord.utils.get(ctx.guild.roles, name="Magewright")
+            shopkeep_role = discord.utils.get(ctx.guild.roles, name="Shopkeeper")
+            council_ids = [m.id for m in council_role.members]
+
+            council_characters = characters_by_ids(characters, council_ids)
+            magewright_charcters = characters_by_ids(characters,
+                                               [m.id for m in magewright_role.members if m not in council_ids])
+            shopkeep_characters = characters_by_ids(characters, [m.id for m in shopkeep_role.members])
+
+            log_entries = []
+            log_entries.extend(
+                [CouncilEntry(f"{self.bot.user.name}#{self.bot.user.discriminator}", c) for c in council_characters]
+            )
+            log_entries.extend(
+                [MagewrightEntry(f"{self.bot.user.name}#{self.bot.user.discriminator}", c) for c in magewright_charcters]
+            )
+            log_entries.extend(
+                [ShopkeepEntry(f"{self.bot.user.name}#{self.bot.user.discriminator}", c) for c in shopkeep_characters]
+            )
+
+            self.bot.sheets.log_activities(log_entries)
+            end = timer()
+            print(f"Successfully applied weekly stipends in {end - start}s")
+
+            await ctx.response.send_message(f"Weekly reset complete")
+
     @commands.command(brief='- Provides a link to the public BPdia sheet')
     async def sheet(self, ctx):
         link = '<https://docs.google.com/spreadsheets/d/' + '1Ps6SWbnlshtJ33Yf30_1e0RkwXpaPy0YVFYaiETnbns' + '/>'
@@ -366,214 +425,9 @@ class BPdia(commands.Cog):
         await ctx.message.channel.send(f'{disc_user} - level submitted by {ctx.author.nick}')
         await ctx.message.delete()
 
-    @commands.command(brief='- Processes the weekly reset',
-                      help=WEEKLY_HELP)
-    @commands.has_role('Council')
-    async def weekly(self, ctx):
-        # Command to process the weekly reset
-        await ctx.channel.send("`PROCESSING WEEKLY RESET`")
-        await ctx.trigger_typing()
-
-        # Process pending GP/XP
-        pending_gp_xp = self.bot.sheets.char_sheet.batch_get(['F3:F', 'I3:I'])
-        gp_total = list(pending_gp_xp[0])
-        xp_total = list(pending_gp_xp[1])
-        print(f'gp: {gp_total}\n'
-              f'xp: {xp_total}')
-
-        try:
-            self.bot.sheets.char_sheet.batch_update([{
-                'range': 'E3:E',
-                'values': gp_total
-            }, {
-                'range': 'H3:H',
-                'values': xp_total
-            }])
-        except gspread.exceptions.APIError as e:
-            print(e)
-            await ctx.channel.send("Error: Trouble getting GP/XP values. Aborting.")
-            return
-
-        # Archive old log entries
-        pending_logs = self.bot.sheets.log_sheet.get('A2:I')
-
-        try:
-            self.bot.sheets.log_archive.append_rows(pending_logs, value_input_option='USER_ENTERED',
-                                                    insert_data_option='INSERT_ROWS', table_range='A2')
-            self.bot.sheets.bpdia_workbook.values_clear('Log!A2:I')
-        except gspread.exceptions.APIError:
-            await ctx.channel.send("Error: Trouble archiving log entries. Aborting.")
-            return
-
-        # Process Council/Magewright bonuses
-        user_map = self.get_user_map()
-        server = ctx.guild
-
-        role_council = discord.utils.get(server.roles, name='Council')
-        council_ids = [member.id for member in role_council.members]
-        role_magewright = discord.utils.get(server.roles, name='Magewright')
-        magewright_ids = [member.id for member in role_magewright.members if member.id not in council_ids]
-
-        log_data = []
-        for member_id in council_ids:
-            log_data.append(['Blind Prophet', str(datetime.utcnow()), str(member_id), 'ADMIN', '',
-                             '', '', get_cl(user_map[str(member_id)]), int(self.bot.sheets.get_asl())])
-        for member_id in magewright_ids:
-            log_data.append(['Blind Prophet', str(datetime.utcnow()), str(member_id), 'MOD', '',
-                             '', '', get_cl(user_map[str(member_id)]), int(self.bot.sheets.get_asl())])
-
-        self.bot.sheets.log_sheet.append_rows(log_data, value_input_option='USER_ENTERED',
-                                              insert_data_option='INSERT_ROWS',
-                                              table_range='A2')
-
-        await ctx.message.delete()
-        await ctx.channel.send("`WEEKLY RESET HAS OCCURRED.`")
-
-    @commands.command(brief='- Records an activity in the BPdia log',
-                      help=LOG_HELP)
-    @commands.has_any_role('Tracker', 'Magewright', 'Loremaster')
-    async def log(self, ctx, *log_args):
-        # start = timer()
-        command_data = []
-        display_errors = []
-        user_map = self.get_user_map()
-
-        print(f'{str(datetime.utcnow())} - Incoming \'Log\' command from {ctx.message.author.name}'
-              f'. Args: {log_args}')  # TODO: This should log actual time, not message time
-        log_args = list(filter(lambda a: a != '.', log_args))
-
-        # types: list of either 'int', 'str', or 'str_upper'
-        def parse_activity(*types):
-            num_args = len(types)
-            offset = 2  # First two index positions are always spoken for
-            # check for too few arguments
-            if len(log_args) < num_args + offset:
-                display_errors.append(MISSING_FIELD_ERROR)
-                return
-            elif len(log_args) > num_args + offset:
-                display_errors.append(EXTRA_FIELD_ERROR)
-                return
-
-            for i in range(num_args):
-                arg = log_args[offset + i]
-                if types[i] == 'int':
-                    try:
-                        arg = str(int(arg, 10))
-                    except ValueError:
-                        display_errors.append(NUMBER_ERROR)
-                elif types[i] == 'str':
-                    arg = str(arg)
-                elif types[i] == 'str_upper':
-                    arg = str(arg).upper()
-                else:
-                    raise Exception('Incorrect argument type in `types`')
-
-                command_data.append(arg)
-
-        if 2 <= len(log_args):
-
-            # Start off by logging the user submitting the message and the date/time
-            command_data.append(ctx.message.author.name)
-            command_data.append(str(datetime.utcnow()))
-
-            # Get the user targeted by the log command
-            target_id = re.sub(r'\D+', '', log_args[0])
-            if target_id not in user_map:
-                display_errors.append(NAME_ERROR)
-            else:
-                command_data.append(target_id)
-
-            # Get the activity type being logged
-            activity = log_args[1].upper()
-            if activity not in ACTIVITY_TYPES:  # Grabbing ACTIVITY_TYPES from constants.py
-                display_errors.append(ACTIVITY_ERROR)
-            else:
-                command_data.append(activity)
-
-            if len(display_errors) == 0:
-                # Handle RP
-                if activity in ['RP', 'MOD', 'ADMIN']:
-                    if len(log_args) > 2:
-                        display_errors.append(EXTRA_FIELD_ERROR)
-
-                # Handle PIT/ARENA
-                elif activity in ['ARENA_OLD', 'PIT']:
-                    if len(log_args) < 3 or log_args[2].upper() not in ['WIN', 'LOSS', 'HOST']:
-                        display_errors.append(RESULT_ERROR)
-                    else:
-                        parse_activity('str_upper')
-
-                # Handle SHOP/SHOPKEEP
-                # To-Do: Deprecate 'SHOPKEEP'. Nobody uses it.
-                elif activity in ['SHOP', 'SHOPKEEP']:
-                    parse_activity('int')
-
-                # Handle BUY/SELL
-                elif activity in ['BUY', 'SELL']:
-                    parse_activity('str', 'int')
-
-                # Handle QUEST/ACTIVITY/ADVENTURE, as well as BONUS/GLOBAL
-                elif activity in ['QUEST', 'ACTIVITY', 'CAMPAIGN', 'BONUS', 'GLOBAL']:
-                    parse_activity('str', 'int', 'int')
-
-                else:
-                    display_errors.append('How did you even get here?')
-        else:
-            display_errors.append('Error: There must be 2-5 fields entered.')
-
-        if len(display_errors) == 0:
-            while len(command_data) < 7:
-                command_data.append('')  # Pad until CL and ASL
-            target_id = re.sub(r'\D+', '', log_args[0])
-            command_data.append(get_cl(user_map[target_id]))  # Because the sheet formatting has to be a little extra
-            command_data.append(self.bot.sheets.get_asl())
-            print(f'DATA: {command_data}')
-            # flat_data = flatten(command_data)
-            try:
-                self.bot.sheets.log_sheet.append_row(command_data, value_input_option='USER_ENTERED',
-                                                     insert_data_option='INSERT_ROWS', table_range='A2')
-                await ctx.message.channel.send(f'{log_args} - log submitted by {ctx.author.nick}')
-            except Exception as E:
-                if isinstance(E, gspread.exceptions.APIError):
-                    await ctx.message.send('Error: Something went wrong while writing the log entry. Please try again.')
-            # stop = timer()
-            # print(f'Elapsed time: {stop - start}')
-            await ctx.message.delete()
-        else:
-            for error in display_errors:
-                await ctx.message.channel.send(error)
-
-    @commands.command(brief='- Alias for logging an activity', aliases=ACTIVITY_TYPES,
-                      help=LOG_ALIAS_HELP)
-    @commands.has_any_role('Tracker', 'Magewright', 'Loremaster')
-    async def log_alias(self, ctx, *args):
-        msg = str(ctx.message.content).split()
-        activity = msg[0][1:]
-
-        print(f'{str(datetime.utcnow())} - Incoming \'{activity}\' command from {ctx.message.author.name}'
-              f'. Args: {args}')  # TODO: This should log actual time, not message time
-
-        args = list(filter(lambda a: a != '.', args))
-        args.insert(1, activity)
-        await self.log(ctx, *args)
-
     # --------------------------- #
     # Helper functions
     # --------------------------- #
-
-    # def get_asl(self):
-    #     try:
-    #         server_level = self.bot.sheets.char_sheet.get('B1')
-    #     except gspread.exceptions.APIError as E:
-    #         print(E)
-    #     return int(server_level[0][0])
-
-    # async def _character_from_row(self, row):
-    #     header_row = '2:2'
-    #     user_row = f'{row}:{row}'
-    #     data = self.bot.sheets.char_sheet.batch_get([header_row, user_row])
-    #
-    #     return await Character.create(data)
 
     def get_user_map(self):
         USERLIST_RANGE = 'A3:A'

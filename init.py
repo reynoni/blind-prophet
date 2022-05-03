@@ -1,8 +1,6 @@
-import logging
+import asyncio
 import os
 import sys
-import asyncio
-from datetime import datetime
 from os import listdir
 
 import discord
@@ -30,7 +28,7 @@ if sys.version_info >= (3, 8) and sys.platform.lower().startswith("win"):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 bot = BpBot(command_prefix=os.environ['COMMAND_PREFIX'],
-            description='ProphetBot - Created and maintained by Nicoalas#5232 and Alesha#0362',
+            description='ProphetBot - Created and maintained by Nick!#8675 and Alesha#0362',
             case_insensitive=True,
             help_command=MyHelpCommand(),
             intents=intents,

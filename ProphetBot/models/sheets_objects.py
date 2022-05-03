@@ -57,6 +57,9 @@ class Activity(enum.Enum):
     sell = "SELL"
     global_event = "GLOBAL"
     campaign = "CAMPAIGN"
+    council = "ADMIN"
+    magewright = "MOD"
+    shopkeep = "SHOP"
 
 
 def _clean_input(raw_imput):
@@ -180,8 +183,6 @@ class LogEntry(object):
         self.xp = xp
 
     def to_sheets_row(self):
-        print(f"self.gp: {self.gp}, self.xp: {self.xp}")
-
         return [
             self.author,
             datetime.datetime.utcnow().isoformat(),
@@ -243,3 +244,18 @@ class GlobalEntry(LogEntry):
 class CampaignEntry(LogEntry):
     def __init__(self, author: str, character: Character, campaign_name: str, gp: int, xp: int):
         super().__init__(author, character, Activity.campaign, campaign_name, gp, xp)
+
+
+class CouncilEntry(LogEntry):
+    def __init__(self, author: str, character: Character):
+        super().__init__(author, character, Activity.council)
+
+
+class MagewrightEntry(LogEntry):
+    def __init__(self, author: str, character: Character):
+        super().__init__(author, character, Activity.magewright)
+
+
+class ShopkeepEntry(LogEntry):
+    def __init__(self, author: str, character: Character):
+        super().__init__(author, character, Activity.shopkeep)

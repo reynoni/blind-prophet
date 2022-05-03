@@ -1,7 +1,21 @@
+from typing import List
+
 from ProphetBot.constants import *
+from ProphetBot.models.sheets_objects import Character
 from datetime import datetime
 import discord.utils
 import gspread
+
+
+def characters_by_ids(characters_list: List[Character], ids: List[int]) -> List[Character]:
+    """
+    Filters a list of Characters by discord ids
+
+    :param characters_list: The List of Characters to be filtered
+    :param ids: List of discord ids to filter by
+    :return: The filterd list of Characters
+    """
+    return list(filter(lambda c: c.player_id in ids, characters_list))
 
 
 def is_admin(ctx):

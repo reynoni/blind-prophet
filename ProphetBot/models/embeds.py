@@ -17,7 +17,7 @@ def linebreak() -> Dict[str, Any]:
 class LogEmbed(Embed):
     def __init__(self, ctx: ApplicationContext, log_entry: LogEntry):
         player = log_entry.character.get_member(ctx)
-        description = f"**Player:** {player.mention}"
+        description = f"**Player:** {player.mention}\n"
         if log_entry.outcome:
             description += f"**Item/Reason:** {log_entry.outcome}\n"
         if log_entry.gp is not None:
