@@ -1,14 +1,12 @@
 from datetime import datetime
 from ProphetBot.models.db import arenas_table
-from sqlalchemy import null
+from sqlalchemy import null, and_, or_
 from sqlalchemy.sql.selectable import FromClause, TableClause
 
 
 def select_active_arena_by_channel(channel_id: int) -> FromClause:
     return arenas_table.select().where(
-        (arenas_table.c.channel_id == channel_id)
-        and
-        (arenas_table.c.end_ts is null or datetime.utcnow() < arenas_table.c.end_ts)
+        and_(arenas_table.c.channel_id == channel_id, arenas_table.c.end_ts is null)
     )
 
 
@@ -26,10 +24,10 @@ def update_arena_tier(arena_id: int, new_tier: int):
         .values(tier=new_tier)
 
 
-def update_arena_completed_phases(arena_id: int, completed_phases: int):
+def update_arena_completed_phases(arena_id: int, new_phases: int):
     return arenas_table.update() \
         .where(arenas_table.c.id == arena_id) \
-        .values(tier=completed_phases)
+        .values(completed_phases=new_phases)
 
 
 def close_arena_by_id(arena_id: int):
