@@ -1,16 +1,14 @@
 import bisect
-import datetime
-
-import gspread
 import json
 import os
 from time import perf_counter
-from typing import List, Optional, Type
+from typing import List, Optional
 
+import gspread
 from gspread import Cell
 
 from ProphetBot.constants import TIERS, SHOP_TIERS
-from ProphetBot.models.sheets_objects import Character, Activity, LogEntry
+from ProphetBot.models.sheets_objects import Character, LogEntry
 
 
 class GsheetsClient(object):
@@ -124,12 +122,12 @@ class GsheetsClient(object):
         if player_cell is None or faction_cell is None:
             raise ValueError
 
-        print(f"Updating cell {player_cell.row}:{faction_cell.col} to \"{faction_name}\"")
+        print(f"Updating cell [ {player_cell.row}:{faction_cell.col} ] to [ \"{faction_name}\" ]")
         self.char_sheet.update_cell(player_cell.row, faction_cell.col, faction_name)
 
     def update_reset_xp(self, player_id: int, new_xp: int):
         player_cell: Cell = self.char_sheet.find(str(player_id), in_column=1)
         reset_xp_cell: Cell = self.char_sheet.find("Reset XP", in_row=2)
 
-        print(f"Updating cell {player_cell.row}:{reset_xp_cell.col} to \"{new_xp}\"")
+        print(f"Updating cell [ {player_cell.row}:{reset_xp_cell.col} ] to [ \"{new_xp}\" ]")
         self.char_sheet.update_cell(player_cell.row, reset_xp_cell.col, new_xp)
