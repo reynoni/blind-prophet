@@ -268,7 +268,7 @@ class Arenas(commands.Cog):
         for player in participants:
             log_messages.append(ArenaEntry(self.bot.user.name, player, result))
 
-        if completed_phases >= MAX_PHASES[arena_row.tier] / 2 and result == "WIN":
+        if completed_phases > MAX_PHASES[arena_row.tier] / 2 and result == "WIN":
             for player in participants:
                 log_messages.append(ArenaEntry(self.bot.user.name, player, "BONUS"))
 

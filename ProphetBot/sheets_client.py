@@ -6,6 +6,9 @@ import json
 import os
 from time import perf_counter
 from typing import List, Optional, Type
+
+from gspread import Cell
+
 from ProphetBot.constants import TIERS, SHOP_TIERS
 from ProphetBot.models.sheets_objects import Character, Activity, LogEntry
 
@@ -113,3 +116,20 @@ class GsheetsClient(object):
         print(f"Logging activity with data {log_data}")
         self.log_sheet.append_rows(log_data, value_input_option='USER_ENTERED',
                                    insert_data_option='INSERT_ROWS', table_range='A2')
+
+    def update_faction(self, player_id: int, faction_name: str):
+        player_cell: Cell = self.char_sheet.find(str(player_id), in_column=1)
+        faction_cell: Cell = self.char_sheet.find("Faction", in_row=2)
+
+        if player_cell is None or faction_cell is None:
+            raise ValueError
+
+        print(f"Updating cell {player_cell.row}:{faction_cell.col} to \"{faction_name}\"")
+        self.char_sheet.update_cell(player_cell.row, faction_cell.col, faction_name)
+
+    def update_reset_xp(self, player_id: int, new_xp: int):
+        player_cell: Cell = self.char_sheet.find(str(player_id), in_column=1)
+        reset_xp_cell: Cell = self.char_sheet.find("Reset XP", in_row=2)
+
+        print(f"Updating cell {player_cell.row}:{reset_xp_cell.col} to \"{new_xp}\"")
+        self.char_sheet.update_cell(player_cell.row, reset_xp_cell.col, new_xp)

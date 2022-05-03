@@ -128,7 +128,7 @@ class BPdia(commands.Cog):
             name: Option(str, "Character's name", required=True),
             character_class: Option(str, "Character's (initial) class", choices=CharacterClass.option_list(),
                                     required=True),
-            gp: Option(int, "Unspent starting gold", required=True),
+            gp: Option(int, "Unspent starting gold", min=0, max=99999, required=True),
             level: Option(int, "Starting level for higher-level characters", min_value=1, max_value=20, default=1)
     ):
         start = time.time()
@@ -215,8 +215,8 @@ class BPdia(commands.Cog):
     async def log_bonus(self, ctx: ApplicationContext,
                         player: Option(Member, description="Player receiving the bonus", required=True),
                         reason: Option(str, description="The reason for the bonus", required=True),
-                        gold: Option(int, description="The amount of gp", default=0),
-                        experience: Option(int, description="The amount of xp", default=0)):
+                        gold: Option(int, description="The amount of gp", default=0, min=0, max=2000),
+                        experience: Option(int, description="The amount of xp", default=0, min=0, max=150)):
         if (character := self.bot.sheets.get_character_from_id(player.id)) is None:
             print(f"No character information found for player [ {player.id} ], aborting")
             await ctx.response.send_message(
@@ -239,12 +239,17 @@ class BPdia(commands.Cog):
     async def log_buy(self, ctx: ApplicationContext,
                       player: Option(Member, description="Player who bought the item", required=True),
                       item: Option(str, description="The item being bought", required=True),
-                      cost: Option(int, description="The cost of the item", required=True)):
+                      cost: Option(int, description="The cost of the item", min=0, max=999999, required=True)):
         if (character := self.bot.sheets.get_character_from_id(player.id)) is None:
             print(f"No character information found for player [ {player.id} ], aborting")
             await ctx.response.send_message(
                 embed=ErrorEmbed(description=f"No character information found for {player.mention}"),
                 ephemeral=True
+            )
+            return
+        if character.wealth < cost:
+            await ctx.response.send_message(
+                embed=ErrorEmbed(description=f"{player.mention} cannot afford the {cost}gp cost")
             )
             return
 
@@ -262,7 +267,8 @@ class BPdia(commands.Cog):
     async def log_sell(self, ctx: ApplicationContext,
                        player: Option(Member, description="Player who sold the item", required=True),
                        item: Option(str, description="The item being sold", required=True),
-                       cost: Option(int, description="The amount of gp received for the sale", required=True)):
+                       cost: Option(int, description="The amount of gp received for the sale",
+                                    min=0, max=999999, required=True)):
         if (character := self.bot.sheets.get_character_from_id(player.id)) is None:
             print(f"No character information found for player [ {player.id} ], aborting")
             await ctx.response.send_message(
@@ -285,8 +291,8 @@ class BPdia(commands.Cog):
     async def log_global(self, ctx: ApplicationContext,
                          player: Option(Member, description="Player receiving the bonus", required=True),
                          global_name: Option(str, description="The name of the global activity", required=True),
-                         gold: Option(int, description="The amount of gp", required=True),
-                         experience: Option(int, description="The amount of xp", required=True)):
+                         gold: Option(int, description="The amount of gp", min=0, max=2000, required=True),
+                         experience: Option(int, description="The amount of xp", min=0, max=150, required=True)):
         if (character := self.bot.sheets.get_character_from_id(player.id)) is None:
             print(f"No character information found for player [ {player.id} ], aborting")
             await ctx.response.send_message(
@@ -384,6 +390,80 @@ class BPdia(commands.Cog):
             print(f"Successfully applied weekly stipends in {end - start}s")
 
             await ctx.response.send_message(f"Weekly reset complete")
+
+    @commands.slash_command(
+        name="faction",
+        description="Sets the target player's faction"
+    )
+    async def set_faction(self, ctx: ApplicationContext,
+                          player: Option(Member, description="Player joining the faction", required=True),
+                          faction: Option(str, description="Faction to join", required=True,
+                                          choices=Faction.option_list())):
+        current_faction_role = get_faction_role(player)
+        player: Member
+        new_faction_role = discord.utils.get(ctx.guild.roles, name=faction)
+        if new_faction_role is None:
+            await ctx.response.send_message(
+                embed=ErrorEmbed(description=f"Faction role with name {faction} could not be found"))
+            return
+        if current_faction_role is not None:
+            await player.remove_roles(current_faction_role, reason=f"Joining new faction [ {faction} ]")
+
+        try:
+            self.bot.sheets.update_faction(player.id, faction)
+        except ValueError:
+            await ctx.response.send_message(embed=ErrorEmbed(
+                description=f"Player {player.mention} not found in BPdia. You may need to `/create` then first."),
+                ephemeral=True
+            )
+            return
+        await player.add_roles(new_faction_role, reason=f"Joining new faction [ {faction} ]")
+        embed = Embed(title="Success!",
+                      description=f"{player.mention} has joined {faction}!",
+                      color=new_faction_role.color)
+        embed.set_thumbnail(url=player.display_avatar.url)
+
+        await ctx.response.send_message(embed=embed)
+
+    @commands.slash_command(
+        name="level",
+        description="Manually levels a character that has completed their Level 1 or Level 2 quests"
+    )
+    async def level_character(self, ctx: ApplicationContext,
+                              player: Option(Member, description="Player receiving the level bump", required=True)):
+        if (character := self.bot.sheets.get_character_from_id(player.id)) is None:
+            print(f"No character information found for player [ {player.id} ], aborting")
+            await ctx.response.send_message(
+                embed=ErrorEmbed(description=f"No character information found for {player.mention}"),
+                ephemeral=True
+            )
+            return
+        if character.level > 2:
+            await ctx.response.send_message(
+                embed=ErrorEmbed(description=f"{player.mention} is already level {character.level}. "
+                                             f"If they leveled the hard way then, well, congrats"),
+                ephemeral=True
+            )
+            return
+        if character.needed_rps != character.completed_rps or character.needed_arenas != character.completed_arenas:
+            await ctx.response.send_message(
+                embed=ErrorEmbed(description=f"{player.mention} has not completed their requirements to level up.\n"
+                                             f"Completed RPs: {character.completed_rps}/{character.needed_rps}\n"
+                                             f"Completed Arenas: {character.completed_arenas}/{character.needed_arenas}"),
+                ephemeral=True
+            )
+            return
+
+        new_xp = 1000 if character.level == 1 else 2000
+        print(f"Setting reset_xp of character with id [ {character.player_id} ] to [ {new_xp} ]")
+        self.bot.sheets.update_reset_xp(character.player_id, new_xp)
+
+        embed = Embed(title="Level up successful!",
+                      description=f"{player.mention} is now level {character.level + 1}",
+                      color=Color.random())
+        embed.set_thumbnail(url=player.display_avatar.url)
+
+        await ctx.response.send_message(embed=embed)
 
     @commands.command(brief='- Provides a link to the public BPdia sheet')
     async def sheet(self, ctx):
