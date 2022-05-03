@@ -11,7 +11,7 @@ from discord.commands.context import ApplicationContext
 class CommandOptionEnum(enum.Enum):
 
     @classmethod
-    def option_list(cls):
+    def optionchoice_list(cls):
         return list(map(lambda o: OptionChoice(o.value), cls))
 
     @classmethod

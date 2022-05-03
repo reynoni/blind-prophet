@@ -96,7 +96,7 @@ class BPdia(commands.Cog):
             self, ctx: ApplicationContext,
             player: Option(Member, "Character's player", required=True),
             name: Option(str, "Character's name", required=True),
-            character_class: Option(str, "Character's (initial) class", choices=CharacterClass.option_list(),
+            character_class: Option(str, "Character's (initial) class", choices=CharacterClass.optionchoice_list(),
                                     required=True),
             gp: Option(int, "Unspent starting gold", min=0, max=99999, required=True),
             level: Option(int, "Starting level for higher-level characters", min_value=1, max_value=20, default=1)
@@ -369,7 +369,7 @@ class BPdia(commands.Cog):
     async def set_faction(self, ctx: ApplicationContext,
                           player: Option(Member, description="Player joining the faction", required=True),
                           faction: Option(str, description="Faction to join", required=True,
-                                          choices=Faction.option_list())):
+                                          choices=Faction.optionchoice_list())):
         current_faction_role = get_faction_role(player)
         player: Member
         new_faction_role = discord.utils.get(ctx.guild.roles, name=faction)
