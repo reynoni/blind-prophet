@@ -1,19 +1,18 @@
-import re
 import time
-import timeit
 from timeit import default_timer as timer
 
 import discord
 import discord.errors
 import discord.utils
+import gspread
 from discord import Embed, Member, Role, Color, CommandPermission
 from discord.commands import Option, permissions
 from discord.commands.context import ApplicationContext
 from discord.ext import commands
-from texttable import Texttable
+from discord.ext.commands import Context
 
 from ProphetBot.bot import BpBot
-from ProphetBot.helpers import *
+from ProphetBot.helpers import characters_by_ids
 from ProphetBot.models.embeds import ErrorEmbed, LogEmbed
 from ProphetBot.models.sheets_objects import BuyEntry, SellEntry, GlobalEntry, CouncilEntry, MagewrightEntry, \
     ShopkeepEntry
@@ -22,35 +21,6 @@ from ProphetBot.models.sheets_objects import Character, BonusEntry, RpEntry, Fac
 
 def setup(bot):
     bot.add_cog(BPdia(bot))
-
-
-def build_table(data):
-    level = int(data['Level'])
-    character_data = list()
-    character_data.append(['Name', data['Name']])
-    character_data.append(['Class', data['Class']])
-    character_data.append(['Faction', data['Faction']])
-    character_data.append(['Level', data['Level']])
-    character_data.append(['Wealth', data['Total GP']])
-    character_data.append(['Experience', data['Total XP']])
-
-    if level >= 3:
-        character_data.append(['Div GP', data['Div GP'] + '/' + data['GP Max']])
-        character_data.append(['Div XP', data['Div XP'] + '/' + data['XP Max']])
-        character_data.append(['ASL Mod', data['ASL Mod']])
-    else:
-        needed_arena = 1 if level == 1 else 2
-        needed_rp = 1 if level == 1 else 2
-        num_arena = int(data['L1 Arena']) if level == 1 else (int(data['L2 Arena 1/2']) + int(data['L2 Arena 2/2']))
-        num_rp = int(data['L1 RP']) if level == 1 else (int(data['L2 RP 1/2']) + int(data['L2 RP 2/2']))
-        character_data.append(['RP', str(num_rp) + '/' + str(needed_rp)])
-        character_data.append(['Arena', str(num_arena) + '/' + str(needed_arena)])
-
-    table = Texttable()
-    table.set_cols_align(["l", "r"])
-    table.set_cols_valign(["m", "m"])
-    table.add_rows(character_data)
-    return table.draw()
 
 
 def build_get_embed(character: Character, player: Member) -> Embed:
@@ -371,7 +341,7 @@ class BPdia(commands.Cog):
 
             council_characters = characters_by_ids(characters, council_ids)
             magewright_charcters = characters_by_ids(characters,
-                                               [m.id for m in magewright_role.members if m not in council_ids])
+                                                     [m.id for m in magewright_role.members if m not in council_ids])
             shopkeep_characters = characters_by_ids(characters, [m.id for m in shopkeep_role.members])
 
             log_entries = []
@@ -379,7 +349,8 @@ class BPdia(commands.Cog):
                 [CouncilEntry(f"{self.bot.user.name}#{self.bot.user.discriminator}", c) for c in council_characters]
             )
             log_entries.extend(
-                [MagewrightEntry(f"{self.bot.user.name}#{self.bot.user.discriminator}", c) for c in magewright_charcters]
+                [MagewrightEntry(f"{self.bot.user.name}#{self.bot.user.discriminator}", c) for c in
+                 magewright_charcters]
             )
             log_entries.extend(
                 [ShopkeepEntry(f"{self.bot.user.name}#{self.bot.user.discriminator}", c) for c in shopkeep_characters]
@@ -447,9 +418,10 @@ class BPdia(commands.Cog):
             return
         if character.needed_rps != character.completed_rps or character.needed_arenas != character.completed_arenas:
             await ctx.response.send_message(
-                embed=ErrorEmbed(description=f"{player.mention} has not completed their requirements to level up.\n"
-                                             f"Completed RPs: {character.completed_rps}/{character.needed_rps}\n"
-                                             f"Completed Arenas: {character.completed_arenas}/{character.needed_arenas}"),
+                embed=ErrorEmbed(
+                    description=f"{player.mention} has not completed their requirements to level up.\n"
+                                f"Completed RPs: {character.completed_rps}/{character.needed_rps}\n"
+                                f"Completed Arenas: {character.completed_arenas}/{character.needed_arenas}"),
                 ephemeral=True
             )
             return
@@ -465,66 +437,17 @@ class BPdia(commands.Cog):
 
         await ctx.response.send_message(embed=embed)
 
+    @staticmethod
+    async def cog_before_invoke(ctx: Context):  # Log commands being run to better tie them to errors
+        print(f"Command [ /{ctx.command.qualified_name} ] initiated by member "
+              f"[ {ctx.author.name}#{ctx.author.discriminator}, id: {ctx.author.id} ]")
+
     @commands.command(brief='- Provides a link to the public BPdia sheet')
     async def sheet(self, ctx):
         link = '<https://docs.google.com/spreadsheets/d/' + '1Ps6SWbnlshtJ33Yf30_1e0RkwXpaPy0YVFYaiETnbns' + '/>'
         await ctx.message.channel.send(f'The BPdia public sheet can be found at:\n{link}')
         await ctx.message.delete()
 
-    @commands.command(brief='- Manually levels initiates',
-                      help=LEVEL_HELP)
-    @commands.has_any_role('Tracker', 'Magewright')
-    async def level(self, ctx, disc_user):
-        # TODO: This duplicates XP by adding non-reset XP to reset XP
-        user_map = self.get_user_map()
-        print(f'{str(datetime.utcnow())} - Incoming \'Level\' command from {ctx.message.author.name}'
-              f'. Args: {disc_user}')
-
-        target = re.sub(r'\D+', '', disc_user)
-        if target not in user_map:
-            await ctx.message.channel.send(NAME_ERROR)
-            return
-
-        if (targetXP := int(user_map[target])) > 2000:
-            await ctx.message.channel.send('Error: The targeted player has over 2000 XP. Please enter manually.')
-            return
-        elif targetXP < 2000:
-            new_xp = targetXP + 1000
-        else:
-            new_xp = 1000
-
-        print(new_xp)
-        index = list(user_map.keys()).index(target)  # Dicts preserve order in Python 3. Fancy.
-        xp_range = 'H' + str(index + 3)  # Could find the index in this same line, but that's messy
-        try:
-            self.bot.sheets.char_sheet.update(xp_range, new_xp)
-        except Exception as E:
-            await ctx.message.channel.send(f'Error occurred while sending data to the sheet')
-            print(f'level exception: {type(E)}')
-            return
-        await ctx.message.channel.send(f'{disc_user} - level submitted by {ctx.author.nick}')
-        await ctx.message.delete()
-
     # --------------------------- #
     # Helper functions
     # --------------------------- #
-
-    def get_user_map(self):
-        USERLIST_RANGE = 'A3:A'
-        XPLIST_RANGE = 'I3:I'
-        try:
-            results = self.bot.sheets.char_sheet.batch_get([USERLIST_RANGE, XPLIST_RANGE])
-        except gspread.exceptions.APIError as E:
-            print(E)
-
-        return {  # Using fancy dictionary comprehension to make the dict
-            str(key[0]): int(value[0]) for key, value in zip(results[0], results[1])
-        }
-
-    def get_character_from_id(self, discord_id: str) -> Character:
-        header_row = '2:2'
-        target_cell = self.bot.sheets.char_sheet.find(discord_id, in_column=1)
-        user_row = str(target_cell.row) + ':' + str(target_cell.row)
-
-        data = self.bot.sheets.char_sheet.batch_get([header_row, user_row])
-        return Character(data)
