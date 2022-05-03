@@ -1,13 +1,11 @@
 import datetime
 import enum
 import math
-from math import floor
 from typing import Dict, Any
 
 import discord
-from discord.ext import commands
-from discord.commands.context import ApplicationContext
 from discord import OptionChoice
+from discord.commands.context import ApplicationContext
 
 
 class CommandOptionEnum(enum.Enum):
@@ -38,8 +36,8 @@ class CharacterClass(CommandOptionEnum):
 
 
 class Faction(CommandOptionEnum):
-    INITIATE = 'Initiate'
-    FREELANCER = 'Freelancer'
+    INITIATE = 'Guild Initiate'
+    GUILD_MEMBER = "Guild Member"
     COPPER_DRAGONS = 'Order of the Copper Dragon'
     SILENT_WHISPERS = 'Silent Whispers'
     SILVER_WOLVES = 'Silver Wolves'
@@ -47,6 +45,7 @@ class Faction(CommandOptionEnum):
     CLOVER_CONCLAVE = 'Clover Conclave'
     SUNSTONE_LOTUS = 'Sunstone Lotus'
     FALCON_EYES = 'The Falcon Eyes'
+    AZURE_GUARD = 'The Azure Guard'
 
 
 class Activity(enum.Enum):
