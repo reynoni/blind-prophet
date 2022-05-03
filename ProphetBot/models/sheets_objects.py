@@ -1,7 +1,7 @@
 import datetime
 import enum
 import math
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 import discord
 from discord import OptionChoice
@@ -11,11 +11,11 @@ from discord.commands.context import ApplicationContext
 class CommandOptionEnum(enum.Enum):
 
     @classmethod
-    def optionchoice_list(cls):
+    def optionchoice_list(cls) -> List[OptionChoice]:
         return list(map(lambda o: OptionChoice(o.value), cls))
 
     @classmethod
-    def values_list(cls):
+    def values_list(cls) -> List[str]:
         return list(map(lambda v: v.value, cls))
 
 
@@ -59,18 +59,6 @@ class Activity(enum.Enum):
     council = "ADMIN"
     magewright = "MOD"
     shopkeep = "SHOP"
-
-
-def _clean_input(raw_imput):
-    header_data = list(raw_imput[0][0])
-    char_data = list(raw_imput[1][0])
-    cleaned_dict = dict()
-
-    for i in range(len(header_data)):
-        if header_data[i] != '':  # Parse out some empty columns
-            cleaned_dict[header_data[i]] = str(char_data[i]).replace('*', '1')
-
-    return cleaned_dict
 
 
 class Character(object):
@@ -181,7 +169,13 @@ class LogEntry(object):
         self.gp = gp
         self.xp = xp
 
-    def to_sheets_row(self):
+    def to_sheets_row(self) -> List[str | int]:
+        """
+        Formats the LogEntry object into the format that gspread/BPdia excepts
+
+        :return: List of objects representing columns in the row being to the BPdia log
+        """
+
         return [
             self.author,
             datetime.datetime.utcnow().isoformat(),
