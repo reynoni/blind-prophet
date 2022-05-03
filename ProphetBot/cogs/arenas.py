@@ -281,7 +281,7 @@ class Arenas(commands.Cog):
 
         await ctx.response.send_message(embed=embed)
         if completed_phases >= MAX_PHASES[arena_row.tier] or result == "LOSS":
-            await self.close_arena(ctx, arena_row.id)
+            await self.close_arena(ctx, arena_row.id, channel_role)
 
     @discord.commands.permissions.has_any_role("Host", "Magewright", "Council")
     @arena_commands.command(
@@ -298,13 +298,17 @@ class Arenas(commands.Cog):
             await ctx.response.send_message(f"Error: No active arena in this channel", ephemeral=True)
             return
 
-        await self.close_arena(ctx, arena_row.id)
+        channel_role = discord.utils.get(ctx.guild.roles, id=arena_row.role_id)
+        await self.close_arena(ctx, arena_row.id, channel_role)
 
     # --------------------------- #
     # Helper functions
     # --------------------------- #
 
-    async def close_arena(self, ctx: ApplicationContext, arena_id: int):
+    async def close_arena(self, ctx: ApplicationContext, arena_id: int, role: discord.Role):
+        for member in role.members:
+            await member.remove_roles(role, reason="Arena complete")
+
         async with self.bot.db.acquire() as conn:
             await conn.execute(close_arena_by_id(arena_id))
 
