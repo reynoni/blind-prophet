@@ -285,82 +285,80 @@ class BPdia(commands.Cog):
     @permissions.has_role("Council")
     async def weekly_reset(self, ctx: ApplicationContext):
         print(f"Weekly reset initiate by {ctx.author}")
-        async with ctx.typing():  # Have the bot show as typing, as this may take a while
+        await ctx.defer()  # Have the bot show as typing, as this may take a while
 
-            # Process pending GP/XP
-            start = timer()
-            pending_gp_xp = self.bot.sheets.char_sheet.batch_get(['F3:F', 'I3:I', 'J1'])
-            gp_total = list(pending_gp_xp[0])
-            xp_total = list(pending_gp_xp[1])
-            server_xp = list(pending_gp_xp[2])
-            print(f'gp: {gp_total}\n'
-                  f'xp: {xp_total}\n'
-                  f'server_xp: {server_xp}')
+        # Process pending GP/XP
+        start = timer()
+        pending_gp_xp = self.bot.sheets.char_sheet.batch_get(['F3:F', 'I3:I', 'J1'])
+        gp_total = [[int(g[0])] for g in list(pending_gp_xp[0])]  # Cast all the numerical values into ints
+        xp_total = [[int(x[0])] for x in list(pending_gp_xp[1])]  # Google returns them as strings for some reason
+        server_xp = [[int(s[0])] for s in list(pending_gp_xp[2])]  # Ugly, but it works
+        print(f'gp: {gp_total}\n'
+              f'xp: {xp_total}\n'
+              f'server_xp: {server_xp}')
 
-            try:
-                self.bot.sheets.char_sheet.batch_update([{
-                    'range': 'E3:E',
-                    'values': gp_total
-                }, {
-                    'range': 'H3:H',
-                    'values': xp_total
-                }, {
-                    'range': 'F1',
-                    'values': server_xp
-                }])
-            except gspread.exceptions.APIError as e:
-                print(e)
-                await ctx.response.send_message("Error: Trouble setting GP/XP values. Aborting.", ephemeral=True)
-                return
-            else:
-                end = timer()
-                print(f"Successfully copied GP and XP values in {end - start}s")
+        try:
+            self.bot.sheets.char_sheet.batch_update([{
+                'range': 'E3:E',
+                'values': gp_total
+            }, {
+                'range': 'H3:H',
+                'values': xp_total
+            }, {
+                'range': 'F1',
+                'values': server_xp
+            }])
+        except gspread.exceptions.APIError as e:
+            print(e)
+            await ctx.response.send_message("Error: Trouble setting GP/XP values. Aborting.", ephemeral=True)
+            return
+        else:
+            gp_xp_end = timer()
+            print(f"Successfully copied GP and XP values in {gp_xp_end - start}s")
 
-            # Archive old log entries
-            start = timer()
-            pending_logs = self.bot.sheets.log_sheet.get('A2:H')
+        # Archive old log entries
+        pending_logs = self.bot.sheets.log_sheet.get('A2:H')
 
-            try:
-                self.bot.sheets.log_archive.append_rows(pending_logs, value_input_option='USER_ENTERED',
-                                                        insert_data_option='INSERT_ROWS', table_range='A2')
-                self.bot.sheets.bpdia_workbook.values_clear('Log!A2:H')
-            except gspread.exceptions.APIError:
-                await ctx.response.send_message("Error: Trouble archiving log entries. Aborting.", ephemeral=True)
-                return
-            else:
-                end = timer()
-                print(f"Successfully archived old log entries in {end - start}s")
+        try:
+            self.bot.sheets.log_archive.append_rows(pending_logs, value_input_option='USER_ENTERED',
+                                                    insert_data_option='INSERT_ROWS', table_range='A2')
+            self.bot.sheets.bpdia_workbook.values_clear('Log!A2:H')
+        except gspread.exceptions.APIError:
+            await ctx.response.send_message("Error: Trouble archiving log entries. Aborting.", ephemeral=True)
+            return
+        else:
+            logs_end = timer()
+            print(f"Successfully archived old log entries in {logs_end - gp_xp_end}s")
 
-            # Finally, hand out weekly stipends
-            start = timer()
-            characters = self.bot.sheets.get_all_characters()
-            council_role = discord.utils.get(ctx.guild.roles, name="Council")
-            magewright_role = discord.utils.get(ctx.guild.roles, name="Magewright")
-            shopkeep_role = discord.utils.get(ctx.guild.roles, name="Shopkeeper")
-            council_ids = [m.id for m in council_role.members]
+        # Finally, hand out weekly stipends
+        characters = self.bot.sheets.get_all_characters()
+        council_role = discord.utils.get(ctx.guild.roles, name="Council")
+        magewright_role = discord.utils.get(ctx.guild.roles, name="Magewright")
+        shopkeep_role = discord.utils.get(ctx.guild.roles, name="Shopkeeper")
+        council_ids = [m.id for m in council_role.members]
 
-            council_characters = characters_by_ids(characters, council_ids)
-            magewright_charcters = characters_by_ids(characters,
-                                                     [m.id for m in magewright_role.members if m not in council_ids])
-            shopkeep_characters = characters_by_ids(characters, [m.id for m in shopkeep_role.members])
+        council_characters = characters_by_ids(characters, council_ids)
+        magewright_charcters = characters_by_ids(characters,
+                                                 [m.id for m in magewright_role.members if m.id not in council_ids])
+        shopkeep_characters = characters_by_ids(characters, [m.id for m in shopkeep_role.members])
 
-            log_entries = []
-            log_entries.extend(
-                [CouncilEntry(f"{self.bot.user.name}#{self.bot.user.discriminator}", c) for c in council_characters]
-            )
-            log_entries.extend(
-                [MagewrightEntry(f"{self.bot.user.name}#{self.bot.user.discriminator}", c) for c in
-                 magewright_charcters]
-            )
-            log_entries.extend(
-                [ShopkeepEntry(f"{self.bot.user.name}#{self.bot.user.discriminator}", c) for c in shopkeep_characters]
-            )
+        log_entries = []
+        log_entries.extend(
+            [CouncilEntry(f"{self.bot.user.name}#{self.bot.user.discriminator}", c) for c in council_characters]
+        )
+        log_entries.extend(
+            [MagewrightEntry(f"{self.bot.user.name}#{self.bot.user.discriminator}", c) for c in
+             magewright_charcters]
+        )
+        log_entries.extend(
+            [ShopkeepEntry(f"{self.bot.user.name}#{self.bot.user.discriminator}", c) for c in shopkeep_characters]
+        )
 
-            self.bot.sheets.log_activities(log_entries)
-            end = timer()
-            print(f"Successfully applied weekly stipends in {end - start}s")
+        self.bot.sheets.log_activities(log_entries)
+        end = timer()
+        print(f"Successfully applied weekly stipends in {end - logs_end}s")
 
-            await ctx.response.send_message(f"Weekly reset complete")
+        await ctx.respond(f"Weekly reset complete in {end - start:.2f} seconds")
 
     @commands.slash_command(
         name="faction",
@@ -426,9 +424,10 @@ class BPdia(commands.Cog):
             )
             return
 
-        new_xp = 1000 if character.level == 1 else 2000
-        print(f"Setting reset_xp of character with id [ {character.player_id} ] to [ {new_xp} ]")
-        self.bot.sheets.update_reset_xp(character.player_id, new_xp)
+        print(f"Leveling up character with player id [ {player.id} ]. New level: [ {character.level + 1} ]")
+        self.bot.sheets.log_activity(
+            BonusEntry(f"{ctx.author.name}#{ctx.author.discriminator}", character, "New player level up", 0, 1000)
+        )
 
         embed = Embed(title="Level up successful!",
                       description=f"{player.mention} is now level {character.level + 1}",
