@@ -141,7 +141,7 @@ class Arenas(commands.Cog):
         def __init__(self, ctx: ApplicationContext, host: Character, participants: List[Character],
                      result: str, phase: int, tier: int):
             rewards = f"{host.get_member(ctx).mention}: `HOST`\n"
-            bonus = phase > MAX_PHASES[tier] / 2
+            bonus = (phase > MAX_PHASES[tier] / 2) and result == 'WIN'
             for player in participants:
                 rewards += f"{player.get_member(ctx).mention}: `{result}`"
                 rewards += ', `BONUS`\n' if bonus else '\n'
