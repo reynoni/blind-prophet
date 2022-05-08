@@ -78,7 +78,7 @@ class GsheetsClient(object):
         character_data = [
             str(character.player_id),
             character.name,
-            'Initiate',
+            character.faction,
             character.character_class,
             character.wealth,
             '',
