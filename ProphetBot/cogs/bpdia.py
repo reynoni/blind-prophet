@@ -12,7 +12,7 @@ from discord.ext import commands
 from discord.ext.commands import Context
 
 from ProphetBot.bot import BpBot
-from ProphetBot.helpers import characters_by_ids
+from ProphetBot.helpers import filter_characters_by_ids
 from ProphetBot.models.embeds import ErrorEmbed, LogEmbed
 from ProphetBot.models.sheets_objects import BuyEntry, SellEntry, GlobalEntry, CouncilEntry, MagewrightEntry, \
     ShopkeepEntry
@@ -337,10 +337,10 @@ class BPdia(commands.Cog):
         shopkeep_role = discord.utils.get(ctx.guild.roles, name="Shopkeeper")
         council_ids = [m.id for m in council_role.members]
 
-        council_characters = characters_by_ids(characters, council_ids)
-        magewright_charcters = characters_by_ids(characters,
-                                                 [m.id for m in magewright_role.members if m.id not in council_ids])
-        shopkeep_characters = characters_by_ids(characters, [m.id for m in shopkeep_role.members])
+        council_characters = filter_characters_by_ids(characters, council_ids)
+        magewright_charcters = filter_characters_by_ids(characters,
+                                                        [m.id for m in magewright_role.members if m.id not in council_ids])
+        shopkeep_characters = filter_characters_by_ids(characters, [m.id for m in shopkeep_role.members])
 
         log_entries = []
         log_entries.extend(

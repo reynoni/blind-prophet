@@ -139,6 +139,9 @@ class Character(object):
     def get_member(self, ctx: ApplicationContext) -> discord.Member:
         return discord.utils.get(ctx.guild.members, id=self.player_id)
 
+    def mention(self) -> str:
+        return f"<@{self.player_id}>"
+
 
 class LogEntry(object):
     author: str

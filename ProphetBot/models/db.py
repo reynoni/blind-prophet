@@ -12,6 +12,7 @@ arenas_table = sa.Table(
     metadata,
     Column("id", Integer, primary_key=True, autoincrement='auto'),
     Column("channel_id", BigInteger, nullable=False),
+    Column("pin_message_id", BigInteger, nullable=False),
     Column("role_id", BigInteger, nullable=False),
     Column("host_id", BigInteger, nullable=False),
     Column("tier", Integer, default=1, nullable=False),

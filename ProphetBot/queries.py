@@ -10,9 +10,10 @@ def select_active_arena_by_channel(channel_id: int) -> FromClause:
     )
 
 
-def insert_new_arena(channel_id: int, role_id: int, host_id: int) -> TableClause:
+def insert_new_arena(channel_id: int, msg_id: int, role_id: int, host_id: int) -> TableClause:
     return arenas_table.insert().values(
         channel_id=channel_id,
+        pin_message_id=msg_id,
         role_id=role_id,
         host_id=host_id
     )
