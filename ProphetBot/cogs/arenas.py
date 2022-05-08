@@ -1,6 +1,7 @@
 import asyncio
 import bisect
 from statistics import mean
+from typing import List
 
 import aiopg.sa
 import discord
@@ -13,7 +14,8 @@ from discord.ui import Button
 from sqlalchemy.engine import Row
 
 from ProphetBot.bot import BpBot
-from ProphetBot.helpers import *
+from ProphetBot.constants import TIERS, MAX_PHASES
+from ProphetBot.helpers import filter_characters_by_ids
 from ProphetBot.models.embeds import ArenaStatusEmbed
 from ProphetBot.models.sheets_objects import Character, ArenaEntry
 from ProphetBot.queries import select_active_arena_by_channel, insert_new_arena, update_arena_tier, \
@@ -149,6 +151,7 @@ class Arenas(commands.Cog):
                 description=f"Completed phases: **{phase} / {MAX_PHASES[tier]}**",
                 color=discord.Color.random(),
             )
+            self.set_thumbnail(url="https://cdn.discordapp.com/emojis/712399492560978000.webp?size=96&quality=lossless")
             self.add_field(name="The following rewards have been applied:", value=rewards, inline=False)
 
     def __init__(self, bot):
