@@ -88,10 +88,8 @@ class BPdia(commands.Cog):
 
     @commands.slash_command(
         name="create",
-        description="Creates a new character",
-        default_permission=False
+        description="Creates a new character"
     )
-    @permissions.has_any_role("Magewright", "Council")
     async def create_character(
             self, ctx: ApplicationContext,
             player: Option(Member, "Character's player", required=True),
@@ -154,12 +152,9 @@ class BPdia(commands.Cog):
 
         await ctx.response.send_message(embed=build_get_embed(character, player), ephemeral=False)
 
-    @permissions.has_any_role("Magewright", "Council")
     @commands.slash_command(
         name="rp",
         description="Logs a completed RP",
-        default_permission=False,
-        permissions=[CommandPermission("Magewright", 1, True)]
     )
     async def log_rp(self, ctx: ApplicationContext,
                      player: Option(Member, description="Player who participated in the RP", required=True)):
@@ -176,11 +171,9 @@ class BPdia(commands.Cog):
 
         await ctx.response.send_message(embed=LogEmbed(ctx, log_entry), ephemeral=False)
 
-    @permissions.has_any_role("Magewright", "Council")
     @commands.slash_command(
         name="bonus",
-        description="Gives bonus GP and/or XP to a player",
-        default_permission=False
+        description="Gives bonus GP and/or XP to a player"
     )
     async def log_bonus(self, ctx: ApplicationContext,
                         player: Option(Member, description="Player receiving the bonus", required=True),
@@ -202,10 +195,8 @@ class BPdia(commands.Cog):
 
     @commands.slash_command(
         name="buy",
-        description="Logs the sale of an item to a player",
-        default_permission=False
+        description="Logs the sale of an item to a player"
     )
-    @permissions.has_any_role("Magewright", "Council")
     async def log_buy(self, ctx: ApplicationContext,
                       player: Option(Member, description="Player who bought the item", required=True),
                       item: Option(str, description="The item being bought", required=True),
@@ -230,10 +221,8 @@ class BPdia(commands.Cog):
 
     @commands.slash_command(
         name="sell",
-        description="Logs the sale of an item from a player. Not for player establishment sales",
-        default_permission=False,
+        description="Logs the sale of an item from a player. Not for player establishment sales"
     )
-    @permissions.has_any_role("Magewright", "Council")
     async def log_sell(self, ctx: ApplicationContext,
                        player: Option(Member, description="Player who sold the item", required=True),
                        item: Option(str, description="The item being sold", required=True),
@@ -254,10 +243,8 @@ class BPdia(commands.Cog):
 
     @commands.slash_command(
         name="global",
-        description="Logs a player's participation in a global",
-        default_permission=False
+        description="Logs a player's participation in a global"
     )
-    @permissions.has_any_role("Magewright", "Council")
     async def log_global(self, ctx: ApplicationContext,
                          player: Option(Member, description="Player receiving the bonus", required=True),
                          global_name: Option(str, description="The name of the global activity", required=True),
@@ -279,10 +266,8 @@ class BPdia(commands.Cog):
 
     @commands.slash_command(
         name="weekly",
-        description="Performs the weekly reset",
-        default_permission=False
+        description="Performs the weekly reset"
     )
-    @permissions.has_role("Council")
     async def weekly_reset(self, ctx: ApplicationContext):
         print(f"Weekly reset initiate by {ctx.author}")
         await ctx.defer()  # Have the bot show as typing, as this may take a while
