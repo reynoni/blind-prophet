@@ -200,8 +200,7 @@ class Arenas(commands.Cog):
 
     @arena_commands.command(
         name="claim",
-        description="Opens an arena in this channel and sets you as the host.",
-        default_permission=False
+        description="Opens an arena in this channel and sets you as the host."
     )
     async def arena_claim(self, ctx: ApplicationContext):
         async with self.bot.db.acquire() as conn:
@@ -263,13 +262,10 @@ class Arenas(commands.Cog):
     #     await add_to_arena(ctx.interaction, ctx.author, all_characters, self.bot.db)
     #     await update_status_embed(ctx.interaction, all_characters, arena_row)
 
-    @discord.commands.permissions.has_role("Host")
     @arena_commands.command(
         name="add",
-        description="Adds the specified player to the arena in this channel",
-        default_permission=False
+        description="Adds the specified player to the arena in this channel"
     )
-    @permissions.has_any_role("Host", "Council")
     async def arena_add(self, ctx: ApplicationContext,
                         player: Option(Member, "The player to add", required=True)):
         async with self.bot.db.acquire() as conn:
@@ -292,13 +288,10 @@ class Arenas(commands.Cog):
         await add_to_arena(ctx.interaction, player, all_characters, self.bot.db)
         await update_status_embed(ctx.interaction, all_characters, arena_row)
 
-    @discord.commands.permissions.has_role("Host")
     @arena_commands.command(
         name="remove",
-        description="Removes the specified player from the arena",
-        default_permission=False
+        description="Removes the specified player from the arena"
     )
-    @permissions.has_any_role("Host", "Council")
     async def arena_remove(self, ctx: ApplicationContext,
                            player: Option(Member, "The player to remove", required=True)):
         async with self.bot.db.acquire() as conn:
@@ -328,13 +321,10 @@ class Arenas(commands.Cog):
         await ctx.response.send_message(f"{player.mention} has been removed from the arena")
         await update_status_embed(ctx.interaction, all_characters, arena_row)
 
-    @discord.commands.permissions.has_any_role("Host", "Magewright", "Council")
     @arena_commands.command(
         name="phase",
-        description="Records the outcome of an arena phase",
-        default_permission=False
+        description="Records the outcome of an arena phase"
     )
-    @permissions.has_any_role("Host", "Council")
     async def arena_phase(self, ctx: ApplicationContext,
                           result: Option(str, "The result of the phase", required=True,
                                          choices=[OptionChoice("Win", "WIN"), OptionChoice("Loss", "LOSS")])):
@@ -378,13 +368,10 @@ class Arenas(commands.Cog):
         if completed_phases >= MAX_PHASES[arena_row.tier] or result == "LOSS":
             await self.close_arena(ctx, arena_row, channel_role)
 
-    @discord.commands.permissions.has_any_role("Host", "Magewright", "Council")
     @arena_commands.command(
         name="close",
         description="Closes out a finished arena",
-        default_permission=False
     )
-    @permissions.has_any_role("Host", "Council")
     async def arena_close(self, ctx: ApplicationContext):
         async with self.bot.db.acquire() as conn:
             results = await conn.execute(select_active_arena_by_channel(ctx.channel_id))
