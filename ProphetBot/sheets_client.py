@@ -32,7 +32,6 @@ class GsheetsClient(object):
         self.char_sheet = self.bpdia_workbook.worksheet('Characters')
         self.log_sheet = self.bpdia_workbook.worksheet('Log')
         self.log_archive = self.bpdia_workbook.worksheet('Archive Log')
-        self.arenas_sheet = self.bpdia_workbook.worksheet('Arenas')
         self.adventures_sheet = self.bpdia_workbook.worksheet('Adventures')
         end = perf_counter()
         print(f'Time to load sheets (5): {end - start}s')
