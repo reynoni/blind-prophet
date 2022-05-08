@@ -32,7 +32,7 @@ bot = BpBot(command_prefix=os.environ['COMMAND_PREFIX'],
             case_insensitive=True,
             help_command=MyHelpCommand(),
             intents=intents,
-            debug_guilds=[728613916510388286])
+            debug_guilds=[os.environ.get("GUILD", [])])
 
 for filename in listdir('ProphetBot/cogs'):
     if filename.endswith('.py'):
