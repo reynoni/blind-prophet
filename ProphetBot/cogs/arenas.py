@@ -351,16 +351,17 @@ class Arenas(commands.Cog):
 
         log_messages = []
         host: Character = discord.utils.get(all_characters, player_id=arena_row.host_id)
-        log_messages.append(ArenaEntry(self.bot.user.name, host, "HOST"))
+        bot_username = f"{self.bot.user.name}#{self.bot.user.discriminator}"
+        log_messages.append(ArenaEntry(bot_username, host, "HOST"))
 
         participant_ids = [m.id for m in channel_role.members if m.id != host.player_id]
         participants = filter_characters_by_ids(all_characters, participant_ids)
         for player in participants:
-            log_messages.append(ArenaEntry(self.bot.user.name, player, result))
+            log_messages.append(ArenaEntry(bot_username, player, result))
 
         if completed_phases > (MAX_PHASES[arena_row.tier] / 2) and result == "WIN":
             for player in participants:
-                log_messages.append(ArenaEntry(self.bot.user.name, player, "BONUS"))
+                log_messages.append(ArenaEntry(bot_username, player, "BONUS"))
 
         embed = self.ArenaPhaseEmbed(ctx, host, participants, result, completed_phases, arena_row.tier)
 
