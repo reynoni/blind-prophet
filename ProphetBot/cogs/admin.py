@@ -2,7 +2,7 @@ from discord.ext import commands
 from gspread.exceptions import APIError
 from os import listdir
 from ProphetBot.helpers import *
-from ProphetBot.bot import BP_Bot
+from ProphetBot.bot import BpBot
 
 
 def setup(bot):
@@ -10,7 +10,7 @@ def setup(bot):
 
 
 class Admin(commands.Cog):
-    bot: BP_Bot  # Typing annotation for my IDE's sake
+    bot: BpBot  # Typing annotation for my IDE's sake
 
     def __init__(self, bot):
         self.bot = bot

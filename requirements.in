@@ -1,0 +1,6 @@
+py-cord>=2.0.0b7
+gspread
+aiopg
+aiopg[sa]
+pip-tools
+texttable

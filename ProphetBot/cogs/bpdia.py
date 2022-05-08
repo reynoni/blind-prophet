@@ -1,321 +1,301 @@
-import re
+import time
+from timeit import default_timer as timer
 
 import discord
 import discord.errors
 import discord.utils
+import gspread
+from discord import Embed, Member, Role, Color, CommandPermission
+from discord.commands import Option, permissions
+from discord.commands.context import ApplicationContext
 from discord.ext import commands
-from discord.ext.commands.context import Context
-from texttable import Texttable
+from discord.ext.commands import Context
 
-from ProphetBot.bot import BP_Bot
-from ProphetBot.helpers import *
-from ProphetBot.models import Character
-
-# from sqlalchemy.ext.asyncio import create_async_engine
+from ProphetBot.bot import BpBot
+from ProphetBot.helpers import filter_characters_by_ids
+from ProphetBot.models.embeds import ErrorEmbed, LogEmbed
+from ProphetBot.models.sheets_objects import BuyEntry, SellEntry, GlobalEntry, CouncilEntry, MagewrightEntry, \
+    ShopkeepEntry
+from ProphetBot.models.sheets_objects import Character, BonusEntry, RpEntry, Faction, CharacterClass
 
 
 def setup(bot):
     bot.add_cog(BPdia(bot))
 
 
-def build_table(data):
-    level = int(data['Level'])
-    character_data = list()
-    character_data.append(['Name', data['Name']])
-    character_data.append(['Class', data['Class']])
-    character_data.append(['Faction', data['Faction']])
-    character_data.append(['Level', data['Level']])
-    character_data.append(['Wealth', data['Total GP']])
-    character_data.append(['Experience', data['Total XP']])
+def build_get_embed(character: Character, player: Member) -> Embed:
+    """
+    Puts together a character information embed for the provided player's character
 
-    if level >= 3:
-        character_data.append(['Div GP', data['Div GP'] + '/' + data['GP Max']])
-        character_data.append(['Div XP', data['Div XP'] + '/' + data['XP Max']])
-        character_data.append(['ASL Mod', data['ASL Mod']])
-    else:
-        needed_arena = 1 if level == 1 else 2
-        needed_rp = 1 if level == 1 else 2
-        num_arena = int(data['L1 Arena']) if level == 1 else (int(data['L2 Arena 1/2']) + int(data['L2 Arena 2/2']))
-        num_rp = int(data['L1 RP']) if level == 1 else (int(data['L2 RP 1/2']) + int(data['L2 RP 2/2']))
-        character_data.append(['RP', str(num_rp) + '/' + str(needed_rp)])
-        character_data.append(['Arena', str(num_arena) + '/' + str(needed_arena)])
+    :param character: Character we're pulling the information for
+    :param player: Member of the character's player
+    :return: Embed object fully formatted and ready to go
+    """
 
-    table = Texttable()
-    table.set_cols_align(["l", "r"])
-    table.set_cols_valign(["m", "m"])
-    table.add_rows(character_data)
-    return table.draw()
-
-
-def build_get_embed(character, member: discord.Member):
-    def _add_fields(fields):
-        for field in fields:
-            embed.add_field(name=field['name'], value=field['value'], inline=field['inline'])
-
-    embed = discord.Embed(
-        title=f'{character.name}',
-        type="rich",
-        color=0xbe0d34,
-        url=character.sheet_link
+    # Initial setup
+    description = f"**Class:** {character.character_class}\n" \
+                  f"**Faction:** {character.faction}\n" \
+                  f"**Level:** {character.level}\n" \
+                  f"**Experience:** {character.experience} xp\n" \
+                  f"**Wealth:** {character.wealth} gp"
+    faction_role = discord.utils.get(player.roles, name=character.faction)
+    embed = Embed(
+        title=f"Character Info - {character.name}",
+        description=description,
+        color=faction_role.color if faction_role else Color.dark_grey()
     )
-    base_fields = [
-        {
-            'name': 'Class',
-            'value': character.character_class,
-            'inline': True
-        },
-        {
-            'name': 'Level',
-            'value': str(character.level),
-            'inline': True
-        },
-        {
-            'name': 'Faction',
-            'value': character.faction,
-            'inline': True
-        },
-        {
-            'name': discord.utils.escape_markdown('___________________________________________'),
-            'value': '\u200B',
-            'inline': False
-        },
-        {
-            'name': 'Experience',
-            'value': f'{str(character.experience)} xp',
-            'inline': True
-        },
-        {
-            'name': 'Wealth',
-            'value': f'{str(character.wealth)} gp',
-            'inline': True
-        },
-        {
-            'name': discord.utils.escape_markdown('___________________________________________'),
-            'value': '\u200B',
-            'inline': False
-        }
-    ]
-    _add_fields(base_fields)
-    embed.set_author(
-        name=f'{member.name}#{member.discriminator}',
-        icon_url=str(member.avatar_url_as())
-    )
-    if character.image_link:
-        embed.set_thumbnail(url=character.image_link)
-    else:
-        embed.set_thumbnail(url=str(member.avatar_url_as()))
+    embed.set_thumbnail(url=player.display_avatar.url)
+
+    # First add the weekly limits
+    embed.add_field(name="Weekly Limits:",
+                    value=f"\u200b \u200b \u200b Diversion GP: {character.div_gp}/{character.max_gp}\n"
+                          f"\u200b \u200b \u200b Diversion XP: {character.div_xp}/{character.max_xp}",
+                    inline=False)
+
+    # Then we add some new player quest info for level 1 & 2s
     if character.level < 3:
-        intro_fields = [
-            {
-                'name': f'Level {character.level} Arenas',
-                'value': f'{character.completed_arenas}/{character.needed_arenas}',
-                'inline': True
-            },
-            {
-                'name': f'Level {character.level} RPs',
-                'value': f'{character.completed_rps}/{character.needed_rps}',
-                'inline': True
-            },
-            {
-                'name': discord.utils.escape_markdown('___________________________________________'),
-                'value': "\u200B",
-                'inline': False
-            }
-        ]
-        _add_fields(intro_fields)
-    else:
-        div_fields = [
-            {
-                'name': 'Diversion GP',
-                'value': f'{character.div_gp}/{character.max_gp}',
-                'inline': True
-            },
-            {
-                'name': 'Diversion XP',
-                'value': f'{character.div_xp}/{character.max_xp}',
-                'inline': True
-            },
-            {
-                'name': 'ASL Mod',
-                'value': character.asl_mod,
-                'inline': True
-            },
-            {
-                'name': discord.utils.escape_markdown('___________________________________________'),
-                'value': "\u200B",
-                'inline': False
-            }
-        ]
-        _add_fields(div_fields)
-        embed.add_field(name='Description',
-                        value="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor "
-                              "incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud "
-                              "exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure "
-                              "dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. "
-                              "Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt "
-                              "mollit anim id est laborum.",
-                        inline=True)
-    embed.set_footer(text="Use >image \"https://link.to.image.png\" to set your character's image\n"
-                          "Use >sheet \"https://link.to.sheet\" to set your character's sheet")
+        embed.add_field(name="First Steps Quests:",
+                        value=f"\u200b \u200b \u200b Level {character.level} RPs: "
+                              f"{character.completed_rps}/{character.needed_rps}\n"
+                              f"\u200b \u200b \u200b Level {character.level} Arenas: "
+                              f"{character.completed_arenas}/{character.needed_arenas}")
 
     return embed
-
-
-# def flatten(thicc_list):
-#     return [item for sublist in thicc_list for item in sublist]
 
 
 def get_cl(char_xp):
     return 1 + int((int(char_xp) / 1000))
 
 
-async def test_bi(self, ctx):
-    ctx.test = 5
+def get_faction_role(player: Member) -> Role:
+    """
+    Returns the first matching faction role of the provided player, or None if no faction roles are found
+
+    :param player: A Member object representing the player in question
+    :return: The first matching faction Role
+    """
+    faction_names = Faction.values_list()
+    return discord.utils.find(lambda r: r.name in faction_names, player.roles)
 
 
 class BPdia(commands.Cog):
-    bot: BP_Bot  # Typing annotation for my IDE's sake
+    bot: BpBot  # Typing annotation for my IDE's sake
 
     def __init__(self, bot):
         # All GSheet endpoints are in the bot object now
         self.bot = bot
         print(f'Cog \'BPdia\' loaded')
 
-    @commands.command(brief='- Provides a link to the public BPdia sheet')
-    async def sheet(self, ctx):
-        link = '<https://docs.google.com/spreadsheets/d/' + '1Ps6SWbnlshtJ33Yf30_1e0RkwXpaPy0YVFYaiETnbns' + '/>'
-        await ctx.message.channel.send(f'The BPdia public sheet can be found at:\n{link}')
-        await ctx.message.delete()
-
-    @commands.before_invoke(test_bi)
-    @commands.command()
-    async def time(self, ctx):
-        print(ctx.test)
-        await ctx.send(f'Current time (in UTC): {sheetstr(datetime.utcnow())}')
-
-    @commands.command()
-    @commands.check(is_admin)
-    async def find(self, ctx: Context, query: str):
-
-        try:
-            cell = self.bot.sheets.char_sheet.find(query)
-        except gspread.exceptions.CellNotFound:
-            print("Failed to find anything")
-            await ctx.message.channel.send(f'String \'{query}\' not found')
-            return
-
-        print("Found something at R%s, C%s" % (cell.row, cell.col))
-        await ctx.message.channel.send(f'String \'{query}\' found at R{cell.row}, C{cell.col}')
-
-    @commands.command(brief='- Manually levels initiates',
-                      help=LEVEL_HELP)
-    @commands.has_any_role('Tracker', 'Magewright')
-    async def level(self, ctx, disc_user):
-        # TODO: This duplicates XP by adding non-reset XP to reset XP
-        user_map = self.get_user_map()
-        print(f'{str(datetime.utcnow())} - Incoming \'Level\' command from {ctx.message.author.name}'
-              f'. Args: {disc_user}')
-
-        target = re.sub(r'\D+', '', disc_user)
-        if target not in user_map:
-            await ctx.message.channel.send(NAME_ERROR)
-            return
-
-        if (targetXP := int(user_map[target])) > 2000:
-            await ctx.message.channel.send('Error: The targeted player has over 2000 XP. Please enter manually.')
-            return
-        elif targetXP < 2000:
-            new_xp = targetXP + 1000
-        else:
-            new_xp = 1000
-
-        print(new_xp)
-        index = list(user_map.keys()).index(target)  # Dicts preserve order in Python 3. Fancy.
-        xp_range = 'H' + str(index + 3)  # Could find the index in this same line, but that's messy
-        try:
-            self.bot.sheets.char_sheet.update(xp_range, new_xp)
-        except Exception as E:
-            await ctx.message.channel.send(f'Error occurred while sending data to the sheet')
-            print(f'level exception: {type(E)}')
-            return
-        await ctx.message.channel.send(f'{disc_user} - level submitted by {ctx.author.nick}')
-        await ctx.message.delete()
-
-    @commands.command(
-        name='get',
-        brief='Displays character information for a user',
-        help='Usage: `>get [@user]`\n\n'
-             'If no @user is specified, it retrieves information for the message author'
+    @commands.slash_command(
+        name="create",
+        description="Creates a new character",
+        default_permission=False
     )
-    async def get(self, ctx: Context, target=None):
-        if not target:
-            target = str(ctx.author.id)
-        else:
-            target = re.sub(r'\D+', '', target)
-        print(f'Incoming \'Get_Alt\' command. Args: {target}')
+    @permissions.has_any_role("Magewright", "Council")
+    async def create_character(
+            self, ctx: ApplicationContext,
+            player: Option(Member, "Character's player", required=True),
+            name: Option(str, "Character's name", required=True),
+            character_class: Option(str, "Character's (initial) class", choices=CharacterClass.optionchoice_list(),
+                                    required=True),
+            gp: Option(int, "Unspent starting gold", min=0, max=99999, required=True),
+            level: Option(int, "Starting level for higher-level characters", min_value=1, max_value=20, default=1)
+    ):
+        start = time.time()
+        print(f'Incoming \'Create\' command invoked by {ctx.author.name}. '
+              f'Args: [ {player}, {name}, {character_class}, {gp}, {level} ]')
 
-        try:
-            target_cell = self.bot.sheets.char_sheet.find(target, in_column=1)
-        except gspread.exceptions.CellNotFound:
-            await ctx.send(
-                "'" + target + "' is not a valid input... >get for your own stats, >get @name for someone else.")
+        # Everything is built off the assumption that each player only has one active character, so check for that
+        if self.bot.sheets.get_character_from_id(player.id) is not None:
+            print(f"Found existing character for {player.id}, aborting")
+            await ctx.response.send_message(
+                embed=ErrorEmbed(description=f"Player {player.mention} already has a character. Have a Council member "
+                                             f"archive the old character before creating a new one."),
+                ephemeral=True
+            )
             return
 
-        header_row = '2:2'
-        user_row = str(target_cell.row) + ':' + str(target_cell.row)
-        data = self.bot.sheets.char_sheet.batch_get([header_row, user_row])
+        xp = (level - 1) * 1000  # Base XP for level 1 is 0 XP, 2 is 1000 XP, etc
+        new_character = Character(player.id, name, CharacterClass(character_class), Faction.INITIATE, gp, xp)
+        initial_log = BonusEntry(f"{ctx.author.name}#{ctx.author.discriminator}", new_character, "Initial Log", 0, 0)
 
-        header_data = list(data[0][0])
-        char_data = list(data[1][0])
-        char_map = dict()
+        self.bot.sheets.create_character(new_character)
+        self.bot.sheets.log_activity(initial_log)
 
-        for i in range(len(header_data)):
-            if header_data[i] != '':  # Parse out some empty columns
-                char_map[header_data[i]] = str(char_data[i]).replace('*', '1')  # No idea why data is returned like this
+        embed = Embed(title=f"Character Created - {name}",
+                      description=f"**Player:** {player.mention}\n"
+                                  f"**Class:** {character_class}\n"
+                                  f"**Starting Gold:** {gp}\n"
+                                  f"**Starting Level:** {level}",
+                      color=discord.Color.random())
+        embed.set_thumbnail(url=player.display_avatar.url)
+        embed.set_footer(text=f"Created by: {ctx.author.name}#{ctx.author.discriminator}",
+                         icon_url=ctx.author.display_avatar.url)
 
-        table = build_table(char_map)  # This is where the fun stuff lives, tbh
-        await ctx.send("`" + table + "`")
-        await ctx.message.delete()
+        await ctx.response.send_message(embed=embed)
+        end = time.time()
+        print(f"Time to create character: {end - start}s")
 
-    @commands.command(brief='- Displays character information for a user',
-                      help=GET_HELP)
-    async def get_embed(self, ctx, target=None):
-        if not target:
-            target = str(ctx.author.id)
-        else:
-            target = re.sub(r'\D+', '', target)
-        print(f'Incoming \'Get_Alt\' command. Args: {target}')
-
-        try:
-            character = self.get_character_from_id(target)
-        except gspread.exceptions.CellNotFound:
-            await ctx.send(
-                "'" + target + "' is not a valid input... >get for your own stats, >get @name for someone else.")
+    @commands.slash_command(
+        name="get",
+        description="Displays character information for a player's character"
+    )
+    async def get_character(self, ctx: ApplicationContext,
+                            player: Option(Member, "Player to get the information of", required=False)):
+        if player is None:
+            player = ctx.author
+        if (character := self.bot.sheets.get_character_from_id(player.id)) is None:
+            print(f"No character information found for player [ {player.id} ], aborting")
+            await ctx.response.send_message(
+                embed=ErrorEmbed(description=f"No character information found for {player.mention}"),
+                ephemeral=True
+            )
             return
-        except Exception as e:
-            print(e)
-            await ctx.send("Something went terribly wrong...")
+
+        await ctx.response.send_message(embed=build_get_embed(character, player), ephemeral=False)
+
+    @permissions.has_any_role("Magewright", "Council")
+    @commands.slash_command(
+        name="rp",
+        description="Logs a completed RP",
+        default_permission=False,
+        permissions=[CommandPermission("Magewright", 1, True)]
+    )
+    async def log_rp(self, ctx: ApplicationContext,
+                     player: Option(Member, description="Player who participated in the RP", required=True)):
+        if (character := self.bot.sheets.get_character_from_id(player.id)) is None:
+            print(f"No character information found for player [ {player.id} ], aborting")
+            await ctx.response.send_message(
+                embed=ErrorEmbed(description=f"No character information found for {player.mention}"),
+                ephemeral=True
+            )
             return
 
-        player = await character.get_member(ctx)
-        character_embed = build_get_embed(character, player)  # This is where the fun stuff lives, tbh
-        await ctx.send(embed=character_embed)
-        await ctx.message.delete()
+        log_entry = RpEntry(f"{ctx.author.name}#{ctx.author.discriminator}", character)
+        self.bot.sheets.log_activity(log_entry)
 
-    @commands.command(brief='- Processes the weekly reset',
-                      help=WEEKLY_HELP)
-    @commands.has_role('Council')
-    async def weekly(self, ctx):
-        # Command to process the weekly reset
-        await ctx.channel.send("`PROCESSING WEEKLY RESET`")
-        await ctx.trigger_typing()
+        await ctx.response.send_message(embed=LogEmbed(ctx, log_entry), ephemeral=False)
+
+    @permissions.has_any_role("Magewright", "Council")
+    @commands.slash_command(
+        name="bonus",
+        description="Gives bonus GP and/or XP to a player",
+        default_permission=False
+    )
+    async def log_bonus(self, ctx: ApplicationContext,
+                        player: Option(Member, description="Player receiving the bonus", required=True),
+                        reason: Option(str, description="The reason for the bonus", required=True),
+                        gold: Option(int, description="The amount of gp", default=0, min=0, max=2000),
+                        experience: Option(int, description="The amount of xp", default=0, min=0, max=150)):
+        if (character := self.bot.sheets.get_character_from_id(player.id)) is None:
+            print(f"No character information found for player [ {player.id} ], aborting")
+            await ctx.response.send_message(
+                embed=ErrorEmbed(description=f"No character information found for {player.mention}"),
+                ephemeral=True
+            )
+            return
+
+        log_entry = BonusEntry(f"{ctx.author.name}#{ctx.author.discriminator}", character, reason, gold, experience)
+        self.bot.sheets.log_activity(log_entry)
+
+        await ctx.response.send_message(embed=LogEmbed(ctx, log_entry), ephemeral=False)
+
+    @commands.slash_command(
+        name="buy",
+        description="Logs the sale of an item to a player",
+        default_permission=False
+    )
+    @permissions.has_any_role("Magewright", "Council")
+    async def log_buy(self, ctx: ApplicationContext,
+                      player: Option(Member, description="Player who bought the item", required=True),
+                      item: Option(str, description="The item being bought", required=True),
+                      cost: Option(int, description="The cost of the item", min=0, max=999999, required=True)):
+        if (character := self.bot.sheets.get_character_from_id(player.id)) is None:
+            print(f"No character information found for player [ {player.id} ], aborting")
+            await ctx.response.send_message(
+                embed=ErrorEmbed(description=f"No character information found for {player.mention}"),
+                ephemeral=True
+            )
+            return
+        if character.wealth < cost:
+            await ctx.response.send_message(
+                embed=ErrorEmbed(description=f"{player.mention} cannot afford the {cost}gp cost")
+            )
+            return
+
+        log_entry = BuyEntry(f"{ctx.author.name}#{ctx.author.discriminator}", character, item, cost)
+        self.bot.sheets.log_activity(log_entry)
+
+        await ctx.response.send_message(embed=LogEmbed(ctx, log_entry), ephemeral=False)
+
+    @commands.slash_command(
+        name="sell",
+        description="Logs the sale of an item from a player. Not for player establishment sales",
+        default_permission=False,
+    )
+    @permissions.has_any_role("Magewright", "Council")
+    async def log_sell(self, ctx: ApplicationContext,
+                       player: Option(Member, description="Player who sold the item", required=True),
+                       item: Option(str, description="The item being sold", required=True),
+                       cost: Option(int, description="The amount of gp received for the sale",
+                                    min=0, max=999999, required=True)):
+        if (character := self.bot.sheets.get_character_from_id(player.id)) is None:
+            print(f"No character information found for player [ {player.id} ], aborting")
+            await ctx.response.send_message(
+                embed=ErrorEmbed(description=f"No character information found for {player.mention}"),
+                ephemeral=True
+            )
+            return
+
+        log_entry = SellEntry(f"{ctx.author.name}#{ctx.author.discriminator}", character, item, cost)
+        self.bot.sheets.log_activity(log_entry)
+
+        await ctx.response.send_message(embed=LogEmbed(ctx, log_entry), ephemeral=False)
+
+    @commands.slash_command(
+        name="global",
+        description="Logs a player's participation in a global",
+        default_permission=False
+    )
+    @permissions.has_any_role("Magewright", "Council")
+    async def log_global(self, ctx: ApplicationContext,
+                         player: Option(Member, description="Player receiving the bonus", required=True),
+                         global_name: Option(str, description="The name of the global activity", required=True),
+                         gold: Option(int, description="The amount of gp", min=0, max=2000, required=True),
+                         experience: Option(int, description="The amount of xp", min=0, max=150, required=True)):
+        if (character := self.bot.sheets.get_character_from_id(player.id)) is None:
+            print(f"No character information found for player [ {player.id} ], aborting")
+            await ctx.response.send_message(
+                embed=ErrorEmbed(description=f"No character information found for {player.mention}"),
+                ephemeral=True
+            )
+            return
+
+        log_entry = GlobalEntry(f"{ctx.author.name}#{ctx.author.discriminator}", character,
+                                global_name, gold, experience)
+        self.bot.sheets.log_activity(log_entry)
+
+        await ctx.response.send_message(embed=LogEmbed(ctx, log_entry), ephemeral=False)
+
+    @commands.slash_command(
+        name="weekly",
+        description="Performs the weekly reset",
+        default_permission=False
+    )
+    @permissions.has_role("Council")
+    async def weekly_reset(self, ctx: ApplicationContext):
+        print(f"Weekly reset initiate by {ctx.author}")
+        await ctx.defer()  # Have the bot show as typing, as this may take a while
 
         # Process pending GP/XP
-        pending_gp_xp = self.bot.sheets.char_sheet.batch_get(['F3:F', 'I3:I'])
-        gp_total = list(pending_gp_xp[0])
-        xp_total = list(pending_gp_xp[1])
+        start = timer()
+        pending_gp_xp = self.bot.sheets.char_sheet.batch_get(['F3:F', 'I3:I', 'J1'])
+        gp_total = [[int(g[0])] for g in list(pending_gp_xp[0])]  # Cast all the numerical values into ints
+        xp_total = [[int(x[0])] for x in list(pending_gp_xp[1])]  # Google returns them as strings for some reason
+        server_xp = [[int(s[0])] for s in list(pending_gp_xp[2])]  # Ugly, but it works
         print(f'gp: {gp_total}\n'
-              f'xp: {xp_total}')
+              f'xp: {xp_total}\n'
+              f'server_xp: {server_xp}')
 
         try:
             self.bot.sheets.char_sheet.batch_update([{
@@ -324,245 +304,149 @@ class BPdia(commands.Cog):
             }, {
                 'range': 'H3:H',
                 'values': xp_total
+            }, {
+                'range': 'F1',
+                'values': server_xp
             }])
         except gspread.exceptions.APIError as e:
             print(e)
-            await ctx.channel.send("Error: Trouble getting GP/XP values. Aborting.")
+            await ctx.response.send_message("Error: Trouble setting GP/XP values. Aborting.", ephemeral=True)
             return
+        else:
+            gp_xp_end = timer()
+            print(f"Successfully copied GP and XP values in {gp_xp_end - start}s")
 
         # Archive old log entries
-        pending_logs = self.bot.sheets.log_sheet.get('A2:I')
+        pending_logs = self.bot.sheets.log_sheet.get('A2:H')
 
         try:
             self.bot.sheets.log_archive.append_rows(pending_logs, value_input_option='USER_ENTERED',
                                                     insert_data_option='INSERT_ROWS', table_range='A2')
-            self.bot.sheets.bpdia_workbook.values_clear('Log!A2:I')
+            self.bot.sheets.bpdia_workbook.values_clear('Log!A2:H')
         except gspread.exceptions.APIError:
-            await ctx.channel.send("Error: Trouble archiving log entries. Aborting.")
+            await ctx.response.send_message("Error: Trouble archiving log entries. Aborting.", ephemeral=True)
+            return
+        else:
+            logs_end = timer()
+            print(f"Successfully archived old log entries in {logs_end - gp_xp_end}s")
+
+        # Finally, hand out weekly stipends
+        characters = self.bot.sheets.get_all_characters()
+        council_role = discord.utils.get(ctx.guild.roles, name="Council")
+        magewright_role = discord.utils.get(ctx.guild.roles, name="Magewright")
+        shopkeep_role = discord.utils.get(ctx.guild.roles, name="Shopkeeper")
+        council_ids = [m.id for m in council_role.members]
+
+        council_characters = filter_characters_by_ids(characters, council_ids)
+        magewright_charcters = filter_characters_by_ids(characters,
+                                                        [m.id for m in magewright_role.members if m.id not in council_ids])
+        shopkeep_characters = filter_characters_by_ids(characters, [m.id for m in shopkeep_role.members])
+
+        log_entries = []
+        log_entries.extend(
+            [CouncilEntry(f"{self.bot.user.name}#{self.bot.user.discriminator}", c) for c in council_characters]
+        )
+        log_entries.extend(
+            [MagewrightEntry(f"{self.bot.user.name}#{self.bot.user.discriminator}", c) for c in
+             magewright_charcters]
+        )
+        log_entries.extend(
+            [ShopkeepEntry(f"{self.bot.user.name}#{self.bot.user.discriminator}", c) for c in shopkeep_characters]
+        )
+
+        self.bot.sheets.log_activities(log_entries)
+        end = timer()
+        print(f"Successfully applied weekly stipends in {end - logs_end}s")
+
+        await ctx.respond(f"Weekly reset complete in {end - start:.2f} seconds")
+
+    @commands.slash_command(
+        name="faction",
+        description="Sets the target player's faction"
+    )
+    async def set_faction(self, ctx: ApplicationContext,
+                          player: Option(Member, description="Player joining the faction", required=True),
+                          faction: Option(str, description="Faction to join", required=True,
+                                          choices=Faction.optionchoice_list())):
+        current_faction_role = get_faction_role(player)
+        player: Member
+        new_faction_role = discord.utils.get(ctx.guild.roles, name=faction)
+        if new_faction_role is None:
+            await ctx.response.send_message(
+                embed=ErrorEmbed(description=f"Faction role with name {faction} could not be found"))
+            return
+        if current_faction_role is not None:
+            await player.remove_roles(current_faction_role, reason=f"Joining new faction [ {faction} ]")
+
+        try:
+            self.bot.sheets.update_faction(player.id, faction)
+        except ValueError:
+            await ctx.response.send_message(embed=ErrorEmbed(
+                description=f"Player {player.mention} not found in BPdia. You may need to `/create` then first."),
+                ephemeral=True
+            )
+            return
+        await player.add_roles(new_faction_role, reason=f"Joining new faction [ {faction} ]")
+        embed = Embed(title="Success!",
+                      description=f"{player.mention} has joined {faction}!",
+                      color=new_faction_role.color)
+        embed.set_thumbnail(url=player.display_avatar.url)
+
+        await ctx.response.send_message(embed=embed)
+
+    @commands.slash_command(
+        name="level",
+        description="Manually levels a character that has completed their Level 1 or Level 2 quests"
+    )
+    async def level_character(self, ctx: ApplicationContext,
+                              player: Option(Member, description="Player receiving the level bump", required=True)):
+        if (character := self.bot.sheets.get_character_from_id(player.id)) is None:
+            print(f"No character information found for player [ {player.id} ], aborting")
+            await ctx.response.send_message(
+                embed=ErrorEmbed(description=f"No character information found for {player.mention}"),
+                ephemeral=True
+            )
+            return
+        if character.level > 2:
+            await ctx.response.send_message(
+                embed=ErrorEmbed(description=f"{player.mention} is already level {character.level}. "
+                                             f"If they leveled the hard way then, well, congrats"),
+                ephemeral=True
+            )
+            return
+        if character.needed_rps != character.completed_rps or character.needed_arenas != character.completed_arenas:
+            await ctx.response.send_message(
+                embed=ErrorEmbed(
+                    description=f"{player.mention} has not completed their requirements to level up.\n"
+                                f"Completed RPs: {character.completed_rps}/{character.needed_rps}\n"
+                                f"Completed Arenas: {character.completed_arenas}/{character.needed_arenas}"),
+                ephemeral=True
+            )
             return
 
-        # Process Council/Magewright bonuses
-        user_map = self.get_user_map()
-        server = ctx.guild
+        print(f"Leveling up character with player id [ {player.id} ]. New level: [ {character.level + 1} ]")
+        self.bot.sheets.log_activity(
+            BonusEntry(f"{ctx.author.name}#{ctx.author.discriminator}", character, "New player level up", 0, 1000)
+        )
 
-        role_council = discord.utils.get(server.roles, name='Council')
-        council_ids = [member.id for member in role_council.members]
-        role_magewright = discord.utils.get(server.roles, name='Magewright')
-        magewright_ids = [member.id for member in role_magewright.members if member.id not in council_ids]
+        embed = Embed(title="Level up successful!",
+                      description=f"{player.mention} is now level {character.level + 1}",
+                      color=Color.random())
+        embed.set_thumbnail(url=player.display_avatar.url)
 
-        log_data = []
-        for member_id in council_ids:
-            log_data.append(['Blind Prophet', str(datetime.utcnow()), str(member_id), 'ADMIN', '',
-                             '', '', get_cl(user_map[str(member_id)]), int(self.bot.sheets.get_asl())])
-        for member_id in magewright_ids:
-            log_data.append(['Blind Prophet', str(datetime.utcnow()), str(member_id), 'MOD', '',
-                             '', '', get_cl(user_map[str(member_id)]), int(self.bot.sheets.get_asl())])
+        await ctx.response.send_message(embed=embed)
 
-        self.bot.sheets.log_sheet.append_rows(log_data, value_input_option='USER_ENTERED',
-                                              insert_data_option='INSERT_ROWS',
-                                              table_range='A2')
+    @staticmethod
+    async def cog_before_invoke(ctx: Context):  # Log commands being run to better tie them to errors
+        print(f"Command [ /{ctx.command.qualified_name} ] initiated by member "
+              f"[ {ctx.author.name}#{ctx.author.discriminator}, id: {ctx.author.id} ]")
 
+    @commands.command(brief='- Provides a link to the public BPdia sheet')
+    async def sheet(self, ctx):
+        link = '<https://docs.google.com/spreadsheets/d/' + '1Ps6SWbnlshtJ33Yf30_1e0RkwXpaPy0YVFYaiETnbns' + '/>'
+        await ctx.message.channel.send(f'The BPdia public sheet can be found at:\n{link}')
         await ctx.message.delete()
-        await ctx.channel.send("`WEEKLY RESET HAS OCCURRED.`")
-
-    @commands.command(brief='- Records an activity in the BPdia log',
-                      help=LOG_HELP)
-    @commands.has_any_role('Tracker', 'Magewright', 'Loremaster')
-    async def log(self, ctx, *log_args):
-        # start = timer()
-        command_data = []
-        display_errors = []
-        user_map = self.get_user_map()
-
-        print(f'{str(datetime.utcnow())} - Incoming \'Log\' command from {ctx.message.author.name}'
-              f'. Args: {log_args}')  # TODO: This should log actual time, not message time
-        log_args = list(filter(lambda a: a != '.', log_args))
-
-        # types: list of either 'int', 'str', or 'str_upper'
-        def parse_activity(*types):
-            num_args = len(types)
-            offset = 2  # First two index positions are always spoken for
-            # check for too few arguments
-            if len(log_args) < num_args + offset:
-                display_errors.append(MISSING_FIELD_ERROR)
-                return
-            elif len(log_args) > num_args + offset:
-                display_errors.append(EXTRA_FIELD_ERROR)
-                return
-
-            for i in range(num_args):
-                arg = log_args[offset + i]
-                if types[i] == 'int':
-                    try:
-                        arg = str(int(arg, 10))
-                    except ValueError:
-                        display_errors.append(NUMBER_ERROR)
-                elif types[i] == 'str':
-                    arg = str(arg)
-                elif types[i] == 'str_upper':
-                    arg = str(arg).upper()
-                else:
-                    raise Exception('Incorrect argument type in `types`')
-
-                command_data.append(arg)
-
-        if 2 <= len(log_args):
-
-            # Start off by logging the user submitting the message and the date/time
-            command_data.append(ctx.message.author.name)
-            command_data.append(str(datetime.utcnow()))
-
-            # Get the user targeted by the log command
-            target_id = re.sub(r'\D+', '', log_args[0])
-            if target_id not in user_map:
-                display_errors.append(NAME_ERROR)
-            else:
-                command_data.append(target_id)
-
-            # Get the activity type being logged
-            activity = log_args[1].upper()
-            if activity not in ACTIVITY_TYPES:  # Grabbing ACTIVITY_TYPES from constants.py
-                display_errors.append(ACTIVITY_ERROR)
-            else:
-                command_data.append(activity)
-
-            if len(display_errors) == 0:
-                # Handle RP
-                if activity in ['RP', 'MOD', 'ADMIN']:
-                    if len(log_args) > 2:
-                        display_errors.append(EXTRA_FIELD_ERROR)
-
-                # Handle PIT/ARENA
-                elif activity in ['ARENA_OLD', 'PIT']:
-                    if len(log_args) < 3 or log_args[2].upper() not in ['WIN', 'LOSS', 'HOST']:
-                        display_errors.append(RESULT_ERROR)
-                    else:
-                        parse_activity('str_upper')
-
-                # Handle SHOP/SHOPKEEP
-                # To-Do: Deprecate 'SHOPKEEP'. Nobody uses it.
-                elif activity in ['SHOP', 'SHOPKEEP']:
-                    parse_activity('int')
-
-                # Handle BUY/SELL
-                elif activity in ['BUY', 'SELL']:
-                    parse_activity('str', 'int')
-
-                # Handle QUEST/ACTIVITY/ADVENTURE, as well as BONUS/GLOBAL
-                elif activity in ['QUEST', 'ACTIVITY', 'CAMPAIGN', 'BONUS', 'GLOBAL']:
-                    parse_activity('str', 'int', 'int')
-
-                else:
-                    display_errors.append('How did you even get here?')
-        else:
-            display_errors.append('Error: There must be 2-5 fields entered.')
-
-        if len(display_errors) == 0:
-            while len(command_data) < 7:
-                command_data.append('')  # Pad until CL and ASL
-            target_id = re.sub(r'\D+', '', log_args[0])
-            command_data.append(get_cl(user_map[target_id]))  # Because the sheet formatting has to be a little extra
-            command_data.append(self.bot.sheets.get_asl())
-            print(f'DATA: {command_data}')
-            # flat_data = flatten(command_data)
-            try:
-                self.bot.sheets.log_sheet.append_row(command_data, value_input_option='USER_ENTERED',
-                                                     insert_data_option='INSERT_ROWS', table_range='A2')
-                await ctx.message.channel.send(f'{log_args} - log submitted by {ctx.author.nick}')
-            except Exception as E:
-                if isinstance(E, gspread.exceptions.APIError):
-                    await ctx.message.send('Error: Something went wrong while writing the log entry. Please try again.')
-            # stop = timer()
-            # print(f'Elapsed time: {stop - start}')
-            await ctx.message.delete()
-        else:
-            for error in display_errors:
-                await ctx.message.channel.send(error)
-
-    @commands.command(brief='- Alias for logging an activity', aliases=ACTIVITY_TYPES,
-                      help=LOG_ALIAS_HELP)
-    @commands.has_any_role('Tracker', 'Magewright', 'Loremaster')
-    async def log_alias(self, ctx, *args):
-        msg = str(ctx.message.content).split()
-        activity = msg[0][1:]
-
-        print(f'{str(datetime.utcnow())} - Incoming \'{activity}\' command from {ctx.message.author.name}'
-              f'. Args: {args}')  # TODO: This should log actual time, not message time
-
-        args = list(filter(lambda a: a != '.', args))
-        args.insert(1, activity)
-        await self.log(ctx, *args)
-
-    @commands.command(brief='- Creates a new character on the BPdia sheet',
-                      help=CREATE_HELP)
-    @commands.has_any_role('Tracker', 'Magewright')
-    async def create(self, ctx, member: discord.Member, name: str, character_class: str, gp: int):
-
-        data = [str(member.id), name, 'Initiate', character_class, gp]
-        print(f'Incoming \'Create\' command. Args: {data}')
-
-        if character_class not in ['Artificer', 'Barbarian', 'Bard', 'Cleric', 'Druid', 'Fighter', 'Monk', 'Paladin',
-                                   'Ranger', 'Rogue', 'Sorcerer', 'Warlock', 'Wizard']:
-            ctx.send(f"Error: Class \'{character_class}\' Unrecognized. Was your capitalization correct?")
-            return
-        else:
-            data.extend(['', '', 0])
-            initial_log_data = ['Blind Prophet', str(datetime.utcnow()), str(member.id), 'BONUS', 'Initial',
-                                0, 0, 1, int(self.bot.sheets.get_asl())]
-
-            self.bot.sheets.char_sheet.append_row(data, value_input_option='USER_ENTERED',
-                                                  insert_data_option='INSERT_ROWS', table_range='A2')
-            self.bot.sheets.log_sheet.append_row(initial_log_data, insert_data_option='INSERT_ROWS',
-                                                 value_input_option='USER_ENTERED', table_range='A2')
-
-            await ctx.message.channel.send(f'{data} - create submitted by {ctx.author.nick}')
-            await ctx.message.delete()
-
-    @create.error
-    async def bpdia_errors(self, ctx, error):
-        message = 'Error: {error}'
-        if isinstance(error, commands.MemberNotFound):
-            message += f' Make sure this argument is a @Mention or a Discord ID'
-        elif isinstance(error, commands.MissingAnyRole) or isinstance(error, commands.MissingRole):
-            message = f'Naughty, naughty {ctx.author.mention}'
-
-        await ctx.send(message)
 
     # --------------------------- #
     # Helper functions
     # --------------------------- #
-
-    # def get_asl(self):
-    #     try:
-    #         server_level = self.bot.sheets.char_sheet.get('B1')
-    #     except gspread.exceptions.APIError as E:
-    #         print(E)
-    #     return int(server_level[0][0])
-
-    # async def _character_from_row(self, row):
-    #     header_row = '2:2'
-    #     user_row = f'{row}:{row}'
-    #     data = self.bot.sheets.char_sheet.batch_get([header_row, user_row])
-    #
-    #     return await Character.create(data)
-
-    def get_user_map(self):
-        USERLIST_RANGE = 'A3:A'
-        XPLIST_RANGE = 'I3:I'
-        try:
-            results = self.bot.sheets.char_sheet.batch_get([USERLIST_RANGE, XPLIST_RANGE])
-        except gspread.exceptions.APIError as E:
-            print(E)
-
-        return {  # Using fancy dictionary comprehension to make the dict
-            str(key[0]): int(value[0]) for key, value in zip(results[0], results[1])
-        }
-
-    def get_character_from_id(self, discord_id: str) -> Character:
-        header_row = '2:2'
-        target_cell = self.bot.sheets.char_sheet.find(discord_id, in_column=1)
-        user_row = str(target_cell.row) + ':' + str(target_cell.row)
-        
-        data = self.bot.sheets.char_sheet.batch_get([header_row, user_row])
-        return Character(data)
-
