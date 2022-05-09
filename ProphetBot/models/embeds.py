@@ -51,7 +51,9 @@ class ArenaStatusEmbed(Embed):
                          description=f"**Tier:** {tier}\n"
                                      f"**Completed Phases**: {completed_phases} / {MAX_PHASES[tier]}",
                          color=Color.random())
-        self.set_thumbnail(url="https://cdn.discordapp.com/emojis/712399492560978000.webp?size=96&quality=lossless")
+        self.set_thumbnail(
+            url="https://cdn.discordapp.com/attachments/794989941690990602/972998353103233124/IMG_2177.jpg"
+        )
         if completed_phases == 0:
             self.description += "\n\nUse the button below to join!"
         if completed_phases >= MAX_PHASES[tier] / 2:

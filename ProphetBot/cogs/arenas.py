@@ -151,7 +151,9 @@ class Arenas(commands.Cog):
                 description=f"Completed phases: **{phase} / {MAX_PHASES[tier]}**",
                 color=discord.Color.random(),
             )
-            self.set_thumbnail(url="https://cdn.discordapp.com/emojis/712399492560978000.webp?size=96&quality=lossless")
+            self.set_thumbnail(
+                url="https://cdn.discordapp.com/attachments/794989941690990602/972998353103233124/IMG_2177.jpg"
+            )
             self.add_field(name="The following rewards have been applied:", value=rewards, inline=False)
 
     def __init__(self, bot):
