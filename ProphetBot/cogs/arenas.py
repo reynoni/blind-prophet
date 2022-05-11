@@ -329,7 +329,7 @@ class Arenas(commands.Cog):
     )
     async def arena_phase(self, ctx: ApplicationContext,
                           result: Option(str, "The result of the phase", required=True,
-                                         choices=[OptionChoice("Win", "WIN"), OptionChoice("Loss", "LOSS")])):
+                                         choices=[OptionChoice("win", "WIN"), OptionChoice("loss", "LOSS")])):
         async with self.bot.db.acquire() as conn:
             results = await conn.execute(select_active_arena_by_channel(ctx.channel_id))
             arena_row = await results.first()
