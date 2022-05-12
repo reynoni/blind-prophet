@@ -239,31 +239,6 @@ class Arenas(commands.Cog):
             await conn.execute(insert_new_arena(ctx.channel_id, msg.id, channel_role.id, ctx.user.id))
         await msg.pin(reason=f"Arena claimed by {ctx.user.name}")
 
-    # @arena_commands.command(
-    #     name="join",
-    #     description="Joins the arena in this channel"
-    # )
-    # async def arena_join(self, ctx: ApplicationContext):
-    #     async with self.bot.db.acquire() as conn:
-    #         results = await conn.execute(select_active_arena_by_channel(ctx.channel_id))
-    #         arena_row = await results.first()
-    #     # Check to make sure the arena and role exist. Send an error message and abort if they don't
-    #     if not arena_row:
-    #         await ctx.response.send_message(f"Error: No active arena present in this channel", ephemeral=True)
-    #         return
-    #     if not (channel_role := discord.utils.get(ctx.guild.roles, id=arena_row.role_id)):
-    #         await ctx.response.send_message(f"Error: Role @{ctx.channel.name} doesn\'t exist. "
-    #                                         f"A Council member may need to create it.", ephemeral=True)
-    #         return
-    #     if discord.utils.get(channel_role.members, id=ctx.author.id):
-    #         await ctx.response.send_message(
-    #             f"Error: {ctx.author.mention} is already a participant in this arena.",
-    #             ephemeral=True)
-    #         return
-    #     all_characters = self.bot.sheets.get_all_characters()
-    #     await add_to_arena(ctx.interaction, ctx.author, all_characters, self.bot.db)
-    #     await update_status_embed(ctx.interaction, all_characters, arena_row)
-
     @arena_commands.command(
         name="add",
         description="Adds the specified player to the arena in this channel"
@@ -388,11 +363,6 @@ class Arenas(commands.Cog):
     # --------------------------- #
     # Helper functions
     # --------------------------- #
-
-    # @tasks.loop(minutes=5)
-    # async def update_arena_board(self):
-    #     async with self.bot.db.acquire() as conn:
-    #         pass  # Pull everyone from the arena queue table, tie them to characters, then update the embed
 
     async def close_arena(self, ctx: ApplicationContext, arena_row: RowProxy, role: discord.Role):
         for member in role.members:
