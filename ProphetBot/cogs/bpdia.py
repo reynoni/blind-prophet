@@ -328,16 +328,19 @@ class BPdia(commands.Cog):
         shopkeep_characters = filter_characters_by_ids(characters, [m.id for m in shopkeep_role.members])
 
         log_entries = []
-        log_entries.extend(
-            [CouncilEntry(f"{self.bot.user.name}#{self.bot.user.discriminator}", c) for c in council_characters]
-        )
-        log_entries.extend(
-            [MagewrightEntry(f"{self.bot.user.name}#{self.bot.user.discriminator}", c) for c in
-             magewright_charcters]
-        )
-        log_entries.extend(
-            [ShopkeepEntry(f"{self.bot.user.name}#{self.bot.user.discriminator}", c) for c in shopkeep_characters]
-        )
+        if council_characters:
+            log_entries.extend(
+                [CouncilEntry(f"{self.bot.user.name}#{self.bot.user.discriminator}", c) for c in council_characters]
+            )
+        if magewright_charcters:
+            log_entries.extend(
+                [MagewrightEntry(f"{self.bot.user.name}#{self.bot.user.discriminator}", c) for c in
+                 magewright_charcters]
+            )
+        if shopkeep_characters:
+            log_entries.extend(
+                [ShopkeepEntry(f"{self.bot.user.name}#{self.bot.user.discriminator}", c) for c in shopkeep_characters]
+            )
 
         self.bot.sheets.log_activities(log_entries)
         end = timer()
