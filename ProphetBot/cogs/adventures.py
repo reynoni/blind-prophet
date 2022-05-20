@@ -86,6 +86,11 @@ class Adventures(commands.Cog):
                 view_channel=True,
                 send_messages=True,
             )
+            quester_role = discord.utils.get(ctx.guild.roles, name='Quester')
+            category_perms[quester_role] = discord.PermissionOverwrite(
+                view_channel=True,
+                send_messages=False,
+            )
             category_perms[ctx.guild.default_role] = discord.PermissionOverwrite(view_channel=False)
 
             # Add DMs to the role & let them manage messages in their channels
@@ -94,8 +99,10 @@ class Adventures(commands.Cog):
                 category_perms[dm] = discord.PermissionOverwrite(manage_messages=True)
 
             ooc_overwrites = category_perms.copy()
-            quester_role = discord.utils.get(ctx.guild.roles, name='Quester')
-            ooc_overwrites[quester_role] = discord.PermissionOverwrite(view_channel=True)
+            ooc_overwrites[quester_role] = discord.PermissionOverwrite(
+                view_channel=True,
+                send_messages=True,
+            )
             print('Done creating category permissions and OoC overwrites')
 
             # Create category for the adventure
