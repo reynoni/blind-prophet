@@ -94,7 +94,10 @@ class Adventures(commands.Cog):
                     view_channel=True,
                     send_messages=True,
                 )
-            category_perms[ctx.guild.default_role] = discord.PermissionOverwrite(view_channel=False)
+            category_perms[ctx.guild.default_role] = discord.PermissionOverwrite(
+                view_channel=False,
+                send_messages=True
+            )
 
             # Add DMs to the role & let them manage messages in their channels
             for dm in dms:
