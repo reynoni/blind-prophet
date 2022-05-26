@@ -100,13 +100,15 @@ class BPdia(commands.Cog):
             level: Option(int, "Starting level for higher-level characters", min_value=1, max_value=20, default=1)
     ):
         start = time.time()
-        print(f'Incoming \'Create\' command invoked by {ctx.author.name}. '
+        await ctx.defer()  # Have the bot show as typing, as this may take a while
+
+        print(f'\'Create\' command invoked by {ctx.author.name}. '
               f'Args: [ {player}, {name}, {character_class}, {gp}, {level} ]')
 
         # Everything is built off the assumption that each player only has one active character, so check for that
         if self.bot.sheets.get_character_from_id(player.id) is not None:
             print(f"Found existing character for {player.id}, aborting")
-            await ctx.response.send_message(
+            await ctx.respond(
                 embed=ErrorEmbed(description=f"Player {player.mention} already has a character. Have a Council member "
                                              f"archive the old character before creating a new one."),
                 ephemeral=True
@@ -130,7 +132,7 @@ class BPdia(commands.Cog):
         embed.set_footer(text=f"Created by: {ctx.author.name}#{ctx.author.discriminator}",
                          icon_url=ctx.author.display_avatar.url)
 
-        await ctx.response.send_message(embed=embed)
+        await ctx.respond(embed=embed)
         end = time.time()
         print(f"Time to create character: {end - start}s")
 
