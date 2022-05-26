@@ -5,7 +5,7 @@ from discord import Embed, Color, ApplicationContext
 from discord.types.embed import EmbedField
 
 from ProphetBot.constants import MAX_PHASES
-from ProphetBot.models.sheets_objects import LogEntry, Character
+from ProphetBot.models.sheets_objects import LogEntry, Character, Adventure
 
 
 def linebreak() -> Dict[str, Any]:

@@ -7,7 +7,7 @@ import aiopg.sa
 import discord
 from aiopg.sa.result import RowProxy
 from discord import ButtonStyle, Embed, Member, Color, TextChannel
-from discord.commands import SlashCommandGroup, CommandPermission, Option, OptionChoice, permissions
+from discord.commands import SlashCommandGroup, Option, OptionChoice, permissions
 from discord.commands.context import ApplicationContext
 from discord.ext import commands, tasks
 from discord.ui import Button
