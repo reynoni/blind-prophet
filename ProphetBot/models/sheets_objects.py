@@ -4,7 +4,7 @@ import math
 from typing import Dict, Any, List
 
 import discord
-from discord import OptionChoice
+from discord import OptionChoice, Member
 from discord.commands.context import ApplicationContext
 
 
@@ -55,7 +55,7 @@ class Activity(enum.Enum):
     buy = "BUY"
     sell = "SELL"
     global_event = "GLOBAL"
-    campaign = "CAMPAIGN"
+    campaign = "ADVENTURE"
     council = "ADMIN"
     magewright = "MOD"
     shopkeep = "SHOP"
@@ -141,6 +141,45 @@ class Character(object):
 
     def mention(self) -> str:
         return f"<@{self.player_id}>"
+
+
+class Adventure(object):
+    role_id: int
+    category_id: int
+    name: str
+    dm_ids: List[int]
+    active: bool
+
+    def __init__(self, *args, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+    def get_role(self, ctx: ApplicationContext):
+        return discord.utils.get(ctx.guild.roles, id=self.role_id)
+
+    def get_category(self, ctx: ApplicationContext):
+        return discord.utils.get(ctx.guild.categories, id=self.category_id)
+
+    def get_dm_members(self, ctx: ApplicationContext) -> List[Member] | None:
+        dms = [discord.utils.get(ctx.guild.members, id=dm) for dm in self.dm_ids]
+        return [dm for dm in dms if dm is not None]
+
+    def get_dm_characters(self, characters: List[Character]) -> List[Character] | None:
+        return list(filter(lambda d: d.player_id in self.dm_ids, characters))
+
+    def _get_player_ids(self, ctx: ApplicationContext) -> List[int] | None:
+        if role := self.get_role(ctx):
+            return [m.id for m in role.members if m.id not in self.dm_ids]
+        return None
+
+    def get_player_members(self, ctx: ApplicationContext) -> List[Member] | None:
+        if role := self.get_role(ctx):
+            return list(filter(lambda p: p.id not in self.dm_ids, role.members))
+        return None
+
+    def get_player_characters(self, ctx: ApplicationContext, characters: List[Character]) -> List[Character] | None:
+        if player_ids := self._get_player_ids(ctx):
+            return list(filter(lambda p: p.player_id in player_ids, characters))
 
 
 class LogEntry(object):
@@ -238,8 +277,18 @@ class GlobalEntry(LogEntry):
 
 
 class CampaignEntry(LogEntry):
-    def __init__(self, author: str, character: Character, campaign_name: str, gp: int, xp: int):
-        super().__init__(author, character, Activity.campaign, campaign_name, gp, xp)
+    is_dm: bool
+    ep: int
+
+    def __init__(self, author: Member, character: Character, campaign_name: str, ep: int, is_dm: bool):
+        self.is_dm = is_dm
+        author_formatted = f"{author.name}#{author.discriminator}"
+        gp = int(character.max_gp / 2) * ep
+        xp = int(character.max_xp / 2) * ep
+        if is_dm:
+            gp = int(gp * 1.2)
+            xp = int(gp * 1.2)
+        super().__init__(author_formatted, character, Activity.campaign, f"{campaign_name} - {ep} EP", gp, xp)
 
 
 class CouncilEntry(LogEntry):

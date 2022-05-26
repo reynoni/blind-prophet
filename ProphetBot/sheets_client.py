@@ -2,7 +2,7 @@ import bisect
 import json
 import os
 from time import perf_counter
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 import gspread
 from gspread import Cell
@@ -67,6 +67,34 @@ class GsheetsClient(object):
         data_dict = {k: v for k, v in zip(data[0][0], data[1][0])}
 
         return Character.from_dict(data_dict)
+
+    def get_adventure_from_category_id(self, discord_id: int | str) -> Optional[Dict[str, Any]]:
+        if isinstance(discord_id, int):
+            discord_id = str(discord_id)
+        header_row = '1:1'
+
+        target_cell = self.adventures_sheet.find(discord_id, in_column=2)
+        if not target_cell:
+            return None
+
+        adventure_row = str(target_cell.row) + ':' + str(target_cell.row)
+        data = self.adventures_sheet.batch_get([header_row, adventure_row])
+
+        return {k: v for k, v in zip(data[0][0], data[1][0])}
+
+    def get_adventure_from_role_id(self, discord_id: int | str) -> Optional[Dict[str, Any]]:
+        if isinstance(discord_id, int):
+            discord_id = str(discord_id)
+        header_row = '1:1'
+
+        target_cell = self.adventures_sheet.find(discord_id, in_column=1)
+        if not target_cell:
+            return None
+
+        adventure_row = str(target_cell.row) + ':' + str(target_cell.row)
+        data = self.adventures_sheet.batch_get([header_row, adventure_row])
+
+        return {k: v for k, v in zip(data[0][0], data[1][0])}
 
     def create_character(self, character: Character):
         """

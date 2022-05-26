@@ -36,6 +36,33 @@ class LogEmbed(Embed):
         self.set_footer(text=f"Logged by {log_entry.author}", icon_url=ctx.author.display_avatar.url)
 
 
+class AdventureRewardEmbed(Embed):
+    def __init__(self, ctx: ApplicationContext, dms: List[Character], players: List[Character],
+                 adventure: Adventure, ep: int):
+        super().__init__(
+            title="Adventure Rewards",
+            description=f"**Adventure**: {adventure.name}\n"
+                        f"**EP Earned**: {ep}\n"
+                        f"*Note: Rewards are 1/2 of your diversion caps for each EP*\n",
+            color=Color.random()
+        )
+        self.add_field(
+            name="DM(s)",
+            value="\n".join([f"\u200b -{m.mention()}" for m in dms]),
+            inline=False
+        )
+        self.add_field(
+            name="Players",
+            value="\n".join([f"\u200b -{m.mention()}" for m in players]),
+            inline=False
+        )
+        self.set_thumbnail(
+            url="https://cdn.discordapp.com/attachments/794989941690990602/972998353103233124/IMG_2177.jpg"
+        )
+        author = f"{ctx.author.name}#{ctx.author.discriminator}"
+        self.set_footer(text=f"Logged by {author}", icon_url=ctx.author.display_avatar.url)
+
+
 class ErrorEmbed(Embed):
 
     def __init__(self, *args, **kwargs):

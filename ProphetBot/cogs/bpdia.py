@@ -5,17 +5,20 @@ import discord
 import discord.errors
 import discord.utils
 import gspread
-from discord import Embed, Member, Role, Color, CommandPermission
+from discord import Embed, Member, Role, Color
 from discord.commands import Option, permissions
 from discord.commands.context import ApplicationContext
 from discord.ext import commands
-from discord.ext.commands import Context
+from discord.ext.commands import Context, Cooldown, BucketType
+from gspread import GSpreadException
+from marshmallow import ValidationError
 
 from ProphetBot.bot import BpBot
 from ProphetBot.helpers import filter_characters_by_ids
-from ProphetBot.models.embeds import ErrorEmbed, LogEmbed
+from ProphetBot.models.embeds import ErrorEmbed, LogEmbed, AdventureRewardEmbed
+from ProphetBot.models.schemas import AdventureSchema
 from ProphetBot.models.sheets_objects import BuyEntry, SellEntry, GlobalEntry, CouncilEntry, MagewrightEntry, \
-    ShopkeepEntry
+    ShopkeepEntry, Adventure, CampaignEntry
 from ProphetBot.models.sheets_objects import Character, BonusEntry, RpEntry, Faction, CharacterClass
 
 
@@ -265,6 +268,57 @@ class BPdia(commands.Cog):
         self.bot.sheets.log_activity(log_entry)
 
         await ctx.response.send_message(embed=LogEmbed(ctx, log_entry), ephemeral=False)
+
+    @commands.slash_command(
+        name="ep",
+        description="Grants adventure rewards to the specified adventure"
+    )
+    async def log_adventure(self, ctx: ApplicationContext,
+                            role: Option(Role, description="The adventure role to get rewards", required=True),
+                            ep: Option(int, description="The number of EP to give rewards for", required=True)):
+        try:
+            adventure_raw = self.bot.sheets.get_adventure_from_role_id(role.id)
+            if adventure_raw is None:
+                await ctx.response.send_message(
+                    embed=ErrorEmbed(description=f"No adventure found for {role.mention}"),
+                    ephemeral=True
+                )
+                return
+            adventure: Adventure = AdventureSchema().load(adventure_raw)
+        except ValidationError:
+            await ctx.response.send_message(
+                embed=ErrorEmbed(description=f"Unable to validate adventure data for {role.mention}"),
+                ephemeral=True
+            )
+            return
+        except GSpreadException:
+            await ctx.response.send_message(
+                embed=ErrorEmbed(description=f"Error getting adventure information from BPdia"),
+                ephemeral=True
+            )
+            return
+
+        all_characters = self.bot.sheets.get_all_characters()
+        dm_characters = adventure.get_dm_characters(all_characters)
+        player_characters = adventure.get_player_characters(ctx, all_characters)
+
+        log_entries = []
+        for dm in dm_characters:
+            log_entries.append(CampaignEntry(ctx.author, dm, adventure.name, ep, True))
+        for player in player_characters:
+            log_entries.append(CampaignEntry(ctx.author, player, adventure.name, ep, False))
+
+        if len(log_entries) == 0:
+            await ctx.response.send_message(
+                embed=ErrorEmbed(description=f"Role {role} has no members. Aborting"),
+                ephemeral=True
+            )
+            return
+
+        self.bot.sheets.log_activities(log_entries)
+
+        reward_embed = AdventureRewardEmbed(ctx, dm_characters, player_characters, adventure, ep)
+        await ctx.response.send_message(embed=reward_embed, ephemeral=False)
 
     @commands.slash_command(
         name="weekly",
