@@ -74,11 +74,7 @@ async def update_status_embed(interaction: discord.Interaction, characters: List
 
 
 async def add_to_arena(interaction: discord.Interaction, player: discord.Member,
-                       characters: List[Character], db: aiopg.sa.Engine):
-    async with db.acquire() as conn:
-        results = await conn.execute(select_active_arena_by_channel(interaction.channel_id))
-        arena_row = await results.first()
-
+                       characters: List[Character], db: aiopg.sa.Engine, arena_row: RowProxy):
     # Everything looks good, so we can add the user to the role and determine the tier
     channel_role = discord.utils.get(interaction.guild.roles, id=arena_row.role_id)
     members_in_arena = [m.id for m in channel_role.members if m.id != arena_row.host_id]
@@ -129,7 +125,7 @@ class JoinArenaView(discord.ui.View):
                 ephemeral=True)
             return
         all_characters = self.sheets_client.get_all_characters()
-        await add_to_arena(interaction, interaction.user, all_characters, self.db)
+        await add_to_arena(interaction, interaction.user, all_characters, self.db, arena_row)
         await update_status_embed(interaction, all_characters, arena_row)
 
 
@@ -262,7 +258,7 @@ class Arenas(commands.Cog):
                 ephemeral=True)
             return
         all_characters = self.bot.sheets.get_all_characters()
-        await add_to_arena(ctx.interaction, player, all_characters, self.bot.db)
+        await add_to_arena(ctx.interaction, player, all_characters, self.bot.db, arena_row)
         await update_status_embed(ctx.interaction, all_characters, arena_row)
 
     @arena_commands.command(
