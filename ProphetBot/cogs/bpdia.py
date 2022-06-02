@@ -163,9 +163,10 @@ class BPdia(commands.Cog):
     )
     async def log_rp(self, ctx: ApplicationContext,
                      player: Option(Member, description="Player who participated in the RP", required=True)):
+        await ctx.defer()
         if (character := self.bot.sheets.get_character_from_id(player.id)) is None:
             print(f"No character information found for player [ {player.id} ], aborting")
-            await ctx.response.send_message(
+            await ctx.respond(
                 embed=ErrorEmbed(description=f"No character information found for {player.mention}"),
                 ephemeral=True
             )
@@ -174,7 +175,7 @@ class BPdia(commands.Cog):
         log_entry = RpEntry(f"{ctx.author.name}#{ctx.author.discriminator}", character)
         self.bot.sheets.log_activity(log_entry)
 
-        await ctx.response.send_message(embed=LogEmbed(ctx, log_entry), ephemeral=False)
+        await ctx.respond(embed=LogEmbed(ctx, log_entry), ephemeral=False)
 
     @commands.slash_command(
         name="bonus",
@@ -185,9 +186,10 @@ class BPdia(commands.Cog):
                         reason: Option(str, description="The reason for the bonus", required=True),
                         gold: Option(int, description="The amount of gp", default=0, min=0, max=2000),
                         experience: Option(int, description="The amount of xp", default=0, min=0, max=150)):
+        await ctx.defer()
         if (character := self.bot.sheets.get_character_from_id(player.id)) is None:
             print(f"No character information found for player [ {player.id} ], aborting")
-            await ctx.response.send_message(
+            await ctx.respond(
                 embed=ErrorEmbed(description=f"No character information found for {player.mention}"),
                 ephemeral=True
             )
@@ -196,7 +198,7 @@ class BPdia(commands.Cog):
         log_entry = BonusEntry(f"{ctx.author.name}#{ctx.author.discriminator}", character, reason, gold, experience)
         self.bot.sheets.log_activity(log_entry)
 
-        await ctx.response.send_message(embed=LogEmbed(ctx, log_entry), ephemeral=False)
+        await ctx.respond(embed=LogEmbed(ctx, log_entry), ephemeral=False)
 
     @commands.slash_command(
         name="buy",
@@ -206,23 +208,22 @@ class BPdia(commands.Cog):
                       player: Option(Member, description="Player who bought the item", required=True),
                       item: Option(str, description="The item being bought", required=True),
                       cost: Option(int, description="The cost of the item", min=0, max=999999, required=True)):
+        await ctx.defer()
         if (character := self.bot.sheets.get_character_from_id(player.id)) is None:
             print(f"No character information found for player [ {player.id} ], aborting")
-            await ctx.response.send_message(
+            await ctx.respond(
                 embed=ErrorEmbed(description=f"No character information found for {player.mention}"),
                 ephemeral=True
             )
             return
         if character.wealth < cost:
-            await ctx.response.send_message(
-                embed=ErrorEmbed(description=f"{player.mention} cannot afford the {cost}gp cost")
-            )
+            await ctx.respond(embed=ErrorEmbed(description=f"{player.mention} cannot afford the {cost}gp cost"))
             return
 
         log_entry = BuyEntry(f"{ctx.author.name}#{ctx.author.discriminator}", character, item, cost)
         self.bot.sheets.log_activity(log_entry)
 
-        await ctx.response.send_message(embed=LogEmbed(ctx, log_entry), ephemeral=False)
+        await ctx.respond(embed=LogEmbed(ctx, log_entry), ephemeral=False)
 
     @commands.slash_command(
         name="sell",
@@ -233,9 +234,10 @@ class BPdia(commands.Cog):
                        item: Option(str, description="The item being sold", required=True),
                        cost: Option(int, description="The amount of gp received for the sale",
                                     min=0, max=999999, required=True)):
+        await ctx.defer()
         if (character := self.bot.sheets.get_character_from_id(player.id)) is None:
             print(f"No character information found for player [ {player.id} ], aborting")
-            await ctx.response.send_message(
+            await ctx.respond(
                 embed=ErrorEmbed(description=f"No character information found for {player.mention}"),
                 ephemeral=True
             )
@@ -244,7 +246,7 @@ class BPdia(commands.Cog):
         log_entry = SellEntry(f"{ctx.author.name}#{ctx.author.discriminator}", character, item, cost)
         self.bot.sheets.log_activity(log_entry)
 
-        await ctx.response.send_message(embed=LogEmbed(ctx, log_entry), ephemeral=False)
+        await ctx.respond(embed=LogEmbed(ctx, log_entry), ephemeral=False)
 
     @commands.slash_command(
         name="global",
@@ -255,9 +257,10 @@ class BPdia(commands.Cog):
                          global_name: Option(str, description="The name of the global activity", required=True),
                          gold: Option(int, description="The amount of gp", min=0, max=2000, required=True),
                          experience: Option(int, description="The amount of xp", min=0, max=150, required=True)):
+        await ctx.defer()
         if (character := self.bot.sheets.get_character_from_id(player.id)) is None:
             print(f"No character information found for player [ {player.id} ], aborting")
-            await ctx.response.send_message(
+            await ctx.respond(
                 embed=ErrorEmbed(description=f"No character information found for {player.mention}"),
                 ephemeral=True
             )
@@ -267,7 +270,7 @@ class BPdia(commands.Cog):
                                 global_name, gold, experience)
         self.bot.sheets.log_activity(log_entry)
 
-        await ctx.response.send_message(embed=LogEmbed(ctx, log_entry), ephemeral=False)
+        await ctx.respond(embed=LogEmbed(ctx, log_entry), ephemeral=False)
 
     @commands.slash_command(
         name="ep",
@@ -276,23 +279,24 @@ class BPdia(commands.Cog):
     async def log_adventure(self, ctx: ApplicationContext,
                             role: Option(Role, description="The adventure role to get rewards", required=True),
                             ep: Option(int, description="The number of EP to give rewards for", required=True)):
+        await ctx.defer()
         try:
             adventure_raw = self.bot.sheets.get_adventure_from_role_id(role.id)
             if adventure_raw is None:
-                await ctx.response.send_message(
+                await ctx.respond(
                     embed=ErrorEmbed(description=f"No adventure found for {role.mention}"),
                     ephemeral=True
                 )
                 return
             adventure: Adventure = AdventureSchema().load(adventure_raw)
         except ValidationError:
-            await ctx.response.send_message(
+            await ctx.respond(
                 embed=ErrorEmbed(description=f"Unable to validate adventure data for {role.mention}"),
                 ephemeral=True
             )
             return
         except GSpreadException:
-            await ctx.response.send_message(
+            await ctx.respond(
                 embed=ErrorEmbed(description=f"Error getting adventure information from BPdia"),
                 ephemeral=True
             )
@@ -309,7 +313,7 @@ class BPdia(commands.Cog):
             log_entries.append(CampaignEntry(ctx.author, player, adventure.name, ep, False))
 
         if len(log_entries) == 0:
-            await ctx.response.send_message(
+            await ctx.respond(
                 embed=ErrorEmbed(description=f"Role {role} has no members. Aborting"),
                 ephemeral=True
             )
@@ -318,7 +322,7 @@ class BPdia(commands.Cog):
         self.bot.sheets.log_activities(log_entries)
 
         reward_embed = AdventureRewardEmbed(ctx, dm_characters, player_characters, adventure, ep)
-        await ctx.response.send_message(embed=reward_embed, ephemeral=False)
+        await ctx.respond(embed=reward_embed, ephemeral=False)
 
     @commands.slash_command(
         name="weekly",
@@ -351,7 +355,7 @@ class BPdia(commands.Cog):
             }])
         except gspread.exceptions.APIError as e:
             print(e)
-            await ctx.response.send_message("Error: Trouble setting GP/XP values. Aborting.", ephemeral=True)
+            await ctx.respond("Error: Trouble setting GP/XP values. Aborting.", ephemeral=True)
             return
         else:
             gp_xp_end = timer()
@@ -365,7 +369,7 @@ class BPdia(commands.Cog):
                                                     insert_data_option='INSERT_ROWS', table_range='A2')
             self.bot.sheets.bpdia_workbook.values_clear('Log!A2:H')
         except gspread.exceptions.APIError:
-            await ctx.response.send_message("Error: Trouble archiving log entries. Aborting.", ephemeral=True)
+            await ctx.respond("Error: Trouble archiving log entries. Aborting.", ephemeral=True)
             return
         else:
             logs_end = timer()
@@ -412,20 +416,21 @@ class BPdia(commands.Cog):
                           player: Option(Member, description="Player joining the faction", required=True),
                           faction: Option(str, description="Faction to join", required=True,
                                           choices=Faction.optionchoice_list())):
+        await ctx.defer()
         current_faction_role = get_faction_role(player)
-        player: Member
         new_faction_role = discord.utils.get(ctx.guild.roles, name=faction)
         if new_faction_role is None:
-            await ctx.response.send_message(
+            await ctx.respond(
                 embed=ErrorEmbed(description=f"Faction role with name {faction} could not be found"))
             return
+
         if current_faction_role is not None:
             await player.remove_roles(current_faction_role, reason=f"Joining new faction [ {faction} ]")
 
         try:
             self.bot.sheets.update_faction(player.id, faction)
         except ValueError:
-            await ctx.response.send_message(embed=ErrorEmbed(
+            await ctx.respond(embed=ErrorEmbed(
                 description=f"Player {player.mention} not found in BPdia. You may need to `/create` then first."),
                 ephemeral=True
             )
@@ -436,7 +441,7 @@ class BPdia(commands.Cog):
                       color=new_faction_role.color)
         embed.set_thumbnail(url=player.display_avatar.url)
 
-        await ctx.response.send_message(embed=embed)
+        await ctx.respond(embed=embed)
 
     @commands.slash_command(
         name="level",
@@ -444,22 +449,23 @@ class BPdia(commands.Cog):
     )
     async def level_character(self, ctx: ApplicationContext,
                               player: Option(Member, description="Player receiving the level bump", required=True)):
+        await ctx.defer()
         if (character := self.bot.sheets.get_character_from_id(player.id)) is None:
             print(f"No character information found for player [ {player.id} ], aborting")
-            await ctx.response.send_message(
+            await ctx.respond(
                 embed=ErrorEmbed(description=f"No character information found for {player.mention}"),
                 ephemeral=True
             )
             return
         if character.level > 2:
-            await ctx.response.send_message(
+            await ctx.respond(
                 embed=ErrorEmbed(description=f"{player.mention} is already level {character.level}. "
                                              f"If they leveled the hard way then, well, congrats"),
                 ephemeral=True
             )
             return
         if character.needed_rps != character.completed_rps or character.needed_arenas != character.completed_arenas:
-            await ctx.response.send_message(
+            await ctx.respond(
                 embed=ErrorEmbed(
                     description=f"{player.mention} has not completed their requirements to level up.\n"
                                 f"Completed RPs: {character.completed_rps}/{character.needed_rps}\n"
@@ -478,18 +484,12 @@ class BPdia(commands.Cog):
                       color=Color.random())
         embed.set_thumbnail(url=player.display_avatar.url)
 
-        await ctx.response.send_message(embed=embed)
+        await ctx.respond(embed=embed)
 
     @staticmethod
     async def cog_before_invoke(ctx: Context):  # Log commands being run to better tie them to errors
         print(f"Command [ /{ctx.command.qualified_name} ] initiated by member "
               f"[ {ctx.author.name}#{ctx.author.discriminator}, id: {ctx.author.id} ]")
-
-    @commands.command(brief='- Provides a link to the public BPdia sheet')
-    async def sheet(self, ctx):
-        link = '<https://docs.google.com/spreadsheets/d/' + '1Ps6SWbnlshtJ33Yf30_1e0RkwXpaPy0YVFYaiETnbns' + '/>'
-        await ctx.message.channel.send(f'The BPdia public sheet can be found at:\n{link}')
-        await ctx.message.delete()
 
     # --------------------------- #
     # Helper functions
