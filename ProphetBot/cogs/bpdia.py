@@ -1,5 +1,6 @@
 import time
 from timeit import default_timer as timer
+from typing import List
 
 import discord
 import discord.errors
@@ -70,7 +71,7 @@ def get_cl(char_xp):
     return 1 + int((int(char_xp) / 1000))
 
 
-def get_faction_role(player: Member) -> Role:
+def get_faction_role(player: Member) -> List[Role] | None:
     """
     Returns the first matching faction role of the provided player, or None if no faction roles are found
 
@@ -78,7 +79,12 @@ def get_faction_role(player: Member) -> Role:
     :return: The first matching faction Role
     """
     faction_names = Faction.values_list()
-    return discord.utils.find(lambda r: r.name in faction_names, player.roles)
+    faction_names.remove(Faction.INITIATE.value)
+    faction_names.remove(Faction.GUILD_MEMBER.value)
+    roles = list(filter(lambda r: r.name in faction_names, player.roles))
+    if len(roles) == 0:
+        return None
+    return roles
 
 
 class BPdia(commands.Cog):
@@ -417,15 +423,15 @@ class BPdia(commands.Cog):
                           faction: Option(str, description="Faction to join", required=True,
                                           choices=Faction.optionchoice_list())):
         await ctx.defer()
-        current_faction_role = get_faction_role(player)
+        current_faction_roles = get_faction_role(player)
         new_faction_role = discord.utils.get(ctx.guild.roles, name=faction)
         if new_faction_role is None:
             await ctx.respond(
                 embed=ErrorEmbed(description=f"Faction role with name {faction} could not be found"))
             return
 
-        if current_faction_role is not None:
-            await player.remove_roles(current_faction_role, reason=f"Joining new faction [ {faction} ]")
+        if current_faction_roles is not None:
+            await player.remove_roles(*current_faction_roles, reason=f"Joining new faction [ {faction} ]")
 
         try:
             self.bot.sheets.update_faction(player.id, faction)
