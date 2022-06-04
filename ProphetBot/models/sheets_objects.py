@@ -287,7 +287,7 @@ class CampaignEntry(LogEntry):
         xp = int(character.max_xp / 2) * ep
         if is_dm:
             gp = int(gp * 1.2)
-            xp = int(gp * 1.2)
+            xp = int(xp * 1.2)
         super().__init__(author_formatted, character, Activity.campaign, f"{campaign_name} - {ep} EP", gp, xp)
 
 
