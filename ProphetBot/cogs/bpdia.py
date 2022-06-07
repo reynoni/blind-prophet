@@ -151,17 +151,18 @@ class BPdia(commands.Cog):
     )
     async def get_character(self, ctx: ApplicationContext,
                             player: Option(Member, "Player to get the information of", required=False)):
+        await ctx.defer()
         if player is None:
             player = ctx.author
         if (character := self.bot.sheets.get_character_from_id(player.id)) is None:
             print(f"No character information found for player [ {player.id} ], aborting")
-            await ctx.response.send_message(
+            await ctx.respond(
                 embed=ErrorEmbed(description=f"No character information found for {player.mention}"),
                 ephemeral=True
             )
             return
 
-        await ctx.response.send_message(embed=build_get_embed(character, player), ephemeral=False)
+        await ctx.respond(embed=build_get_embed(character, player), ephemeral=False)
 
     @commands.slash_command(
         name="rp",
