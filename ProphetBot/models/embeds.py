@@ -99,8 +99,8 @@ class RpDashboardEmbed(Embed):
             for k in secondary_statuses.keys():
                 channels += f'{k}\n'
                 statuses += f'\u200B \u200B \u200B \u200B \u200B {secondary_statuses[k]}\n'
-            self.add_field(name="\u200B", value=channels, inline=True)
-            self.add_field(name="\u200B", value=statuses, inline=True)
+            self.add_field(name="Channel", value=channels, inline=True)
+            self.add_field(name="Available", value=statuses, inline=True)
         self.set_footer(text="Last Updated")
 
 
