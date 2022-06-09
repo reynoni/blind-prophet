@@ -566,7 +566,7 @@ class BPdia(commands.Cog):
                     lm_id = channel.last_message_id
                     last_message = await channel.fetch_message(lm_id) if lm_id is not None else None
                 except discord.errors.HTTPException as e:
-                    print(e)
+                    print(f"Skipping channel {channel.name}: [ {e} ]")
 
             if last_message is None:
                 status = "<:grey_question:983576825294884924>"
