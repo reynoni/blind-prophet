@@ -101,7 +101,7 @@ class BPdia(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(3.0)
         await self.update_rp_dashboards.start()
 
     @commands.slash_command(

@@ -158,7 +158,7 @@ class Arenas(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(3.0)
         self.bot.add_view(JoinArenaView(self.bot.db, self.bot.sheets))
 
     @arena_commands.command(
