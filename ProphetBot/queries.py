@@ -1,5 +1,7 @@
 from datetime import datetime
-from ProphetBot.models.db import arenas_table
+from typing import List
+
+from ProphetBot.models.db import arenas_table, category_dashboards_table
 from sqlalchemy import null, and_, or_
 from sqlalchemy.sql.selectable import FromClause, TableClause
 
@@ -35,3 +37,22 @@ def close_arena_by_id(arena_id: int):
     return arenas_table.update() \
         .where(arenas_table.c.id == arena_id) \
         .values(end_ts=datetime.utcnow())
+
+
+def get_dashboard_by_categorychannel_id(categorychannel_id: int) -> FromClause:
+    return category_dashboards_table.select().where(
+        category_dashboards_table.c.categorychannel_id == categorychannel_id
+    )
+
+
+def get_all_dashboards() -> FromClause:
+    return category_dashboards_table.select()
+
+
+def insert_new_dashboard(category_id: int, post_channel_id: int, post_id: int, excluded_channels: List[int]):
+    return category_dashboards_table.insert().values(
+        categorychannel_id=category_id,
+        dashboard_post_channel_id=post_channel_id,
+        dashboard_post_id=post_id,
+        excluded_channel_ids=excluded_channels
+    )

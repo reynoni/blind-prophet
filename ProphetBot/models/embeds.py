@@ -2,7 +2,6 @@ from typing import Dict, Any, List
 
 import discord
 from discord import Embed, Color, ApplicationContext
-from discord.types.embed import EmbedField
 
 from ProphetBot.constants import MAX_PHASES
 from ProphetBot.models.sheets_objects import LogEntry, Character, Adventure
@@ -69,6 +68,27 @@ class ErrorEmbed(Embed):
         kwargs['title'] = "Error:"
         kwargs['color'] = Color.brand_red()
         super().__init__(**kwargs)
+
+
+class RpDashboardEmbed(Embed):
+
+    def __init__(self, channel_statuses: Dict[str, str], category_name: str):
+        super(RpDashboardEmbed, self).__init__(
+            color=Color.dark_grey(),
+            title=f"Channel Statuses - {category_name}",
+            description="<:white_check_mark:983576747381518396> = Channel available\n"
+                        "<:x:983576786447245312> = Channel in use\n"
+                        "<:grey_question:983576825294884924> = Unknown. Check the channel for more details",
+            timestamp=discord.utils.utcnow()
+        )
+        channels = ""
+        statuses = ""
+        for k in channel_statuses.keys():
+            channels += f'{k}\n'
+            statuses += f'\u200B \u200B \u200B \u200B \u200B {channel_statuses[k]}\n'
+        self.add_field(name="Channel", value=channels, inline=True)
+        self.add_field(name="Available", value=statuses, inline=True)
+        self.set_footer(text="Last Updated")
 
 
 class ArenaStatusEmbed(Embed):

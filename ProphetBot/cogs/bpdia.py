@@ -1,3 +1,4 @@
+import asyncio
 import time
 from timeit import default_timer as timer
 from typing import List
@@ -6,21 +7,24 @@ import discord
 import discord.errors
 import discord.utils
 import gspread
-from discord import Embed, Member, Role, Color
-from discord.commands import Option, permissions
+import psycopg2
+from discord import Embed, Member, Role, Color, InteractionMessage, TextChannel
+from discord.commands import Option
 from discord.commands.context import ApplicationContext
-from discord.ext import commands
-from discord.ext.commands import Context, Cooldown, BucketType
+from discord.ext import commands, tasks
+from discord.ext.commands import Context
 from gspread import GSpreadException
 from marshmallow import ValidationError
 
 from ProphetBot.bot import BpBot
 from ProphetBot.helpers import filter_characters_by_ids
-from ProphetBot.models.embeds import ErrorEmbed, LogEmbed, AdventureRewardEmbed
-from ProphetBot.models.schemas import AdventureSchema
+from ProphetBot.models.db_objects import RpDashboard
+from ProphetBot.models.embeds import ErrorEmbed, LogEmbed, AdventureRewardEmbed, RpDashboardEmbed
+from ProphetBot.models.schemas import AdventureSchema, RpDashboardSchema
 from ProphetBot.models.sheets_objects import BuyEntry, SellEntry, GlobalEntry, CouncilEntry, MagewrightEntry, \
     ShopkeepEntry, Adventure, CampaignEntry
 from ProphetBot.models.sheets_objects import Character, BonusEntry, RpEntry, Faction, CharacterClass
+from ProphetBot.queries import get_dashboard_by_categorychannel_id, insert_new_dashboard, get_all_dashboards
 
 
 def setup(bot):
@@ -94,6 +98,11 @@ class BPdia(commands.Cog):
         # All GSheet endpoints are in the bot object now
         self.bot = bot
         print(f'Cog \'BPdia\' loaded')
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        await asyncio.sleep(1.0)
+        await self.update_rp_dashboards.start()
 
     @commands.slash_command(
         name="create",
@@ -493,11 +502,93 @@ class BPdia(commands.Cog):
 
         await ctx.respond(embed=embed)
 
+    @commands.slash_command(
+        name="create_dashboard",
+        description="Creates a dashboard which shows the status of RP channels in this category"
+    )
+    async def rp_dashboard_create(
+            self, ctx: ApplicationContext,
+            excluded_channel_1: Option(TextChannel, "The first channel to exclude", required=False, default=None),
+            excluded_channel_2: Option(TextChannel, "The second channel to exclude", required=False, default=None),
+            excluded_channel_3: Option(TextChannel, "The third channel to exclude", required=False, default=None),
+            excluded_channel_4: Option(TextChannel, "The fourth channel to exclude", required=False, default=None)
+    ):
+        # Check to see whether a dashboard already exists in this category
+        async with self.bot.db.acquire() as conn:
+            results = await conn.execute(get_dashboard_by_categorychannel_id(ctx.channel.category_id))
+            dashboard_row = await results.first()
+        if dashboard_row is not None:
+            await ctx.respond(embed=ErrorEmbed(description="There is already a dashboard for this category. "
+                                                           "Delete that before creating another"))
+            return
+        # Process excluded channels
+        excluded_channels = list(set(filter(
+            lambda c: c is not None,
+            [excluded_channel_1, excluded_channel_2, excluded_channel_3, excluded_channel_4]
+        )))
+        # Create post with dummy text and pin it
+        interaction = await ctx.respond("Fetching dashboard data. This may take a moment...")
+        msg: InteractionMessage = await interaction.original_message()
+        await msg.pin(reason=f"RP dashboard for {ctx.channel.category.name} created by {ctx.author.name}")
+        # Write new row to database
+        try:
+            async with self.bot.db.acquire() as conn:
+                await conn.execute(insert_new_dashboard(
+                    category_id=ctx.channel.category.id,
+                    post_channel_id=ctx.channel_id,
+                    post_id=msg.id,
+                    excluded_channels=[c.id for c in excluded_channels]
+                ))
+        # Delete post if we catch an error
+        except psycopg2.Error:
+            await msg.delete()
+            await ctx.respond(ErrorEmbed(description="A database error was encountered. Aborting."))
+            return
+        #   Otherwise give an extra success post
+        else:
+            print("RP dashboard created")
+            # Manually call update dashboards task
+            await self.update_rp_dashboards()
+
     @staticmethod
     async def cog_before_invoke(ctx: Context):  # Log commands being run to better tie them to errors
         print(f"Command [ /{ctx.command.qualified_name} ] initiated by member "
               f"[ {ctx.author.name}#{ctx.author.discriminator}, id: {ctx.author.id} ]")
 
+    async def update_dashboard(self, dashboard: RpDashboard):
+        channels = dashboard.channels_to_check(self.bot)
+        channels_dict = {}
+        for channel in channels:
+            last_message = channel.last_message
+            if last_message is None:
+                try:
+                    last_message = await channel.fetch_message(channel.last_message_id)
+                except discord.errors.HTTPException as e:
+                    print(e)
+
+            if last_message is None:
+                status = "<:grey_question:983576825294884924>"
+            elif last_message.content == "```\n \n```":
+                status = "<:white_check_mark:983576747381518396>"
+            else:
+                status = "<:x:983576786447245312>"
+            channels_dict[channel.mention] = status
+
+        original_msg = await dashboard.get_pinned_post(self.bot)
+        if original_msg is not None:
+            category = dashboard.get_categorychannel(self.bot)
+            await original_msg.edit(content='', embed=RpDashboardEmbed(channels_dict, category.name))
+        else:
+            print(f"Original message not found for msg id [ {dashboard.post_id} ]")
+
     # --------------------------- #
-    # Helper functions
+    # Tasks
     # --------------------------- #
+
+    @tasks.loop(minutes=5.0)
+    async def update_rp_dashboards(self):
+        print("Starting to update RP channel dashboards")
+        async with self.bot.db.acquire() as conn:
+            async for row in conn.execute(get_all_dashboards()):
+                dashboard: RpDashboard = RpDashboardSchema().load(row)
+                await self.update_dashboard(dashboard)

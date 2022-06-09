@@ -8,11 +8,12 @@ from timeit import default_timer as timer
 from sqlalchemy.schema import CreateTable
 
 from ProphetBot.sheets_client import GsheetsClient
-from ProphetBot.models.db import arenas_table
+from ProphetBot.models.db import arenas_table, category_dashboards_table
 
 
 async def create_tables(conn: aiopg.sa.SAConnection):
     await conn.execute(CreateTable(arenas_table, if_not_exists=True))
+    await conn.execute(CreateTable(category_dashboards_table, if_not_exists=True))
 
 
 class BpBot(commands.Bot):
