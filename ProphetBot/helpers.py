@@ -1,3 +1,4 @@
+import itertools
 from typing import List
 
 from ProphetBot.constants import *
@@ -49,3 +50,13 @@ def get_cl(char_xp):
 
 def sheetstr(time: datetime) -> str:
     return time.strftime('%d/%m/%Y %H:%M:%S')
+
+
+def split_dict(d):
+    n = len(d) // 2          # length of smaller half
+    i = iter(d.items())      # alternatively, i = d.iteritems() works in Python 2
+
+    d1 = dict(itertools.islice(i, n))   # grab first n items
+    d2 = dict(i)                        # grab the rest
+
+    return d1, d2

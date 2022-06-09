@@ -4,6 +4,7 @@ import discord
 from discord import Embed, Color, ApplicationContext
 
 from ProphetBot.constants import MAX_PHASES
+from ProphetBot.helpers import split_dict
 from ProphetBot.models.sheets_objects import LogEntry, Character, Adventure
 
 
@@ -81,6 +82,9 @@ class RpDashboardEmbed(Embed):
                         "<:grey_question:983576825294884924> = Unknown. Check the channel for more details",
             timestamp=discord.utils.utcnow()
         )
+        secondary_statuses = None
+        if len(channel_statuses) >= 20:
+            channel_statuses, secondary_statuses = split_dict(channel_statuses)
         channels = ""
         statuses = ""
         for k in channel_statuses.keys():
@@ -88,6 +92,12 @@ class RpDashboardEmbed(Embed):
             statuses += f'\u200B \u200B \u200B \u200B \u200B {channel_statuses[k]}\n'
         self.add_field(name="Channel", value=channels, inline=True)
         self.add_field(name="Available", value=statuses, inline=True)
+        if secondary_statuses is not None:
+            for k in secondary_statuses.keys():
+                channels += f'{k}\n'
+                statuses += f'\u200B \u200B \u200B \u200B \u200B {secondary_statuses[k]}\n'
+            self.add_field(name="\u200B", value=channels, inline=False)
+            self.add_field(name="\u200B", value=statuses, inline=True)
         self.set_footer(text="Last Updated")
 
 
