@@ -511,7 +511,8 @@ class BPdia(commands.Cog):
             excluded_channel_1: Option(TextChannel, "The first channel to exclude", required=False, default=None),
             excluded_channel_2: Option(TextChannel, "The second channel to exclude", required=False, default=None),
             excluded_channel_3: Option(TextChannel, "The third channel to exclude", required=False, default=None),
-            excluded_channel_4: Option(TextChannel, "The fourth channel to exclude", required=False, default=None)
+            excluded_channel_4: Option(TextChannel, "The fourth channel to exclude", required=False, default=None),
+            excluded_channel_5: Option(TextChannel, "The fifth channel to exclude", required=False, default=None)
     ):
         # Check to see whether a dashboard already exists in this category
         async with self.bot.db.acquire() as conn:
@@ -524,7 +525,7 @@ class BPdia(commands.Cog):
         # Process excluded channels
         excluded_channels = list(set(filter(
             lambda c: c is not None,
-            [excluded_channel_1, excluded_channel_2, excluded_channel_3, excluded_channel_4]
+            [excluded_channel_1, excluded_channel_2, excluded_channel_3, excluded_channel_4, excluded_channel_5]
         )))
         # Create post with dummy text and pin it
         interaction = await ctx.respond("Fetching dashboard data. This may take a moment...")
@@ -562,7 +563,8 @@ class BPdia(commands.Cog):
             last_message = channel.last_message
             if last_message is None:
                 try:
-                    last_message = await channel.fetch_message(channel.last_message_id)
+                    lm_id = channel.last_message_id
+                    last_message = await channel.fetch_message(lm_id) if lm_id is not None else None
                 except discord.errors.HTTPException as e:
                     print(e)
 
