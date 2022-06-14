@@ -1,11 +1,13 @@
 import itertools
-from typing import List
+import math
+from datetime import datetime
+from typing import List, Any
+
+import gspread
+import numpy as np
 
 from ProphetBot.constants import *
 from ProphetBot.models.sheets_objects import Character
-from datetime import datetime
-import discord.utils
-import gspread
 
 
 def filter_characters_by_ids(characters_list: List[Character], ids: List[int]) -> List[Character] | None:
@@ -53,10 +55,20 @@ def sheetstr(time: datetime) -> str:
 
 
 def split_dict(d):
-    n = len(d) // 2          # length of smaller half
-    i = iter(d.items())      # alternatively, i = d.iteritems() works in Python 2
+    n = len(d) // 2  # length of smaller half
+    i = iter(d.items())  # alternatively, i = d.iteritems() works in Python 2
 
-    d1 = dict(itertools.islice(i, n))   # grab first n items
-    d2 = dict(i)                        # grab the rest
+    d1 = dict(itertools.islice(i, n))  # grab first n items
+    d2 = dict(i)  # grab the rest
 
     return d1, d2
+
+
+def split_evenly(input_list: List[Any], max_channels: int = 10) -> List[List[Any]]:
+    n = math.ceil(len(input_list) / max_channels)
+    arrays = np.array_split(input_list, n)
+    return [a.tolist() for a in arrays]
+
+
+def ceildiv(a, b):
+    return -(a // -b)

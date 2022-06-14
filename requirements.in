@@ -5,3 +5,4 @@ aiopg[sa]
 pip-tools
 texttable
 marshmallow
+numpy
