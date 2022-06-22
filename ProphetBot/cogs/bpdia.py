@@ -576,9 +576,7 @@ class BPdia(commands.Cog):
             "In Use": []
         }
         guild = dashboard.get_categorychannel(self.bot).guild
-        print(guild)
         magewright_role = discord.utils.get(guild.roles, name="Magewright")
-        print(magewright_role)
         for channel in channels:
             last_message = await get_last_message(channel)
 
