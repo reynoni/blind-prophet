@@ -601,7 +601,10 @@ class BPdia(commands.Cog):
     @tasks.loop(minutes=15.0)
     async def update_rp_dashboards(self):
         print("Starting to update RP channel dashboards")
+        start = timer()
         async with self.bot.db.acquire() as conn:
             async for row in conn.execute(get_all_dashboards()):
                 dashboard: RpDashboard = RpDashboardSchema().load(row)
                 await self.update_dashboard(dashboard)
+        end = timer()
+        print(f"Channel status dashboards updated in [ {end-start} ]s")

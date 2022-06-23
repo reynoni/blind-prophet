@@ -76,7 +76,6 @@ class RpDashboardEmbed(Embed):
         super(RpDashboardEmbed, self).__init__(
             color=Color.dark_grey(),
             title=f"Channel Statuses - {category_name}",
-            description=f"",
             timestamp=discord.utils.utcnow()
         )
         if len(channel_statuses["Magewright"]) > 0:
@@ -87,12 +86,12 @@ class RpDashboardEmbed(Embed):
             )
         self.add_field(
             name="<:white_check_mark:983576747381518396> -- Available",
-            value="\n".join(channel_statuses["Available"]),
+            value="\n".join(channel_statuses["Available"]) or "\u200B",
             inline=False
         )
         self.add_field(
             name="<:x:983576786447245312> -- Unavailable",
-            value="\n".join(channel_statuses["In Use"]),
+            value="\n".join(channel_statuses["In Use"]) or "\u200B",
             inline=False
         )
         self.set_footer(text="Last Updated")
