@@ -598,7 +598,7 @@ class BPdia(commands.Cog):
     # Tasks
     # --------------------------- #
 
-    @tasks.loop(minutes=30.0)
+    @tasks.loop(minutes=15.0)
     async def update_rp_dashboards(self):
         print("Starting to update RP channel dashboards")
         async with self.bot.db.acquire() as conn:
