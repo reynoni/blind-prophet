@@ -73,22 +73,28 @@ async def update_status_embed(interaction: discord.Interaction, characters: List
         await msg.edit(embed=embed)
 
 
-async def add_to_arena(interaction: discord.Interaction, player: discord.Member,
-                       characters: List[Character], db: aiopg.sa.Engine, arena_row: RowProxy):
+async def add_to_arena(interaction: discord.Interaction, player: Member, arena_row: RowProxy) -> List[int]:
     # Everything looks good, so we can add the user to the role and determine the tier
     channel_role = discord.utils.get(interaction.guild.roles, id=arena_row.role_id)
     members_in_arena = [m.id for m in channel_role.members if m.id != arena_row.host_id]
 
     await player.add_roles(channel_role, reason=f"Joining {interaction.channel.name}")
     members_in_arena.append(interaction.user.id)
-    characters_in_arena = filter_characters_by_ids(characters, members_in_arena)
+
+    await interaction.response.send_message(f"{player.mention} has joined the arena!", ephemeral=False)
+    await _remove_from_board(interaction, player)
+
+    # Returning this value since role.members is cached and will not always reflect the true state of the role
+    # immediately after granting the role to a member
+    return members_in_arena
+
+
+async def update_tier(arena_id: int, characters: List[Character], db: aiopg.sa.Engine, player_ids: List[int]):
+    characters_in_arena = filter_characters_by_ids(characters, player_ids)
     tier = determine_tier(characters_in_arena)
 
     async with db.acquire() as conn:
-        await conn.execute(update_arena_tier(arena_id=arena_row.id, new_tier=tier))
-
-    await _remove_from_board(interaction, player)
-    await interaction.response.send_message(f"{player.mention} has joined the arena!", ephemeral=False)
+        await conn.execute(update_arena_tier(arena_id=arena_id, new_tier=tier))
 
 
 def determine_tier(characters: List[Character]):
@@ -124,8 +130,10 @@ class JoinArenaView(discord.ui.View):
                 f"Error: you are already a participant in this arena.",
                 ephemeral=True)
             return
+
+        players_in_arena = await add_to_arena(interaction, interaction.user, arena_row)
         all_characters = self.sheets_client.get_all_characters()
-        await add_to_arena(interaction, interaction.user, all_characters, self.db, arena_row)
+        await update_tier(arena_row.id, all_characters, self.db, players_in_arena)
         await update_status_embed(interaction, all_characters, arena_row)
 
 
@@ -181,6 +189,7 @@ class Arenas(commands.Cog):
                               f'A Council member may need to create it.', ephemeral=False)
             return
 
+        await ctx.defer()
         all_characters = self.bot.sheets.get_all_characters()
         host = filter_characters_by_ids(all_characters, [arena_row.host_id])[0]
         arena_role = discord.utils.get(ctx.guild.roles, id=arena_row.role_id)
@@ -194,13 +203,14 @@ class Arenas(commands.Cog):
             players=players
         )
 
-        await ctx.response.send_message(embed=embed, ephemeral=False)
+        await ctx.respond(embed=embed, ephemeral=False)
 
     @arena_commands.command(
         name="claim",
         description="Opens an arena in this channel and sets you as the host."
     )
     async def arena_claim(self, ctx: ApplicationContext):
+        await ctx.defer()
         async with self.bot.db.acquire() as conn:
             results = await conn.execute(select_active_arena_by_channel(ctx.channel_id))
             arena_row = await results.first()
@@ -225,12 +235,12 @@ class Arenas(commands.Cog):
             completed_phases=0,
             players=None
         )
-        interaction = await ctx.response.send_message(
+        msg: discord.WebhookMessage = await ctx.respond(
             embed=embed,
             view=JoinArenaView(db=self.bot.db, sheets_client=self.bot.sheets))
 
         # Everything looks good, so we can create the arena record and pin the status
-        msg = await interaction.original_message()
+        # msg = await interaction.original_message()
         async with self.bot.db.acquire() as conn:
             await conn.execute(insert_new_arena(ctx.channel_id, msg.id, channel_role.id, ctx.user.id))
         await msg.pin(reason=f"Arena claimed by {ctx.user.name}")
@@ -257,8 +267,10 @@ class Arenas(commands.Cog):
                 f"Error: {player.mention} is already a participant in this arena.",
                 ephemeral=True)
             return
+
+        players_in_arena = await add_to_arena(ctx.interaction, player, arena_row)
         all_characters = self.bot.sheets.get_all_characters()
-        await add_to_arena(ctx.interaction, player, all_characters, self.bot.db, arena_row)
+        await update_tier(arena_row.id, all_characters, self.bot.db, players_in_arena)
         await update_status_embed(ctx.interaction, all_characters, arena_row)
 
     @arena_commands.command(
@@ -271,16 +283,16 @@ class Arenas(commands.Cog):
             results = await conn.execute(select_active_arena_by_channel(ctx.channel_id))
             arena_row = await results.first()
         if not arena_row:
-            await ctx.response.send_message(f"Error: No active arena in this channel", ephemeral=True)
+            await ctx.respond(f"Error: No active arena in this channel", ephemeral=True)
             return
         channel_role = discord.utils.get(ctx.guild.roles, id=arena_row.role_id)
         if not (discord.utils.get(channel_role.members, id=player.id)):
-            await ctx.response.send_message(f"Error: {player.mention} is not a participant in this arena.",
-                                            ephemeral=True)
+            await ctx.respond(f"Error: {player.mention} is not a participant in this arena.", ephemeral=True)
             return
 
         await player.remove_roles(channel_role, reason=f"Leaving {ctx.channel.name}")
 
+        await ctx.defer()
         all_characters = self.bot.sheets.get_all_characters()
         # We only want to recalculate the tier if the arena hasn't started or is in the first phase
         if arena_row.completed_phases == 0:
@@ -291,7 +303,7 @@ class Arenas(commands.Cog):
             async with self.bot.db.acquire() as conn:
                 await conn.execute(update_arena_tier(arena_row.id, new_tier))
 
-        await ctx.response.send_message(f"{player.mention} has been removed from the arena")
+        await ctx.respond(f"{player.mention} has been removed from the arena")
         await update_status_embed(ctx.interaction, all_characters, arena_row)
 
     @arena_commands.command(
@@ -308,6 +320,7 @@ class Arenas(commands.Cog):
             await ctx.response.send_message(f"Error: No active arena in this channel", ephemeral=True)
             return
 
+        await ctx.defer()
         completed_phases = arena_row.completed_phases + 1
         all_characters = self.bot.sheets.get_all_characters()
         channel_role = discord.utils.get(ctx.guild.roles, id=arena_row.role_id)
@@ -333,7 +346,7 @@ class Arenas(commands.Cog):
         async with self.bot.db.acquire() as conn:
             await conn.execute(update_arena_completed_phases(arena_row.id, completed_phases))
 
-        await ctx.response.send_message(embed=embed)
+        await ctx.respond(embed=embed)
         async with self.bot.db.acquire() as conn:
             results = await conn.execute(select_active_arena_by_channel(ctx.channel_id))
             arena_row = await results.first()
