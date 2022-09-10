@@ -594,7 +594,7 @@ class BPdia(commands.Cog):
         for channel in channels:
             last_message = await get_last_message(channel)
 
-            if last_message is None or last_message.content == "```\n​\n```":
+            if last_message is None or last_message.content in ["```\n​\n```", "```\n \n```"]:
                 channels_dict["Available"].append(channel.mention)
             elif magewright_role.mention in last_message.content:
                 channels_dict["Magewright"].append(channel.mention)
