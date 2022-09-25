@@ -1,6 +1,7 @@
 import random
 import re
 
+from discord import SlashCommandGroup
 from discord.ext import commands
 from texttable import Texttable
 

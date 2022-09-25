@@ -3,8 +3,11 @@ import math
 from datetime import datetime
 from typing import List, Any
 
+import discord
 import gspread
 import numpy as np
+from discord import ApplicationContext
+from sqlalchemy.util import asyncio
 
 from ProphetBot.constants import *
 from ProphetBot.models.sheets_objects import Character
@@ -72,3 +75,74 @@ def split_evenly(input_list: List[Any], max_channels: int = 10) -> List[List[Any
 
 def ceildiv(a, b):
     return -(a // -b)
+
+
+def calc_amt(base: int, pmod: str = None, hostmod: str = None) -> int:
+    if pmod is None:
+        pmult = 0
+        pmod = 'Low'
+    else:
+        pmult = GLOBAL_MOD_MAP[pmod]
+
+    if hostmod is None:
+        hadd = 0
+    elif hostmod.upper() == "PARTICIPATING":
+        hadd = 100
+    elif hostmod.upper() == "HOSTING ONLY":
+        hadd = base * .75
+        pmult = 0
+
+    max = GLOBAL_MOD_MAX_MAP[pmod]
+    amt = round((base * pmult))
+
+    if amt > max:
+        amt = max
+    amt += hadd
+    return amt
+
+
+def get_positivity(string):
+    if isinstance(string, bool):  # oi!
+        return string
+    lowered = string.lower()
+    if lowered in ("yes", "y", "true", "t", "1", "enable", "on"):
+        return True
+    elif lowered in ("no", "n", "false", "f", "0", "disable", "off"):
+        return False
+    else:
+        return None
+
+
+def auth_and_chan(ctx):
+    """Message check: same author and channel"""
+
+    def chk(msg):
+        return msg.author == ctx.author and msg.channel == ctx.channel
+
+    return chk
+
+
+async def confirm(ctx, message, delete_msgs=False, response_check=get_positivity):
+    """
+    Confirms whether a user wants to take an action.
+    :rtype: bool|None
+    :param ctx: The current Context.
+    :param message: The message for the user to confirm.
+    :param delete_msgs: Whether to delete the messages.
+    :param response_check: A function (str) -> bool that returns whether a given reply is a valid response.
+    :type response_check: (str) -> bool
+    :return: Whether the user confirmed or not. None if no reply was recieved
+    """
+    msg = await ctx.channel.send(message)
+    try:
+        reply = await ctx.bot.wait_for("message", timeout=30, check=auth_and_chan(ctx))
+    except asyncio.TimeoutError:
+        return None
+    reply_bool = response_check(reply.content) if reply is not None else None
+    if delete_msgs:
+        try:
+            await msg.delete()
+            await reply.delete()
+        except:
+            pass
+    return reply_bool

@@ -1,7 +1,7 @@
 import asyncio
 import time
 from timeit import default_timer as timer
-from typing import List, Set
+from typing import List
 
 import discord
 import discord.errors
@@ -75,15 +75,6 @@ def get_cl(char_xp):
     return 1 + int((int(char_xp) / 1000))
 
 
-def get_leadership_roles(guild_roles: List[Role]) -> List[Role]:
-    roles = list()
-    for role_name in ['Magewright', 'Loremaster', 'Lead DM', 'Moderator']:
-        r = discord.utils.get(guild_roles, name=role_name)
-        if r:
-            roles.append(r)
-    return roles
-
-
 def get_faction_role(player: Member) -> List[Role] | None:
     """
     Returns the first matching faction role of the provided player, or None if no faction roles are found
@@ -120,10 +111,10 @@ class BPdia(commands.Cog):
         self.bot = bot
         print(f'Cog \'BPdia\' loaded')
 
-    @commands.Cog.listener()
-    async def on_ready(self):
-        await asyncio.sleep(3.0)
-        await self.update_rp_dashboards.start()
+    # @commands.Cog.listener()
+    # async def on_ready(self):
+    #     await asyncio.sleep(3.0)
+    #     await self.update_rp_dashboards.start()
 
     @commands.slash_command(
         name="create",
@@ -415,18 +406,13 @@ class BPdia(commands.Cog):
         # Finally, hand out weekly stipends
         characters = self.bot.sheets.get_all_characters()
         council_role = discord.utils.get(ctx.guild.roles, name="Council")
-        leadership_roles = get_leadership_roles(ctx.guild.roles)
+        magewright_role = discord.utils.get(ctx.guild.roles, name="Magewright")
         shopkeep_role = discord.utils.get(ctx.guild.roles, name="Shopkeeper")
         council_ids = [m.id for m in council_role.members]
 
-        leadership_ids = set()
-        for role in leadership_roles:
-            ids: Set[int] = {m.id for m in role.members}
-            leadership_ids.update(ids)
-
         council_characters = filter_characters_by_ids(characters, council_ids)
-        leadership_charcters = filter_characters_by_ids(characters,
-                                                        [l_id for l_id in leadership_ids if l_id not in council_ids])
+        magewright_charcters = filter_characters_by_ids(characters,
+                                                        [m.id for m in magewright_role.members if m.id not in council_ids])
         shopkeep_characters = filter_characters_by_ids(characters, [m.id for m in shopkeep_role.members])
 
         log_entries = []
@@ -434,10 +420,10 @@ class BPdia(commands.Cog):
             log_entries.extend(
                 [CouncilEntry(f"{self.bot.user.name}#{self.bot.user.discriminator}", c) for c in council_characters]
             )
-        if leadership_charcters:
+        if magewright_charcters:
             log_entries.extend(
                 [MagewrightEntry(f"{self.bot.user.name}#{self.bot.user.discriminator}", c) for c in
-                 leadership_charcters]
+                 magewright_charcters]
             )
         if shopkeep_characters:
             log_entries.extend(
@@ -594,7 +580,7 @@ class BPdia(commands.Cog):
         for channel in channels:
             last_message = await get_last_message(channel)
 
-            if last_message is None or last_message.content in ["```\n​\n```", "```\n \n```"]:
+            if last_message is None or last_message.content == "```\n \n```":
                 channels_dict["Available"].append(channel.mention)
             elif magewright_role.mention in last_message.content:
                 channels_dict["Magewright"].append(channel.mention)
@@ -612,7 +598,7 @@ class BPdia(commands.Cog):
     # Tasks
     # --------------------------- #
 
-    @tasks.loop(minutes=15.0)
+    #@tasks.loop(minutes=15.0)
     async def update_rp_dashboards(self):
         print("Starting to update RP channel dashboards")
         start = timer()
