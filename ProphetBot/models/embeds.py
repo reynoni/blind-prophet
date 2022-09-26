@@ -124,7 +124,7 @@ class ArenaStatusEmbed(Embed):
 
 
 class GlobalEmbed(Embed):
-    def __init__(self, ctx: ApplicationContext, globEvent: gEvent, players: List[gPlayer] = [], gblist: bool=False):
+    def __init__(self, ctx: ApplicationContext, globEvent: gEvent, players: List[gPlayer] = [], gblist: bool = False):
         super().__init__(title=f"Global - Log Preview",
                          colour=Color.random())
 

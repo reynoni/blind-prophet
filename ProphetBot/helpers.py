@@ -89,7 +89,7 @@ def calc_amt(base: int, pmod: str = None, hostmod: str = None) -> int:
     elif hostmod.upper() == "PARTICIPATING":
         hadd = 100
     elif hostmod.upper() == "HOSTING ONLY":
-        hadd = base * .75
+        hadd = (base * .75) + 100
         pmult = 0
 
     max = GLOBAL_MOD_MAX_MAP[pmod]

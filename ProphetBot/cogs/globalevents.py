@@ -415,6 +415,19 @@ class GlobalEvent(commands.Cog):
                               f"**Only one (1) global event can be running at a time**",
                         inline=False)
 
+        embed.add_field(name=f"**How Rewards are calculated**",
+                        value=f"*Combat global* - All players and hosts receive the base gold/exp unless otherwise "
+                              f"modified\n\n"
+                              f"*Non-combat global* - Players will receive base gold/exp * effort modifier capped at"
+                              f"a defined maximum per modifier\n"
+                              f"__Modifier multipliers:__ High (1.25), Medium (1.00), Low (0.75)\n"
+                              f"__Defined maximum:__ High (250), Medium (200), Low (150)\n\n"
+                              f"*Hosts* - Players flagged as hosts will have different rewards\n"
+                              f"__Participating__ - Player will get their participation rewards from above + 100\n"
+                              f"__Hosting Only__ - Player will not participation rewards, rather the equivalent of 100 "
+                              f"+ a Low effort modified reward",
+                        inline=False)
+
         embed.add_field(name=f"Commands",
                         value=f"**new_event** - Creates a new global event\n"
                               f"**update_event** - Updates information for an event\n"
@@ -428,6 +441,7 @@ class GlobalEvent(commands.Cog):
                               f"**review** - Shows the standard global embed with the option to list all the "
                               f"active players\n"
                               f"**commit** - Will log the event and clear it out (no need to purge after this\n"
-                              f"**help** - Bruh.....")
+                              f"**help** - Bruh.....",
+                        inline=False)
 
         await ctx.respond(embed=embed)
