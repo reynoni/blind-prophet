@@ -2,9 +2,13 @@ from typing import Dict, Any, List
 
 import discord
 from discord import Embed, Color, ApplicationContext
+from discord.utils import get
 
 from ProphetBot.constants import MAX_PHASES
+from ProphetBot.helpers import calc_amt
+from ProphetBot.models.db_objects import gPlayer, gEvent
 from ProphetBot.models.sheets_objects import LogEntry, Character, Adventure
+from ProphetBot.constants import GLOBAL_MOD_MAP, GLOBAL_MOD_MAX_MAP
 
 
 def linebreak() -> Dict[str, Any]:
@@ -117,3 +121,92 @@ class ArenaStatusEmbed(Embed):
             self.add_field(name="**Players:**",
                            value="\n".join([f"\u200b -{p.mention()}" for p in players]),
                            inline=False)
+
+
+class GlobalEmbed(Embed):
+    def __init__(self, ctx: ApplicationContext, globEvent: gEvent, players: List[gPlayer] = [], gblist: bool = False):
+        super().__init__(title=f"Global - Log Preview",
+                         colour=Color.random())
+
+        names = globEvent.get_channel_names(ctx=ctx)
+        aPlayers = []
+        hPlayers = []
+        mPlayers = []
+        lPlayers = []
+        oPlayers = []
+        hostPlayers = []
+
+        self.set_thumbnail(
+            url="https://cdn.discordapp.com/attachments/794989941690990602/972998353103233124/IMG_2177.jpg"
+        )
+
+        if globEvent.combat:
+            for p in players:
+                if p.active:
+                    aPlayers.append(p)
+                if not p.update:
+                    oPlayers.append(p)
+                if p.host:
+                    hostPlayers.append(p)
+
+            self.add_field(name=f"**Information for combat global {globEvent.name}**",
+                           value=f"\n *Base gold:* {globEvent.base_gold} \n *Base exp:* {globEvent.base_exp} \n *# "
+                                 f"Players:* {len(aPlayers)}",
+                           inline=False)
+        else:
+            for p in players:
+                if p.active:
+                    aPlayers.append(p)
+                if p.modifier != globEvent.base_mod and p.host != "Hosting Only":
+                    if p.modifier == "High":
+                        hPlayers.append(p)
+                    if p.modifier == "Medium":
+                        mPlayers.append(p)
+                    if p.modifier == "Low":
+                        lPlayers.append(p)
+                if not p.update:
+                    oPlayers.append(p)
+                if p.host:
+                    hostPlayers.append(p)
+
+            self.add_field(name=f"**Information for {globEvent.name}**",
+                           value=f"\n *Base gold:* {globEvent.base_gold} \n *Base exp:* {globEvent.base_exp} \n *Base "
+                                 f"mod:* {globEvent.base_mod} \n *# Players:* {len(aPlayers)}",
+                           inline=False)
+
+        if names:
+            self.add_field(name="**Scraped Channels**",
+                           value="\n".join([f"\u200b # {c}" for c in names]),
+                           inline=False)
+        else:
+            self.add_field(name="**Scraped Channels**",
+                           value="None",
+                           inline=False)
+
+        if hPlayers:
+            self.add_field(name="**High Effort Overrides**",
+                           value="\n".join([f"\u200b {p.get_name(ctx)}" for p in hPlayers]),
+                           inline=False)
+
+        if mPlayers:
+            self.add_field(name="**Medium Effort Overrides**",
+                           value="\n".join([f"\u200b {p.get_name(ctx)}" for p in mPlayers]),
+                           inline=False)
+
+        if lPlayers:
+            self.add_field(name="**Low Effort Overrides**",
+                           value="\n".join([f"\u200b {p.get_name(ctx)}" for p in lPlayers]),
+                           inline=False)
+
+        if oPlayers:
+            self.add_field(name="**Manual Overrides (gold, exp)**",
+                           value="\n".join([f"\u200b {p.get_name(ctx)} ({p.gold}, {p.exp})" for p in oPlayers]),
+                           inline=False)
+        if hostPlayers:
+            self.add_field(name="**Hosts**",
+                           value="\n".join([f"\u200b {p.get_name(ctx)} - {p.host}" for p in hostPlayers]),
+                           inline=False)
+
+        if gblist:
+            self.add_field(name="**All active players (gold, exp)**",
+                           value="\n".join(f"\u200b {p.get_name(ctx)} ({p.gold}, {p.exp})" for p in aPlayers))

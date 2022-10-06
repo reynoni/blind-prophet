@@ -61,6 +61,17 @@ class Activity(enum.Enum):
     shopkeep = "SHOP"
 
 
+class Global_Modifier(CommandOptionEnum):
+    LOW = "Low"
+    MEDIUM = "Medium"
+    HIGH = "High"
+
+
+class Global_Host(CommandOptionEnum):
+    PARTICIPATING = "Participating"
+    HOSTING_ONLY = "Hosting Only"
+
+
 class Character(object):
     player_id: int
     name: str

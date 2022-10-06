@@ -1,7 +1,7 @@
 from typing import Dict
 
 # Users
-ADMIN_USERS = [286360249659817984, 208388527401074688]
+ADMIN_USERS = [286360249659817984, 208388527401074688, 225752877316964352]
 
 # Role IDs
 ROLES = {"host": 679787498976837635,
@@ -18,6 +18,9 @@ MAX_PHASES = ['N/A', 2, 4, 6, 6, 8]
 
 RARITY_MAP: Dict[str, int] = {'COMMON': 1, 'UNCOMMON': 2, 'RARE': 3, 'VERY RARE': 4, 'VERY': 4, 'LEGENDARY': 5,
                               'C': 1, 'U': 2, 'R': 3, 'V': 4, 'VR': 4, 'L': 5}
+
+GLOBAL_MOD_MAP: Dict[str, int] = {'Low': 0.75, 'Medium': 1.00, 'High': 1.25}
+GLOBAL_MOD_MAX_MAP: Dict[str, int] = {'Low': 150, 'Medium': 200, 'High': 250}
 
 # Errors
 NAME_ERROR = 'Error: The @Name (1) was entered incorrectly. Please try again.'

@@ -1,6 +1,6 @@
 from marshmallow import Schema, fields, post_load, post_dump, pre_load, ValidationError
 from ProphetBot.models.sheets_objects import Adventure
-from ProphetBot.models.db_objects import RpDashboard
+from ProphetBot.models.db_objects import RpDashboard, gEvent, gPlayer
 
 
 class AdventureSchema(Schema):
@@ -43,3 +43,35 @@ class RpDashboardSchema(Schema):
     @post_load
     def make_rpdashboard(self, data, **kwargs):
         return RpDashboard(**data)
+
+
+class gEventSchema(Schema):
+    event_id = fields.Integer(data_key='id', required=True)
+    guild_id = fields.Integer(data_key='guild_id', required=True)
+    name = fields.String(data_key='name', required=True)
+    base_gold = fields.Integer(data_key='base_gold', required=True)
+    base_exp = fields.Integer(data_key='base_exp', required=True)
+    base_mod = fields.String(data_key='base_mod', required=True)
+    combat = fields.Boolean(data_key='combat', required=True)
+    channels = fields.List(fields.Integer, data_key='channels', load_default=[], required=False)
+    active = fields.Boolean(data_key='active', required=True)
+
+    @post_load
+    def make_globEvent(self, data, **kwargs):
+        return gEvent(**data)
+
+
+class gPlayerSchema(Schema):
+    id = fields.Integer(data_key='id', required=True)
+    player_id = fields.Integer(data_key='player_id', required=True)
+    global_id = fields.Integer(data_key='global_id', required=True)
+    modifier = fields.String(data_key='modifier', required=False, load_default=None)
+    host = fields.String(data_key='host', required=False, load_default=None)
+    gold = fields.Integer(data_key='gold', required=True)
+    exp = fields.Integer(data_key='exp', required=True)
+    update = fields.Boolean(data_key='update', required=True)
+    active = fields.Boolean(data_key='active', required=True)
+
+    @post_load
+    def make_globEvent(self, data, **kwargs):
+        return gPlayer(**data)
