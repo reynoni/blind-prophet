@@ -4,7 +4,7 @@ import discord.utils
 from discord import ApplicationContext, Message, Bot
 from discord import CategoryChannel, TextChannel
 
-from ProphetBot.models.sheets_objects import Global_Modifier, Global_Host
+from ProphetBot.models.sheets_objects import GlobalModifier, GlobalHost
 
 
 class RpDashboard(object):

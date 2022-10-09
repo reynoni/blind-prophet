@@ -7,7 +7,7 @@ from ProphetBot.models.embeds import GlobalEmbed
 from discord.commands import SlashCommandGroup
 
 from ProphetBot.models.schemas import gEventSchema, gPlayerSchema
-from ProphetBot.models.sheets_objects import Global_Host, Global_Modifier, GlobalEntry
+from ProphetBot.models.sheets_objects import GlobalHost, GlobalModifier, GlobalEntry
 from ProphetBot.queries import get_active_global, insert_new_global_event, update_global_event, close_global_event, \
     add_global_player, update_global_channels, get_all_global_players, update_global_player
 
@@ -47,7 +47,7 @@ class GlobalEvent(commands.Cog):
                      combat: Option(bool, description="Indicated if this is a global event or not. If true then "
                                                       "ignores mod", required=False, default=False),
                      mod: Option(str, description="Base modifier for the event",
-                                 choices=Global_Modifier.optionchoice_list(), required=False)):
+                                 choices=GlobalModifier.optionchoice_list(), required=False)):
         await ctx.defer()
 
         async with self.bot.db.acquire() as conn:
@@ -80,7 +80,7 @@ class GlobalEvent(commands.Cog):
                         gold: Option(int, description="Base gold for the event", required=False),
                         exp: Option(int, description="Base experience for the event", required=False),
                         mod: Option(str, description="Base modifier for the event",
-                                    choices=Global_Modifier.optionchoice_list(), required=False),
+                                    choices=GlobalModifier.optionchoice_list(), required=False),
                         combat: Option(bool, description="Indicated if this is a global event or not. If true then "
                                                          "ignores mod", required=False, default=False)):
         await ctx.defer()
@@ -220,9 +220,9 @@ class GlobalEvent(commands.Cog):
     async def gb_user_update(self, ctx: ApplicationContext,
                              pid: Option(Member, description="Player to add/modify", required=True),
                              mod: Option(str, description="Players effort modifier",
-                                         choices=Global_Modifier.optionchoice_list(), required=False),
+                                         choices=GlobalModifier.optionchoice_list(), required=False),
                              host: Option(str, description="Players host status",
-                                          choices=Global_Host.optionchoice_list(), required=False),
+                                          choices=GlobalHost.optionchoice_list(), required=False),
                              gold: Option(int,
                                           description="Players gold reward. NOTE: This will disable auto-calculation "
                                                       "for a user",

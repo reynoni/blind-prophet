@@ -61,13 +61,13 @@ class Activity(enum.Enum):
     shopkeep = "SHOP"
 
 
-class Global_Modifier(CommandOptionEnum):
+class GlobalModifier(CommandOptionEnum):
     LOW = "Low"
     MEDIUM = "Medium"
     HIGH = "High"
 
 
-class Global_Host(CommandOptionEnum):
+class GlobalHost(CommandOptionEnum):
     PARTICIPATING = "Participating"
     HOSTING_ONLY = "Hosting Only"
 
