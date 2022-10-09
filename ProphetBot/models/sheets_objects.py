@@ -45,7 +45,7 @@ class Faction(CommandOptionEnum):
     CLOVER_CONCLAVE = 'Clover Conclave'
     SUNSTONE_LOTUS = 'Sunstone Lotus'
     FALCON_EYES = 'Falcon Eyes'
-    AZURE_GUARD = 'Azure Guard'
+    AZURE_GUARD = 'Azure Guardians'
 
 
 class Activity(enum.Enum):
