@@ -40,7 +40,7 @@ google-auth-oauthlib==0.5.1
     # via gspread
 greenlet==1.1.2
     # via sqlalchemy
-gspread==5.3.2
+gspread==5.6.0
     # via -r requirements.in
 idna==3.3
     # via
@@ -66,7 +66,7 @@ psycopg2-binary==2.9.3
     # via
     #   aiopg
     #   sqlalchemy
-py-cord==2.0.0
+py-cord==2.2.2
     # via -r requirements.in
 pyasn1==0.4.8
     # via
