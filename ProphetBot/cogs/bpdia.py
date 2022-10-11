@@ -1,7 +1,7 @@
 import asyncio
 import time
 from timeit import default_timer as timer
-from typing import List, Set
+from typing import List, Set, Optional
 
 import discord
 import discord.errors
@@ -112,6 +112,12 @@ async def get_last_message(channel: TextChannel) -> discord.Message | None:
     return last_message
 
 
+async def remove_fledgling_role(ctx: ApplicationContext, member: Member, reason: Optional[str]):
+    fledgling_role = discord.utils.get(ctx.guild.roles, name="Fledgling")
+    if fledgling_role and (fledgling_role in member.roles):
+        await member.remove_roles(fledgling_role, reason=reason)
+
+
 class BPdia(commands.Cog):
     bot: BpBot  # Typing annotation for my IDE's sake
 
@@ -171,6 +177,7 @@ class BPdia(commands.Cog):
         embed.set_footer(text=f"Created by: {ctx.author.name}#{ctx.author.discriminator}",
                          icon_url=ctx.author.display_avatar.url)
 
+        await remove_fledgling_role(ctx, player, "Character created")
         await ctx.respond(embed=embed)
         end = time.time()
         print(f"Time to create character: {end - start}s")
@@ -478,6 +485,8 @@ class BPdia(commands.Cog):
             )
             return
         await player.add_roles(new_faction_role, reason=f"Joining new faction [ {faction} ]")
+        await remove_fledgling_role(ctx, player, "Faction Updated")
+
         embed = Embed(title="Success!",
                       description=f"{player.mention} has joined {faction}!",
                       color=new_faction_role.color)
