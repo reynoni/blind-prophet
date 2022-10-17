@@ -32,6 +32,7 @@ class RpDashboard(object):
             return list(filter(lambda c: c.id not in self.excluded_channels, category.text_channels))
         return []
 
+
 class gPlayer(object):
     player_id: int
     global_id: int
@@ -47,7 +48,14 @@ class gPlayer(object):
             setattr(self, key, value)
 
     def get_name(self, ctx: ApplicationContext):
-        return discord.utils.get(ctx.bot.get_all_members(), id=self.player_id).name
+        try:
+            name = discord.utils.get(ctx.bot.get_all_members(), id=self.player_id).mention
+            pass
+        except:
+            name = f"Player {self.player_id} not found on this server"
+            pass
+
+        return name
 
 
 class gEvent(object):
