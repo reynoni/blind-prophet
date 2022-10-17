@@ -47,7 +47,7 @@ class gPlayer(object):
             setattr(self, key, value)
 
     def get_name(self, ctx: ApplicationContext):
-        return discord.utils.get(ctx.bot.get_all_members(), id=self.player_id).name
+        return discord.utils.get(ctx.bot.get_all_members(), id=self.player_id).mention
 
 
 class gEvent(object):
