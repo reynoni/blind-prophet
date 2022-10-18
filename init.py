@@ -2,11 +2,9 @@ import asyncio
 import os
 import sys
 from os import listdir
-
 import discord
 from discord import Intents
 from discord.ext import commands
-
 from ProphetBot.bot import BpBot
 
 intents = Intents.default()
@@ -38,11 +36,12 @@ for filename in listdir('ProphetBot/cogs'):
     if filename.endswith('.py'):
         bot.load_extension(f'ProphetBot.cogs.{filename[:-3]}')
 
-
 @bot.command()
 async def ping(ctx):
     print("Pong")
     await ctx.send(f'Pong! Latency is {round(bot.latency * 1000)}ms.')
+
+
 
 
 bot.run(os.environ['BOT_TOKEN'])

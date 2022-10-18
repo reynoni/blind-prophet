@@ -12,7 +12,6 @@ from sqlalchemy.util import asyncio
 from ProphetBot.constants import *
 from ProphetBot.models.sheets_objects import Character
 
-
 def filter_characters_by_ids(characters_list: List[Character], ids: List[int]) -> List[Character] | None:
     """
     Filters a list of Characters by discord ids
@@ -25,9 +24,8 @@ def filter_characters_by_ids(characters_list: List[Character], ids: List[int]) -
     return filtered if len(filtered) > 0 else None
 
 
-def is_admin(ctx):
-    return ctx.author.id in ADMIN_USERS
-
+def is_owner(ctx):
+    return ctx.author.id in BOT_OWNERS
 
 def get_asl(char_sheet):
     try:
@@ -131,7 +129,7 @@ async def confirm(ctx, message, delete_msgs=False, response_check=get_positivity
     :param delete_msgs: Whether to delete the messages.
     :param response_check: A function (str) -> bool that returns whether a given reply is a valid response.
     :type response_check: (str) -> bool
-    :return: Whether the user confirmed or not. None if no reply was recieved
+    :return: Whether the user confirmed or not. None if no reply was received
     """
     msg = await ctx.channel.send(message)
     try:

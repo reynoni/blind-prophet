@@ -1,6 +1,6 @@
 from marshmallow import Schema, fields, post_load, post_dump, pre_load, ValidationError
 from ProphetBot.models.sheets_objects import Adventure
-from ProphetBot.models.db_objects import RpDashboard, gEvent, gPlayer
+from ProphetBot.models.db_objects import *
 
 
 class AdventureSchema(Schema):

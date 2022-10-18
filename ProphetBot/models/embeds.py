@@ -2,13 +2,10 @@ from typing import Dict, Any, List
 
 import discord
 from discord import Embed, Color, ApplicationContext
-from discord.utils import get
 
 from ProphetBot.constants import MAX_PHASES
-from ProphetBot.helpers import calc_amt
 from ProphetBot.models.db_objects import gPlayer, gEvent
 from ProphetBot.models.sheets_objects import LogEntry, Character, Adventure
-from ProphetBot.constants import GLOBAL_MOD_MAP, GLOBAL_MOD_MAX_MAP
 
 
 def linebreak() -> Dict[str, Any]:

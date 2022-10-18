@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List
 
-from ProphetBot.models.db import arenas_table, category_dashboards_table, global_players_table, global_staging_table
+from ProphetBot.models.db import *
 from sqlalchemy import null, and_, or_
 from sqlalchemy.sql.selectable import FromClause, TableClause
 
@@ -59,7 +59,7 @@ def insert_new_dashboard(category_id: int, post_channel_id: int, post_id: int, e
 
 
 def insert_new_global_event(guild_id: int, name: str, base_gold: int, base_exp: int, base_mod: str, combat: bool):
-    return global_staging_table.insert().values(
+    return ref_gb_staging_table.insert().values(
         guild_id=guild_id,
         name=name,
         base_gold=base_gold,
@@ -70,38 +70,38 @@ def insert_new_global_event(guild_id: int, name: str, base_gold: int, base_exp: 
 
 
 def get_active_global(guild_id: int) -> FromClause:
-    return global_staging_table.select().where(
-        and_(global_staging_table.c.guild_id == guild_id, global_staging_table.c.active == True)
+    return ref_gb_staging_table.select().where(
+        and_(ref_gb_staging_table.c.guild_id == guild_id, ref_gb_staging_table.c.active == True)
     )
 
 
 def update_global_event(event_id: int, name: str, base_gold: int, base_exp: int, base_mod: str, combat: bool):
-    return global_staging_table.update() \
-        .where(global_staging_table.c.id == event_id) \
+    return ref_gb_staging_table.update() \
+        .where(ref_gb_staging_table.c.id == event_id) \
         .values(name=name, base_gold=base_gold, base_exp=base_exp, base_mod=base_mod, combat=combat)
 
 
 def close_global_event(event_id: int):
-    return global_staging_table.update() \
-        .where(global_staging_table.c.id == event_id) \
+    return ref_gb_staging_table.update() \
+        .where(ref_gb_staging_table.c.id == event_id) \
         .values(active=False)
 
 
 def update_global_channels(event_id: int, channels: List[int]):
-    return global_staging_table.update() \
-        .where(global_staging_table.c.id == event_id) \
+    return ref_gb_staging_table.update() \
+        .where(ref_gb_staging_table.c.id == event_id) \
         .values(channels=channels)
 
 
 def get_all_global_players(event_id: int) -> FromClause:
-    return global_players_table.select().where(
-        global_players_table.c.global_id == event_id
+    return ref_gb_staging_player_table.select().where(
+        ref_gb_staging_player_table.c.global_id == event_id
     )
 
 
 def add_global_player(event_id: int, player_id: int, modifier: str, host: str, gold: int, exp: int, update: bool,
                       active: bool):
-    return global_players_table.insert().values(
+    return ref_gb_staging_player_table.insert().values(
         global_id=event_id,
         player_id=player_id,
         modifier=modifier,
@@ -114,8 +114,8 @@ def add_global_player(event_id: int, player_id: int, modifier: str, host: str, g
 
 
 def update_global_player(id: int, modifier: str, host: str, gold: int, exp: int, update: bool, active: bool):
-    return global_players_table.update() \
-        .where(global_players_table.c.id == id) \
+    return ref_gb_staging_player_table.update() \
+        .where(ref_gb_staging_player_table.c.id == id) \
         .values(modifier=modifier,
                 host=host,
                 gold=gold,

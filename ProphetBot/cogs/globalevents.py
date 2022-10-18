@@ -38,7 +38,6 @@ class GlobalEvent(commands.Cog):
     @global_event_commands.command(
         name="new_event",
         description="Create a new global event",
-        help="**Testing help command**"
     )
     async def gb_new(self, ctx: ApplicationContext,
                      gname: Option(str, description="Global event name", required=True),
