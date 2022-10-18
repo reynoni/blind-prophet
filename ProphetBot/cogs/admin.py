@@ -73,6 +73,12 @@ class Admin(commands.Cog):
     @commands.check(is_owner)
     async def reload(self, ctx: ApplicationContext,
                      cog: Option(str, description="Cog name, ALL, or SHEET", required=True)):
+        """
+        Used to reload a cog, refresh DB information, or reload all cogs and DB information
+
+        :param ctx: Context
+        :param cog: cog to reload, SHEET to reload sheets, ALL to reload all
+        """
         if str(cog).upper() == 'ALL':
             for file_name in listdir('./ProphetBot/cogs'):
                 if file_name.endswith('.py'):
@@ -102,6 +108,12 @@ class Admin(commands.Cog):
     )
     @commands.check(is_owner)
     async def list(self, ctx: ApplicationContext):
+        """
+        List all cogs
+
+        :param ctx: Context
+        """
+
         files = []
         for file_name in listdir('./ProphetBot/cogs'):
             if file_name.endswith('.py'):
