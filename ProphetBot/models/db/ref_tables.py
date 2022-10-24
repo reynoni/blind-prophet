@@ -42,7 +42,7 @@ ref_gb_staging_player_table = sa.Table(
     metadata,
     Column("id", Integer, primary_key=True, autoincrement='auto'),
     Column("global_id", Integer, nullable=False),  # ref: > ref_gb_staging.id
-    Column("player_id", Integer, nullable=False),  # ref: > players.id
+    Column("player_id", Integer, nullable=False),  # ref: > characters.player_id
     Column("modifier", Integer, nullable=True),  # ref: > c_global_modifier.id
     Column("host", Integer, nullable=True),  # ref: > c_host_status.id
     Column("gold", Integer, nullable=False),

@@ -1,11 +1,12 @@
+import asyncio
 from discord import ApplicationContext
 from discord.ext import commands
-
 from ProphetBot.bot import BpBot
 
 
 def setup(bot):
     bot.add_cog(listeners(bot))
+
 
 # TODO: Gotta figure out why this isn't working.
 class listeners(commands.Cog):

@@ -7,6 +7,7 @@ import discord
 import gspread
 import numpy as np
 from discord import ApplicationContext
+from disnake.ext import commands
 from sqlalchemy.util import asyncio
 
 from ProphetBot.constants import *
@@ -26,6 +27,7 @@ def filter_characters_by_ids(characters_list: List[Character], ids: List[int]) -
 
 def is_owner(ctx):
     return ctx.author.id in BOT_OWNERS
+
 
 def get_asl(char_sheet):
     try:

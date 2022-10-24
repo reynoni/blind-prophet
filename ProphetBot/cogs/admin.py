@@ -1,13 +1,15 @@
-from discord import SlashCommandGroup, Option, ExtensionAlreadyLoaded, ExtensionNotFound, ExtensionNotLoaded
+from discord import SlashCommandGroup, Option, ExtensionAlreadyLoaded, ExtensionNotFound, ExtensionNotLoaded, \
+    ApplicationContext
 from discord.ext import commands
 from gspread.exceptions import APIError
 from os import listdir
-from ProphetBot.helpers import *
+from ProphetBot.helpers import is_owner
 from ProphetBot.bot import BpBot
+
 
 # TODO: Add the commands log_modify and log_review once logs are in DB
 
-def setup(bot):
+def setup(bot: commands.Bot):
     bot.add_cog(Admin(bot))
 
 
@@ -102,6 +104,7 @@ class Admin(commands.Cog):
 
             self.bot.load_extension(f'ProphetBot.cogs.{cog}')
             await ctx.respond(f'Cog {cog} reloaded')
+
     @admin_commands.command(
         name="list",
         description="List out all cogs"

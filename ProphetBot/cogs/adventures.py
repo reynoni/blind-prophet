@@ -1,13 +1,10 @@
 import discord
-from discord.ext import commands
 from discord.ext.commands import Greedy
-
+from discord.ext import commands
 from ProphetBot.bot import BpBot
-from ProphetBot.helpers import *
 
 
-def setup(bot):
-    # print('loading_cog')
+def setup(bot: commands.Bot):
     bot.add_cog(Adventures(bot))
 
 

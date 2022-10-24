@@ -39,7 +39,7 @@ def close_arena_by_id(arena_id: int):
         .values(end_ts=datetime.utcnow())
 
 
-def get_dashboard_by_categorychannel_id(categorychannel_id: int) -> FromClause:
+def get_dashboard_by_categorychannl_id(categorychannel_id: int) -> FromClause:
     return category_dashboards_table.select().where(
         category_dashboards_table.c.categorychannel_id == categorychannel_id
     )

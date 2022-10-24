@@ -82,8 +82,7 @@ c_arena_tier_table = sa.Table(
     metadata,
     Column("id", Integer, primary_key=True, autoincrement='auto'),
     Column("avg_level", Integer, nullable=False),
-    Column("max_xp", Integer, nullable=False),
-    Column("max_rewards", Integer, nullable=False)
+    Column("max_phases", Integer, nullable=False)
 )
 
 c_adventure_tier_table = sa.Table(
@@ -126,4 +125,12 @@ c_dashboard_type_table = sa.Table(
     metadata,
     Column("id", Integer, primary_key=True, autoincrement='auto'),
     Column("value", String, nullable=False),
+)
+
+C_level_caps_table = sa.Table(
+    "c_level_caps",
+    metadata,
+    Column("level", Integer, primary_key=True),
+    Column("max_gold", Integer, nullable=False),
+    Column("max_xp", Integer, nullable=False)
 )

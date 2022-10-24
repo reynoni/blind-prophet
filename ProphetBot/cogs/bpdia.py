@@ -24,7 +24,7 @@ from ProphetBot.models.schemas import AdventureSchema, RpDashboardSchema
 from ProphetBot.models.sheets_objects import BuyEntry, SellEntry, GlobalEntry, CouncilEntry, MagewrightEntry, \
     ShopkeepEntry, Adventure, CampaignEntry
 from ProphetBot.models.sheets_objects import Character, BonusEntry, RpEntry, Faction, CharacterClass
-from ProphetBot.queries import get_dashboard_by_categorychannel_id, insert_new_dashboard, get_all_dashboards
+from ProphetBot.queries import *
 
 
 def setup(bot):
@@ -130,6 +130,7 @@ class BPdia(commands.Cog):
     async def on_ready(self):
         await asyncio.sleep(3.0)
         await self.update_rp_dashboards.start()
+        await self.update_compendium.start()
 
     @commands.slash_command(
         name="create",
@@ -631,3 +632,14 @@ class BPdia(commands.Cog):
                 await self.update_dashboard(dashboard)
         end = timer()
         print(f"Channel status dashboards updated in [ {end-start} ]s")
+
+        await self.bot.compendium.reload(self.bot)
+
+
+    @tasks.loop(minutes=30.0)
+    async def update_compendium(self):
+        print(f'Recompiling compendium')
+        start = timer()
+        await self.bot.compendium.reload()
+        end = timer()
+        print(f'Compendium updated in [ {end - start} ]s')

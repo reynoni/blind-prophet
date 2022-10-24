@@ -4,7 +4,7 @@ import discord
 from discord import Embed, Color, ApplicationContext
 
 from ProphetBot.constants import MAX_PHASES
-from ProphetBot.models.db_objects import gPlayer, gEvent
+from ProphetBot.models.db_objects import *
 from ProphetBot.models.sheets_objects import LogEntry, Character, Adventure
 
 

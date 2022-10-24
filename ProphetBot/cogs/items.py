@@ -1,14 +1,11 @@
 import random
 import re
-
-from discord.ext import commands
 from texttable import Texttable
-
 from ProphetBot.bot import BpBot
 from ProphetBot.helpers import *
+from discord.ext import commands
 
-
-def setup(bot):
+def setup(bot: commands.Bot):
     bot.add_cog(Items(bot))
 
 
