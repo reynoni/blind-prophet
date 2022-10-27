@@ -92,7 +92,7 @@ def get_faction_role(player: Member) -> List[Role] | None:
     :return: The first matching faction Role
     """
     faction_names = Faction.values_list()
-    faction_names.remove(Faction.INITIATE.value)
+    # faction_names.remove(Faction.INITIATE.value)
     faction_names.remove(Faction.GUILD_MEMBER.value)
     roles = list(filter(lambda r: r.name in faction_names, player.roles))
     if len(roles) == 0:
