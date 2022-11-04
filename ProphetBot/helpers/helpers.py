@@ -3,15 +3,12 @@ import math
 from datetime import datetime
 from typing import List, Any
 
-import discord
 import gspread
 import numpy as np
-from discord import ApplicationContext
-from disnake.ext import commands
-from sqlalchemy.util import asyncio
 
 from ProphetBot.constants import *
 from ProphetBot.models.sheets_objects import Character
+
 
 def filter_characters_by_ids(characters_list: List[Character], ids: List[int]) -> List[Character] | None:
     """
@@ -23,10 +20,6 @@ def filter_characters_by_ids(characters_list: List[Character], ids: List[int]) -
     """
     filtered = list(filter(lambda c: c.player_id in ids, characters_list))
     return filtered if len(filtered) > 0 else None
-
-
-def is_owner(ctx):
-    return ctx.author.id in BOT_OWNERS
 
 
 def get_asl(char_sheet):
@@ -84,9 +77,8 @@ def calc_amt(base: int, pmod: str = None, hostmod: str = None) -> int:
     else:
         pmult = GLOBAL_MOD_MAP[pmod]
 
-    if hostmod is None:
-        hadd = 0
-    elif hostmod.upper() == "PARTICIPATING":
+    hadd = 0
+    if hostmod.upper() == "PARTICIPATING":
         hadd = 100
     elif hostmod.upper() == "HOSTING ONLY":
         hadd = (base * .75) + 100
@@ -101,48 +93,3 @@ def calc_amt(base: int, pmod: str = None, hostmod: str = None) -> int:
     return amt
 
 
-def get_positivity(string):
-    if isinstance(string, bool):  # oi!
-        return string
-    lowered = string.lower()
-    if lowered in ("yes", "y", "true", "t", "1", "enable", "on"):
-        return True
-    elif lowered in ("no", "n", "false", "f", "0", "disable", "off"):
-        return False
-    else:
-        return None
-
-
-def auth_and_chan(ctx):
-    """Message check: same author and channel"""
-
-    def chk(msg):
-        return msg.author == ctx.author and msg.channel == ctx.channel
-
-    return chk
-
-
-async def confirm(ctx, message, delete_msgs=False, response_check=get_positivity):
-    """
-    Confirms whether a user wants to take an action.
-    :rtype: bool|None
-    :param ctx: The current Context.
-    :param message: The message for the user to confirm.
-    :param delete_msgs: Whether to delete the messages.
-    :param response_check: A function (str) -> bool that returns whether a given reply is a valid response.
-    :type response_check: (str) -> bool
-    :return: Whether the user confirmed or not. None if no reply was received
-    """
-    msg = await ctx.channel.send(message)
-    try:
-        reply = await ctx.bot.wait_for("message", timeout=30, check=auth_and_chan(ctx))
-    except asyncio.TimeoutError:
-        return None
-    reply_bool = response_check(reply.content) if reply is not None else None
-    if delete_msgs:
-        try:
-            await msg.delete()
-            await reply.delete()
-        except:
-            pass
-    return reply_bool

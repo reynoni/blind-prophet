@@ -3,82 +3,82 @@ from marshmallow import Schema, fields, post_load
 from ProphetBot.models.db_objects.category_objects import *
 
 
-class c_rarity_schema(Schema):
+class RaritySchema(Schema):
     id = fields.Integer(data_key="id", required=True)
     value = fields.String(data_key="value", required=True)
     abbreviation = fields.List(fields.String, data_key="abbreviation", required=True)
 
     @post_load
     def make_c_rarity(self, data, **kwargs):
-        return c_rarity(**data)
+        return Rarity(**data)
 
 
-class c_blacksmith_type_schema(Schema):
+class BlacksmithTypeSchema(Schema):
     id = fields.Integer(data_key="id", required=True)
     value = fields.String(data_key="value", required=True)
 
     @post_load
     def make_c_blacksmith_type(self, data, **kwargs):
-        return c_blacksmith_type(**data)
+        return BlacksmithType(**data)
 
 
-class c_consumable_type_schema(Schema):
+class ConsumableTypeSchema(Schema):
     id = fields.Integer(data_key="id", required=True)
     value = fields.String(data_key="value", required=True)
 
     @post_load
     def make_c_consumable_type(self, data, **kwargs):
-        return c_consumable_type(**data)
+        return ConsumableType(**data)
 
 
-class c_magic_school_schema(Schema):
+class MagicSchoolSchema(Schema):
     id = fields.Integer(data_key="id", required=True)
     value = fields.String(data_key="value", required=True)
 
     @post_load
     def make_c_magic_school(self, data, **kwargs):
-        return c_magic_school(**data)
+        return MagicSchool(**data)
 
 
-class c_character_class_schema(Schema):
+class CharacterClassSchema(Schema):
     id = fields.Integer(data_key="id", required=True)
     value = fields.String(data_key="value", required=True)
 
     @post_load
     def make_c_character_class(self, data, **kwargs):
-        return c_character_class(**data)
+        return CharacterClass(**data)
 
 
-class c_character_subclass_schema(Schema):
+class CharacterSubclassSchema(Schema):
     id = fields.Integer(data_key="id", required=True)
     parent = fields.Integer(data_key="parent", required=True)
     value = fields.String(data_key="value", required=True)
 
     @post_load
     def make_c_character_subclass(self, data, **kwargs):
-        return c_character_subclass(**data)
+        return CharacterSubclass(**data)
 
 
-class c_character_race_schema(Schema):
+class CharacterRaceSchema(Schema):
     id = fields.Integer(data_key="id", required=True)
     value = fields.String(data_key="value", required=True)
 
     @post_load
     def make_c_character_race(self, data, **kwargs):
-        return c_character_race(**data)
+        return CharacterRace(**data)
 
 
-class c_character_subrace_schema(Schema):
+class CharacterSubraceSchema(Schema):
     id = fields.Integer(data_key="id", required=True)
     parent = fields.Integer(data_key="parent", required=True)
     value = fields.String(data_key="value", required=True)
 
     @post_load
     def make_c_character_subrace(self, data, **kwargs):
-        return c_character_subrace(**data)
+        return CharacterSubrace(**data)
 
 
-class c_global_modifier_schema(Schema):
+class GlobalModifierSchema(Schema):
     id = fields.Integer(data_key="id", required=True)
     value = fields.String(data_key="value", required=True)
     adjustment = fields.Float(data_key="adjustment", required=True)
@@ -86,39 +86,38 @@ class c_global_modifier_schema(Schema):
 
     @post_load
     def make_c_global_modifier(self, data, **kwargs):
-        return c_global_modifier(**data)
+        return GlobalModifier(**data)
 
 
-class c_host_status_schema(Schema):
+class HostStatusSchema(Schema):
     id = fields.Integer(data_key="id", required=True)
     value = fields.String(data_key="value", required=True)
 
     @post_load
     def make_c_host_status(self, data, **kwargs):
-        return c_host_status(**data)
+        return HostStatus(**data)
 
 
-class c_arena_tier_schema(Schema):
+class ArenaTierSchema(Schema):
     id = fields.Integer(data_key="id", required=True)
     avg_level = fields.Integer(data_key="avg_level", required=True)
     max_phases = fields.Integer(data_key="max_phases", required=True)
 
     @post_load
     def make_c_arena_tier(self, data, **kwargs):
-        return c_arena_tier(**data)
+        return ArenaTier(**data)
 
 
-class c_adventure_tier_schema(Schema):
+class AdventureTierSchema(Schema):
     id = fields.Integer(data_key="id", required=True)
     avg_level = fields.Integer(data_key="avg_level", required=True)
-    max_xp = fields.Integer(data_key="max_xp", required=True)
 
     @post_load
     def make_c_adventure_tier(self, data, **kwargs):
-        return c_adventure_tier(**data)
+        return AdventureTier(**data)
 
 
-class c_shop_type_schema(Schema):
+class ShopTypeSchema(Schema):
     id = fields.Integer(data_key="id", required=True)
     value = fields.String(data_key="value", required=True)
     synonyms = fields.List(fields.String, data_key="synonyms", required=False, default=[])
@@ -126,45 +125,54 @@ class c_shop_type_schema(Schema):
 
     @post_load
     def make_c_shop_type(self, data, **kwargs):
-        return c_shop_type(**data)
+        return ShopType(**data)
 
 
-class c_activity_schema(Schema):
+class ActivitySchema(Schema):
     id = fields.Integer(data_key="id", required=True)
     value = fields.String(data_key="value", required=True)
-    ratio = fields.Float(data_key="ratio", required=False, default=None)
+    ratio = fields.Float(data_key="ratio", required=False, allow_none=True)
     diversion = fields.Boolean(data_key="diversion", required=True)
 
     @post_load
     def make_c_activity(self, data, **kwargs):
-        return c_activity(**data)
+        return Activity(**data)
 
 
-class c_faction_schema(Schema):
+class FactionSchema(Schema):
     id = fields.Integer(data_key="id", required=True)
-    guild_id = fields.Integer(data_key="guild_id", required=True)
     value = fields.String(data_key="value", required=True)
-    role_id = fields.Integer(data_key="role_id", required=True)
 
     @post_load
     def make_c_faction(self, data, **kwargs):
-        return c_faction(**data)
+        return Faction(**data)
 
 
-class c_dashboard_type_schema(Schema):
+class DashboardTypeSchema(Schema):
     id = fields.Integer(data_key="id", required=True)
     value = fields.String(data_key="value", required=True)
 
     @post_load
     def make_c_dashboard_type(self, data, **kwargs):
-        return c_dashboard_type(**data)
+        return DashboardType(**data)
 
 
-class c_level_caps_schema(Schema):
-    level = fields.Integer(data_key="level", required=True)
+class LevelCapsSchema(Schema):
+    id = fields.Integer(data_key="id", required=True)
     max_gold = fields.Integer(data_key="max_gold", required=True)
     max_xp = fields.Integer(data_key="max_xp", required=True)
 
     @post_load
     def make_level_caps(self, data, **kwargs):
-        return c_level_caps(**data)
+        return LevelCaps(**data)
+
+
+class AdventureRewardsSchema(Schema):
+    id = fields.Integer(data_key="id", required=True)
+    ep = fields.Integer(data_key="ep", required=True)
+    tier = fields.Integer(data_key="tier", required=True)
+    rarity = fields.Integer(data_key="rarity", required=True)
+
+    @post_load
+    def make_adventure_reward(self, data, **kwargs):
+        return AdventureRewards(**data)

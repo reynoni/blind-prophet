@@ -1,10 +1,10 @@
-from typing import Dict, Any, List
+from typing import Dict, Any
 
-import discord
-from discord import Embed, Color, ApplicationContext
+from discord import Embed, Color
 
-from ProphetBot.constants import MAX_PHASES
+from ProphetBot.constants import THUMBNAIL
 from ProphetBot.models.db_objects import *
+from ProphetBot.models.db_objects import PlayerGuild
 from ProphetBot.models.sheets_objects import LogEntry, Character, Adventure
 
 
@@ -71,57 +71,8 @@ class ErrorEmbed(Embed):
         super().__init__(**kwargs)
 
 
-class RpDashboardEmbed(Embed):
-
-    def __init__(self, channel_statuses: Dict[str, List[str]], category_name: str):
-        super(RpDashboardEmbed, self).__init__(
-            color=Color.dark_grey(),
-            title=f"Channel Statuses - {category_name}",
-            timestamp=discord.utils.utcnow()
-        )
-        if len(channel_statuses["Magewright"]) > 0:
-            self.add_field(
-                name="<:pencil:989284061786808380> -- Awaiting Magewright",
-                value="\n".join(channel_statuses["Magewright"]),
-                inline=False
-            )
-        self.add_field(
-            name="<:white_check_mark:983576747381518396> -- Available",
-            value="\n".join(channel_statuses["Available"]) or "\u200B",
-            inline=False
-        )
-        self.add_field(
-            name="<:x:983576786447245312> -- Unavailable",
-            value="\n".join(channel_statuses["In Use"]) or "\u200B",
-            inline=False
-        )
-        self.set_footer(text="Last Updated")
-
-
-class ArenaStatusEmbed(Embed):
-
-    def __init__(self, host: Character, tier: int, completed_phases: int, players: List[Character] = None):
-        super().__init__(title=f"Arena Status",
-                         description=f"**Tier:** {tier}\n"
-                                     f"**Completed Phases**: {completed_phases} / {MAX_PHASES[tier]}",
-                         color=Color.random())
-        self.set_thumbnail(
-            url="https://cdn.discordapp.com/attachments/794989941690990602/972998353103233124/IMG_2177.jpg"
-        )
-        if completed_phases == 0:
-            self.description += "\n\nUse the button below to join!"
-        if completed_phases >= MAX_PHASES[tier] / 2:
-            self.description += "\nBonus active!"
-
-        self.add_field(name="**Host:**", value=f"\u200b -{host.mention()}", inline=False)
-        if players is not None:
-            self.add_field(name="**Players:**",
-                           value="\n".join([f"\u200b -{p.mention()}" for p in players]),
-                           inline=False)
-
-
 class GlobalEmbed(Embed):
-    def __init__(self, ctx: ApplicationContext, globEvent: gEvent, players: List[gPlayer] = [], gblist: bool = False):
+    def __init__(self, ctx: ApplicationContext, globEvent: gEvent, players: List[gPlayer], gblist: bool = False):
         super().__init__(title=f"Global - Log Preview",
                          colour=Color.random())
 
@@ -207,3 +158,27 @@ class GlobalEmbed(Embed):
         if gblist:
             self.add_field(name="**All active players (gold, exp)**",
                            value="\n".join(f"\u200b {p.get_name(ctx)} ({p.gold}, {p.exp})" for p in aPlayers))
+
+
+class GuildEmbed(Embed):
+    def __init__(self, ctx: ApplicationContext, g: PlayerGuild):
+        super().__init__(title=f'Server Settings for {ctx.guild.name}',
+                         colour=Color.random())
+        self.set_thumbnail(url=THUMBNAIL)
+
+        self.add_field(name="**Settings**",
+                       value=f"**Max Level:** {g.max_level}\n"
+                             f"**Max Rerolls:** {g.max_reroll}",
+                       inline=False)
+
+
+class GuildStatus(Embed):
+    def __init__(self, ctx: ApplicationContext, g: PlayerGuild):
+        super().__init__(title=f"Server Info - {ctx.guild.name}",
+                         color=Color.random(),
+                         description=f"**Max Level:** {g.max_level}\n"
+                                     f"**Server XP:** {g.server_xp}\n"
+                                     f"**Week XP:** {g.week_xp}\n"
+                                     f"**# Weeks:** {g.weeks}")
+
+        self.set_thumbnail(url=THUMBNAIL)

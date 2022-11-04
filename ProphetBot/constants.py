@@ -21,7 +21,7 @@ MAX_PHASES = ['N/A', 2, 4, 6, 6, 8]
 RARITY_MAP: Dict[str, int] = {'COMMON': 1, 'UNCOMMON': 2, 'RARE': 3, 'VERY RARE': 4, 'VERY': 4, 'LEGENDARY': 5,
                               'C': 1, 'U': 2, 'R': 3, 'V': 4, 'VR': 4, 'L': 5}
 
-GLOBAL_MOD_MAP: Dict[str, int] = {'Low': 0.75, 'Medium': 1.00, 'High': 1.25}
+GLOBAL_MOD_MAP: Dict[str, float] = {'Low': 0.75, 'Medium': 1.00, 'High': 1.25}
 GLOBAL_MOD_MAX_MAP: Dict[str, int] = {'Low': 150, 'Medium': 200, 'High': 250}
 
 # Errors

@@ -3,7 +3,7 @@ from ProphetBot.models.sheets_objects import Adventure
 from ProphetBot.models.db_objects import *
 
 
-class AdventureSchema(Schema):
+class GSAdventureSchema(Schema):
     role_id = fields.Integer(data_key='Adventure Role ID', required=True)
     category_id = fields.Integer(data_key='CategoryChannel ID', required=True)
     name = fields.String(data_key='Adventure Name', required=True)

@@ -1,8 +1,8 @@
 from datetime import datetime
 
 import sqlalchemy as sa
-from sqlalchemy import Column, Integer, BigInteger, String, BOOLEAN, DateTime, null
-from ProphetBot.models.db.base import metadata
+from sqlalchemy import Column, Integer, BigInteger, String, BOOLEAN, DateTime, null, func
+from ProphetBot.models.db_tables.base import metadata
 
 arenas_table = sa.Table(
     "arenas",
@@ -11,23 +11,22 @@ arenas_table = sa.Table(
     Column("channel_id", BigInteger, nullable=False),
     Column("pin_message_id", BigInteger, nullable=False),
     Column("role_id", BigInteger, nullable=False),
-    Column("host_id", Integer, nullable=False),  # ref: > characters.player_id
+    Column("host_id", BigInteger, nullable=False),  # ref: > characters.player_id
     Column("tier", Integer, nullable=False, default=1),  # ref: > c_arena_tier.id
     Column("completed_phases", Integer, nullable=False, default=0),
-    Column("created_ts", DateTime, nullable=False, default=datetime.utcnow()),
-    Column("end_ts", DateTime, nullable=True, default=null())
+    Column("created_ts", DateTime(timezone=False), nullable=False, default=datetime.utcnow),
+    Column("end_ts", DateTime(timezone=False), nullable=True, default=null())
 )
 
 guilds_table = sa.Table(
     "guilds",
     metadata,
     Column("id", BigInteger, primary_key=True, nullable=False),
-    Column("max_level", Integer, nullable=False, default=1),
+    Column("max_level", Integer, nullable=False, default=3),
     Column("server_xp", Integer, nullable=False, default=0),
     Column("weeks", Integer, nullable=False, default=0),
+    Column("week_xp", Integer, nullable=False, default=0),
     Column("max_reroll", Integer, nullable=False, default=1),
-    Column("mod_roles", sa.ARRAY(BigInteger), nullable=True, default=[]),
-    Column("lore_roles", sa.ARRAY(BigInteger), nullable=True, default=[])
 )
 
 characters_table = sa.Table(
@@ -36,24 +35,25 @@ characters_table = sa.Table(
     Column("id", Integer, primary_key=True, autoincrement='auto'),
     Column("name", String, nullable=False),
     Column("race", Integer, nullable=False),  # ref: > c_character_race.id
-    Column("subrace", Integer, nullable=False),  # ref: > c_character_subrace_id
+    Column("subrace", Integer, nullable=True),  # ref: > c_character_subrace_id
     Column("xp", Integer, nullable=False, default=0),
+    Column("div_xp", Integer, nullable=False, default=0),
     Column("gold", Integer, nullable=False,default=0),
-    Column("player_id", Integer, nullable=False),  # ref: > players.id
-    Column("faction", sa.ARRAY(Integer), nullable=True, default=[]),  # ref: <> c_faction.id
+    Column("div_gold", Integer, nullable=False, default=0),
+    Column("player_id", BigInteger, nullable=False),
+    Column("guild_id", BigInteger, nullable=False),  # ref: > guilds.id
+    Column("faction", Integer, nullable=True),  # ref: <> c_faction.id
     Column("reroll", BOOLEAN, nullable=True),
-    Column("action", BOOLEAN, nullable=False, default=True)
+    Column("active", BOOLEAN, nullable=False, default=True)
 )
 
 character_class_table = sa.Table(
     "character_class",
     metadata,
     Column("id", Integer, primary_key=True, autoincrement='auto'),
-    Column("character", Integer, nullable=False),  # ref: > characters.id
-    Column("class", Integer, nullable=False),  # ref: > c_character_class.id
+    Column("character_id", Integer, nullable=False),  # ref: > characters.id
+    Column("primary_class", Integer, nullable=False),  # ref: > c_character_class.id
     Column("subclass", Integer, nullable=True),  # ref: > c_character_subclass.id
-    Column("level", Integer, nullable=False, default=1),
-    Column("primary", BOOLEAN, nullable=True)
 )
 
 shops_table = sa.Table(
@@ -62,7 +62,7 @@ shops_table = sa.Table(
     Column("id", Integer, primary_key=True, autoincrement='auto'),
     Column("name", String, nullable=False),
     Column("type", Integer, nullable=False),  # ref: > c_shop_type.id
-    Column("owner", Integer, nullable=False),  # ref: > characters.player_id
+    Column("owner", Integer, nullable=False),  # ref: > characters.id
     Column("rarity", Integer, nullable=False),  # ref: > c_rarity.id
     Column("prestige", Integer, nullable=True),
     Column("shelf", Integer, nullable=True, default=0),
@@ -79,8 +79,8 @@ log_table = sa.Table(
     Column("author", BigInteger, nullable=False),
     Column("xp", Integer, nullable=True),
     Column("gold", Integer, nullable=True),
-    Column("created_ts", DateTime, nullable=False, default=datetime.utcnow()),
-    Column("player_id", Integer, nullable=False),  # ref: > characters.player_id
+    Column("created_ts", DateTime(timezone=False), nullable=False, default=datetime.utcnow),
+    Column("character_id", Integer, nullable=False),  # ref: > characters.id
     Column("activity", Integer, nullable=False),  # ref: > c_activity.id
     Column("notes", String, nullable=True),
     Column("shop_id", Integer, nullable=True),  # ref: > shops.id
@@ -93,11 +93,12 @@ adventures_table = sa.Table(
     Column("id", Integer, primary_key=True, autoincrement='auto'),
     Column("name", String, nullable=False),
     Column("role_id", BigInteger, nullable=False),
-    Column("dms", sa.ARRAY(Integer), nullable=False),  # ref: <> characters.player_id
+    Column("dms", sa.ARRAY(BigInteger), nullable=False),  # ref: <> characters.player_id
     Column("tier", Integer, nullable=False),  # ref: > c_adventure_tier.id
     Column("category_channel_id", BigInteger, nullable=False),
-    Column("created_ts", DateTime, nullable=False, default=datetime.utcnow()),
-    Column("end_ts", DateTime, nullable=True),
+    Column("ep", Integer, nullable=False, default=0),
+    Column("created_ts", DateTime(timezone=False), nullable=False, default=datetime.utcnow),
+    Column("end_ts", DateTime(timezone=False), nullable=True),
     Column("active", BOOLEAN, nullable=False, default=True)
 )
 

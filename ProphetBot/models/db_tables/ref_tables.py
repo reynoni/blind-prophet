@@ -1,26 +1,24 @@
 import sqlalchemy as sa
 from sqlalchemy import Column, Integer, BigInteger, Numeric, String, BOOLEAN
-from ProphetBot.models.db.base import metadata
+from ProphetBot.models.db_tables.base import metadata
 
 ref_category_dashboard_table = sa.Table(
     "ref_category_dashboard",
     metadata,
-    Column("id", Integer, primary_key=True, autoincrement='auto'),
-    Column("guild", BigInteger, nullable=False),  # ref: > guilds.id
-    Column("category_channel_id", BigInteger, nullable=False),
+    Column("category_channel_id", BigInteger, primary_key=True, nullable=False),
     Column("dashboard_post_channel_id", BigInteger, nullable=False),
     Column("dashboard_post_id", BigInteger, nullable=False),
-    Column("excluded_channel_ids", sa.ARRAY(BigInteger), nullable=True),
+    Column("excluded_channel_ids", sa.ARRAY(BigInteger), nullable=True, default=[]),
     Column("dashboard_type", Integer, nullable=False)  # ref: > c_dashboard_type.id
 )
 
 ref_weekly_stipend_table = sa.Table(
     "ref_weekly_stipend",
     metadata,
-    Column("id", Integer, primary_key=True, autoincrement='auto'),
+    Column("role_id", BigInteger, primary_key=True, nullable=False),
     Column("guild_id", BigInteger, nullable=False),  # ref: > guilds.id
-    Column("role_ids", sa.ARRAY(BigInteger), nullable=False),
-    Column("ratio", Numeric(precision=5, scale=2), nullable=False)
+    Column("ratio", Numeric(precision=5, scale=2), nullable=False),
+    Column("reason", String, nullable=True)
 )
 
 ref_gb_staging_table = sa.Table(

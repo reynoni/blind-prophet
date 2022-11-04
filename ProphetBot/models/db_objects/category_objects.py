@@ -1,4 +1,8 @@
-class c_rarity(object):
+import discord.utils
+from discord import ApplicationContext, Role
+
+
+class Rarity(object):
     def __init__(self, id, value, abbreviation):
         """
         :param id: int
@@ -11,7 +15,7 @@ class c_rarity(object):
         self.abbreviation = abbreviation
 
 
-class c_blacksmith_type(object):
+class BlacksmithType(object):
     def __init__(self, id, value):
         """
         :param id: int
@@ -22,7 +26,7 @@ class c_blacksmith_type(object):
         self.value = value
 
 
-class c_consumable_type(object):
+class ConsumableType(object):
     def __init__(self, id, value):
         """
         :param id: int
@@ -33,7 +37,7 @@ class c_consumable_type(object):
         self.value = value
 
 
-class c_magic_school(object):
+class MagicSchool(object):
     def __init__(self, id, value):
         """
         :param id: int
@@ -44,7 +48,7 @@ class c_magic_school(object):
         self.value = value
 
 
-class c_character_class(object):
+class CharacterClass(object):
     def __init__(self, id, value):
         """
         :param id: int
@@ -55,7 +59,7 @@ class c_character_class(object):
         self.value = value
 
 
-class c_character_subclass(object):
+class CharacterSubclass(object):
     def __init__(self, id, parent, value):
         """
         :param id: int
@@ -68,7 +72,7 @@ class c_character_subclass(object):
         self.value = value
 
 
-class c_character_race(object):
+class CharacterRace(object):
     def __init__(self, id, value):
         """
         :param id: int
@@ -79,7 +83,7 @@ class c_character_race(object):
         self.value = value
 
 
-class c_character_subrace(object):
+class CharacterSubrace(object):
     def __init__(self, id, parent, value):
         """
         :param id: int
@@ -92,7 +96,7 @@ class c_character_subrace(object):
         self.value = value
 
 
-class c_global_modifier(object):
+class GlobalModifier(object):
     def __init__(self, id, value, adjustment, max):
         """
         :param id: int
@@ -107,7 +111,7 @@ class c_global_modifier(object):
         self.max = max
 
 
-class c_host_status(object):
+class HostStatus(object):
     def __init__(self, id, value):
         """
         :param id: int
@@ -118,7 +122,7 @@ class c_host_status(object):
         self.value = value
 
 
-class c_arena_tier(object):
+class ArenaTier(object):
     def __init__(self, id, avg_level, max_phases):
         """
         :param id: int
@@ -131,19 +135,18 @@ class c_arena_tier(object):
         self.max_phases = max_phases
 
 
-class c_adventure_tier(object):
-    def __init__(self, id, avg_level, max_xp):
+class AdventureTier(object):
+    def __init__(self, id, avg_level):
         """
         :param id: int
         :param avg_level: int
-        :param max_xp: int
         """
 
         self.id = id
         self.avg_level = avg_level
-        self.max_xp = max_xp
 
-class c_shop_type(object):
+
+class ShopType(object):
     def __init__(self, id, value, synonyms, tools):
         """
         :param id: int
@@ -158,7 +161,7 @@ class c_shop_type(object):
         self.tools = tools
 
 
-class c_activity(object):
+class Activity(object):
     def __init__(self, id, value, ratio, diversion):
         """
         :param id: int
@@ -173,22 +176,21 @@ class c_activity(object):
         self.diversion = diversion
 
 
-class c_faction(object):
-    def __init__(self, id, guild_id, value, role_id):
+class Faction(object):
+    def __init__(self, id, value):
         """
         :param id: int
-        :param guild_id: int
         :param value: str
-        :param role_id: int
         """
 
         self.id = id
-        self.guild_id = guild_id
         self.value = value
-        self.role_id = role_id
+
+    def get_faction_role(self, ctx: ApplicationContext) -> Role:
+        return discord.utils.get(ctx.guild.roles, name=self.value)
 
 
-class c_dashboard_type(object):
+class DashboardType(object):
     def __init__(self, id, value):
         """
         :param id: int
@@ -199,14 +201,29 @@ class c_dashboard_type(object):
         self.value = value
 
 
-class c_level_caps(object):
-    def __init__(self, level, max_gold, max_xp):
+class LevelCaps(object):
+    def __init__(self, id, max_gold, max_xp):
         """
-        :param level: int
+        :param id: int
         :param max_gold: int
         :param max_xp: int
         """
 
-        self.level = level
+        self.id = id
         self.max_gold = max_gold
         self.max_xp = max_xp
+
+
+class AdventureRewards(object):
+    def __init__(self, id, ep, tier, rarity):
+        """
+        :param id: int
+        :param ep: int
+        :param tier: int
+        :param rarity: int
+        """
+
+        self.id = id
+        self.ep = ep
+        self.tier = tier
+        self.rarity = rarity

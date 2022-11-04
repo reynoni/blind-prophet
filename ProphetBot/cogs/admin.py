@@ -1,6 +1,9 @@
+import asyncio
+
+import discord
 from discord import SlashCommandGroup, Option, ExtensionAlreadyLoaded, ExtensionNotFound, ExtensionNotLoaded, \
     ApplicationContext
-from discord.ext import commands
+from discord.ext import commands, tasks
 from gspread.exceptions import APIError
 from os import listdir
 from ProphetBot.helpers import is_owner
@@ -21,13 +24,18 @@ class Admin(commands.Cog):
         self.bot = bot
         print(f'Cog \'Admin\' loaded')
 
+    @commands.Cog.listener()
+    async def on_ready(self):
+        await asyncio.sleep(3.0)
+        await self.reload_task.start()
+
     @admin_commands.command(
         name="load",
         description="Load a cog"
     )
     @commands.check(is_owner)
-    async def load(self, ctx: ApplicationContext,
-                   cog: Option(str, description="Cog name", required=True)):
+    async def load_cog(self, ctx: ApplicationContext,
+                       cog: Option(str, description="Cog name", required=True)):
         """
         Loads a cog in the bot
 
@@ -49,8 +57,8 @@ class Admin(commands.Cog):
         description="Unload a cog"
     )
     @commands.check(is_owner)
-    async def unload(self, ctx: ApplicationContext,
-                     cog: Option(str, description="Cog name", required=True)):
+    async def unload_cog(self, ctx: ApplicationContext,
+                         cog: Option(str, description="Cog name", required=True)):
         """
         Unloads a cog from the bot
 
@@ -73,14 +81,16 @@ class Admin(commands.Cog):
         description="Reloads either a specific cog, refresh DB information, or reload everything"
     )
     @commands.check(is_owner)
-    async def reload(self, ctx: ApplicationContext,
-                     cog: Option(str, description="Cog name, ALL, or SHEET", required=True)):
+    async def reload_cog(self, ctx: ApplicationContext,
+                         cog: Option(str, description="Cog name, ALL, or SHEET", required=True)):
         """
         Used to reload a cog, refresh DB information, or reload all cogs and DB information
 
         :param ctx: Context
         :param cog: cog to reload, SHEET to reload sheets, ALL to reload all
         """
+        await ctx.defer()
+
         if str(cog).upper() == 'ALL':
             for file_name in listdir('./ProphetBot/cogs'):
                 if file_name.endswith('.py'):
@@ -91,6 +101,9 @@ class Admin(commands.Cog):
             await self._reload_sheets(ctx)
         elif str(cog).upper() in ['SHEETS', 'SHEET']:  # TODO: Remove this once we get rid of GSheets
             await self._reload_sheets(ctx)
+            await ctx.respond(f'Done')
+        elif str(cog).upper() in ['DB', 'COMPENDIUM']:
+            await self._reload_DB(ctx)
             await ctx.respond(f'Done')
         else:
             try:
@@ -133,3 +146,26 @@ class Admin(commands.Cog):
                            f"{e}")
             return
         await ctx.send("Connection to BPdia reloaded")
+
+    async def _reload_DB(self, ctx):
+        await self.bot.compendium.reload(self.bot)
+        await ctx.send("Compendium reloaded")
+
+    @admin_commands.command(
+        name="test",
+        description="Test Command"
+    )
+    async def test_command(self, ctx: ApplicationContext):
+        role = discord.utils.get(ctx.guild.roles, name="Bots")
+
+        players = [p.id for p in list(set(filter(lambda p: p.id != 261302296103747584,
+                                                 role.members)))]
+
+        await ctx.respond(f"Testing")
+
+    # --------------------------- #
+    # Tasks
+    # --------------------------- #
+    @tasks.loop(minutes=10)
+    async def reload_task(self):
+        await self.bot.compendium.reload(self.bot)

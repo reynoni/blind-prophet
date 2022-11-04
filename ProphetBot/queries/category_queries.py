@@ -1,4 +1,4 @@
-from ProphetBot.models.db import *
+from ProphetBot.models.db_tables import *
 from sqlalchemy.sql.selectable import FromClause
 
 
@@ -67,4 +67,8 @@ def get_c_dashboard_type() -> FromClause:
 
 
 def get_c_level_caps() -> FromClause:
-    return C_level_caps_table.select()
+    return c_level_caps_table.select()
+
+
+def get_c_adventure_rewards() -> FromClause:
+    return c_adventure_rewards_table.select()

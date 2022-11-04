@@ -1,12 +1,13 @@
 import os
 import aiopg.sa
 from aiopg.sa import create_engine
+from discord import ApplicationContext
 from discord.ext import commands
 from timeit import default_timer as timer
 from sqlalchemy.schema import CreateTable
 from ProphetBot.compendium import Compendium
 from ProphetBot.sheets_client import GsheetsClient
-from ProphetBot.models.db import *
+from ProphetBot.models.db_tables import *
 
 
 async def create_tables(conn: aiopg.sa.SAConnection):
