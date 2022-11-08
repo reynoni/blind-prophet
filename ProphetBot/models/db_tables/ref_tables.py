@@ -24,29 +24,27 @@ ref_weekly_stipend_table = sa.Table(
 ref_gb_staging_table = sa.Table(
     "ref_gb_staging",
     metadata,
-    Column("id", Integer, primary_key=True, autoincrement='auto'),
-    Column("guild_id", BigInteger, nullable=False),  # ref: > guilds.id
+    Column("guild_id", BigInteger, primary_key=True, nullable=False),  # ref: > guilds.id
     Column("name", String, nullable=False),
     Column("base_gold", Integer, nullable=False),
     Column("base_xp", Integer, nullable=False),
     Column("base_mod", Integer, nullable=False),  # ref: c_global_modifier.id
     Column("combat", BOOLEAN, nullable=False),
     Column("channels", sa.ARRAY(BigInteger), nullable=True, default=[]),
-    Column("active", BOOLEAN, nullable=False, default=True)
 )
 
 ref_gb_staging_player_table = sa.Table(
     "ref_gb_staging_player",
     metadata,
     Column("id", Integer, primary_key=True, autoincrement='auto'),
-    Column("global_id", Integer, nullable=False),  # ref: > ref_gb_staging.id
-    Column("player_id", Integer, nullable=False),  # ref: > characters.player_id
+    Column("guild_id", BigInteger, nullable=False),  # ref: > ref_gb_staging.id
+    Column("player_id", BigInteger, nullable=False),  # ref: > characters.player_id
     Column("modifier", Integer, nullable=True),  # ref: > c_global_modifier.id
     Column("host", Integer, nullable=True),  # ref: > c_host_status.id
     Column("gold", Integer, nullable=False),
     Column("xp", Integer, nullable=False),
     Column("update", BOOLEAN, nullable=False, default=True),
     Column("active", BOOLEAN, nullable=False, default=True),
-    Column("num_messages", Integer, nullable=True, default=0),
+    Column("num_messages", Integer, nullable=False, default=0),
     Column("channels", sa.ARRAY(BigInteger), nullable=True, default=[])
 )

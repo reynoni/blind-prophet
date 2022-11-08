@@ -1,10 +1,10 @@
 from discord import SlashCommandGroup, Option, ApplicationContext, Member, Role
 from discord.ext import commands
 
-from ProphetBot.helpers import get_character, create_logs, get_adventure_from_role
+from ProphetBot.helpers import get_character, create_logs, get_adventure_from_role, get_or_create_guild, get_level_cap
 from ProphetBot.bot import BpBot
-from ProphetBot.models.db_objects import PlayerCharacter, Activity, DBLog, Adventure, LevelCaps
-from ProphetBot.models.embeds import ErrorEmbed, HxLogEmbed, LogEmbed, DBLogEmbed, AdventureEPEmbed
+from ProphetBot.models.db_objects import PlayerCharacter, Activity, DBLog, Adventure, LevelCaps, PlayerGuild
+from ProphetBot.models.embeds import ErrorEmbed, HxLogEmbed, DBLogEmbed, AdventureEPEmbed
 from ProphetBot.models.schemas import LogSchema, CharacterSchema
 from ProphetBot.queries import get_n_player_logs, get_multiple_characters, update_adventure
 
@@ -31,7 +31,7 @@ class Log(commands.Cog):
                                           min_value=1, max_value=20, default=5)):
         await ctx.defer()
 
-        character: PlayerCharacter = await get_character(ctx, player.id, ctx.guild.id)
+        character: PlayerCharacter = await get_character(ctx.bot, player.id, ctx.guild_id)
 
         if character is None:
             print(f"No character information found for player [ {player.id} ], aborting")
@@ -57,7 +57,7 @@ class Log(commands.Cog):
                      player: Option(Member, description="Player who participated in the RP", required=True)):
         await ctx.defer()
 
-        character: PlayerCharacter = await get_character(ctx, player.id, ctx.guild.id)
+        character: PlayerCharacter = await get_character(ctx.bot, player.id, ctx.guild_id)
 
         if character is None:
             print(f"No character information found for player [ {player.id} ], aborting")
@@ -82,7 +82,7 @@ class Log(commands.Cog):
                         xp: Option(int, description="The amount of xp", default=0, min_value=0, max_value=150)):
         await ctx.defer()
 
-        character: PlayerCharacter = await get_character(ctx, player.id, ctx.guild.id)
+        character: PlayerCharacter = await get_character(ctx.bot, player.id, ctx.guild_id)
 
         if character is None:
             print(f"No character information found for player [ {player.id} ], aborting")
@@ -105,7 +105,7 @@ class Log(commands.Cog):
                      ep: Option(int, description="The number of EP to give rewards for")):
         await ctx.defer()
 
-        adventure: Adventure = await get_adventure_from_role(ctx, role.id)
+        adventure: Adventure = await get_adventure_from_role(ctx.bot, role.id)
 
         if adventure is None:
             return await ctx.respond(embed=ErrorEmbed(description=f"No adventure found for {role.mention}"),
@@ -119,13 +119,14 @@ class Log(commands.Cog):
 
         char_act: Activity = ctx.bot.compendium.get_object("c_activity", "ADVENTURE")
         dm_act: Activity = ctx.bot.compendium.get_object("c_activity", "ADVENTURE_DM")
+        g: PlayerGuild = await get_or_create_guild(ctx.bot.db, ctx.guild_id)
 
         async with ctx.bot.db.acquire() as conn:
             await conn.execute(update_adventure(adventure))
             async for row in await conn.execute(get_multiple_characters(players, ctx.guild.id)):
                 if row is not None:
                     character: PlayerCharacter = CharacterSchema(ctx.bot.compendium).load(row)
-                    cap: LevelCaps = ctx.bot.compendium.get_object("c_level_caps", character.get_level())
+                    cap: LevelCaps = get_level_cap(character, g, ctx.bot.compendium)
                     ratio = char_act.ratio if character.player_id not in adventure.dms else dm_act.ratio
                     await create_logs(ctx, character, char_act, adventure.name, (cap.max_gold * ratio) * ep)
 

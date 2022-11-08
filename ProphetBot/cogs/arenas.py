@@ -1,4 +1,6 @@
 import asyncio
+import logging
+
 import discord
 from discord import Embed, Member, Color
 from discord.commands import SlashCommandGroup, Option
@@ -13,6 +15,7 @@ from ProphetBot.models.schemas import CharacterSchema
 from ProphetBot.models.views.entity_view import ArenaView
 from ProphetBot.queries import insert_new_arena, get_multiple_characters, update_arena
 
+log = logging.getLogger(__name__)
 
 def setup(bot):
     bot.add_cog(Arenas(bot))
@@ -24,22 +27,27 @@ class Arenas(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        print(f'Cog \'Arenas\' loaded')
+        log.info(f'Cog \'Arenas\' loaded')
 
     @commands.Cog.listener()
     async def on_ready(self):
         await asyncio.sleep(3.0)
-        self.bot.add_view(ArenaView(self.bot.db, self.bot.compendium.c_arena_tier))
+        self.bot.add_view(ArenaView(self.bot.db))
 
     @arena_commands.command(
         name="claim",
         description="Opens an arena in this channel and sets you as host"
     )
     async def arena_claim(self, ctx: ApplicationContext):
+        """
+        Claims an arena TextChannel, and sets the user as the Host applying the arena role
+
+        :param ctx: Context
+        """
         await ctx.defer()
 
-        arena: Arena = await get_arena(ctx.bot.db, ctx.channel_id, ctx.bot.compendium)
-        character: PlayerCharacter = await get_character(ctx, ctx.author.id, ctx.guild.id)
+        arena: Arena = await get_arena(ctx.bot, ctx.channel_id)
+        character: PlayerCharacter = await get_character(ctx.bot, ctx.author.id, ctx.guild_id)
 
         if arena is not None:
             return await ctx.respond(f"Error: {ctx.channel.mention} already in use.\n"
@@ -61,8 +69,7 @@ class Arenas(commands.Cog):
                 embed = ArenaStatusEmbed(ctx, arena)
 
                 msg: discord.WebhookMessage = await ctx.respond(embed=embed,
-                                                                view=ArenaView(db=ctx.bot.db,
-                                                                               tier_ref=ctx.bot.compendium.c_arena_tier))
+                                                                view=ArenaView(db=ctx.bot.db))
 
                 arena.pin_message_id = msg.id
 
@@ -76,9 +83,14 @@ class Arenas(commands.Cog):
         description="Shows the current status of this arena."
     )
     async def arena_status(self, ctx: ApplicationContext):
+        """
+        Shows the current status of the arena the command is in.
+
+        :param ctx: Context
+        """
         await ctx.defer()
 
-        arena: Arena = await get_arena(ctx.bot.db, ctx.channel_id, ctx.bot.compendium)
+        arena: Arena = await get_arena(ctx.bot, ctx.channel_id)
 
         if arena is None:
             embed = Embed(title=f"{ctx.channel.name} Free",
@@ -100,7 +112,7 @@ class Arenas(commands.Cog):
     async def arena_add(self, ctx: ApplicationContext,
                         player: Option(Member, description="Player to add to arena", required=True)):
 
-        arena: Arena = await get_arena(ctx.bot.db, ctx.channel_id, ctx.bot.compendium)
+        arena: Arena = await get_arena(ctx.bot, ctx.channel_id)
 
         if arena is None:
             return await ctx.respond(f"Error: No active arena present in this channel", ephemeral=True)
@@ -122,7 +134,7 @@ class Arenas(commands.Cog):
                            player: Option(Member, description="Player to remove from arena", required=True)):
         await ctx.defer()
 
-        arena: Arena = await get_arena(ctx.bot.db, ctx.channel_id, ctx.bot.compendium)
+        arena: Arena = await get_arena(ctx.bot, ctx.channel_id)
 
         if arena is None:
             return await ctx.respond(f"Error: No active arena present in this channel", ephemeral=True)
@@ -151,7 +163,7 @@ class Arenas(commands.Cog):
                                          choices=["WIN", "LOSS"])):
         await ctx.defer()
 
-        arena: Arena = await get_arena(ctx.bot.db, ctx.channel_id, ctx.bot.compendium)
+        arena: Arena = await get_arena(ctx.bot, ctx.channel_id)
 
         if arena is None:
             return await ctx.respond(f"Error: No active arena present in this channel", ephemeral=True)
@@ -167,7 +179,7 @@ class Arenas(commands.Cog):
             arena_act: Activity = ctx.bot.compendium.get_object("c_activity", "ARENA")
             host_act: Activity = ctx.bot.compendium.get_object("c_activity", "ARENA_HOST")
             bonus_act: Activity = ctx.bot.compendium.get_object("c_activity", "ARENA_BONUS")
-            host_char: PlayerCharacter = await get_character(ctx, arena.host_id, ctx.guild.id)
+            host_char: PlayerCharacter = await get_character(ctx.bot, arena.host_id, ctx.guild_id)
 
             # Get player characters
             async with ctx.bot.db.acquire() as conn:
@@ -201,7 +213,7 @@ class Arenas(commands.Cog):
     async def arena_close(self, ctx: ApplicationContext):
         await ctx.defer()
 
-        arena: Arena = await get_arena(ctx.bot.db, ctx.channel_id, ctx.bot.compendium)
+        arena: Arena = await get_arena(ctx.bot, ctx.channel_id)
 
         if arena is None:
             return await ctx.respond(f"Error: No active arena present in this channel", ephemeral=True)

@@ -215,7 +215,7 @@ class LevelCaps(object):
 
 
 class AdventureRewards(object):
-    def __init__(self, id, ep, tier, rarity):
+    def __init__(self, id, ep, tier, rarity = None):
         """
         :param id: int
         :param ep: int
@@ -226,4 +226,15 @@ class AdventureRewards(object):
         self.id = id
         self.ep = ep
         self.tier = tier
+        self.rarity = rarity
+
+
+class ShopTier(object):
+    def __init__(self, id, rarity):
+        """
+        :param id: int
+        :param rarity: int
+        """
+
+        self.id = id
         self.rarity = rarity

@@ -1,7 +1,6 @@
 from typing import List
 
-import discord.utils
-from discord import ApplicationContext, Message, Bot
+from discord import Message, Bot
 from discord import CategoryChannel, TextChannel
 
 class RpDashboard(object):
@@ -30,47 +29,3 @@ class RpDashboard(object):
         return []
 
 
-class gPlayer(object):
-    player_id: int
-    global_id: int
-    modifier: str
-    host: str
-    gold: int
-    exp: int
-    update: bool
-    active: bool
-
-    def __init__(self, **kwargs):
-        for key, value in kwargs.items():
-            setattr(self, key, value)
-
-    def get_name(self, ctx: ApplicationContext):
-        try:
-            name = discord.utils.get(ctx.bot.get_all_members(), id=self.player_id).mention
-            pass
-        except:
-            name = f"Player {self.player_id} not found on this server"
-            pass
-
-        return name
-
-
-class gEvent(object):
-    guild_id: int
-    name: str
-    base_gold: int
-    base_exp: int
-    base_mod: str
-    combat: bool
-    channels: List[int]
-    active: bool
-
-    def __init__(self, **kwargs):
-        for key, value in kwargs.items():
-            setattr(self, key, value)
-
-    def get_channel_names(self, ctx: ApplicationContext):
-        names = []
-        for c in self.channels:
-            names.append(ctx.bot.get_channel(int(c)).name)
-        return names

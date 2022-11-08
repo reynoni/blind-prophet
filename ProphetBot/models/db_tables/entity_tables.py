@@ -99,7 +99,6 @@ adventures_table = sa.Table(
     Column("ep", Integer, nullable=False, default=0),
     Column("created_ts", DateTime(timezone=False), nullable=False, default=datetime.utcnow),
     Column("end_ts", DateTime(timezone=False), nullable=True),
-    Column("active", BOOLEAN, nullable=False, default=True)
 )
 
 item_blacksmith_table = sa.Table(
@@ -153,7 +152,7 @@ item_scrolls_table = sa.Table(
     Column("cost", Integer, nullable=False),
     Column("level", Integer, nullable=False),
     Column("school", Integer, nullable=False),  # ref: > c_magic_school.id
-    Column("classes", sa.ARRAY(Integer), nullable=False),  # ref: > c_character_class.id
+    Column("classes", sa.ARRAY(Integer), nullable=False, default=[]),  # ref: > c_character_class.id
     Column("source", String, nullable=True),
     Column("notes", String, nullable=True)
 )

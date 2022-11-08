@@ -1,6 +1,5 @@
 import asyncio
-
-import discord
+import logging
 from discord import SlashCommandGroup, Option, ExtensionAlreadyLoaded, ExtensionNotFound, ExtensionNotLoaded, \
     ApplicationContext
 from discord.ext import commands, tasks
@@ -9,8 +8,8 @@ from os import listdir
 from ProphetBot.helpers import is_owner
 from ProphetBot.bot import BpBot
 
+log = logging.getLogger(__name__)
 
-# TODO: Add the commands log_modify and log_review once logs are in DB
 
 def setup(bot: commands.Bot):
     bot.add_cog(Admin(bot))
@@ -22,12 +21,14 @@ class Admin(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        print(f'Cog \'Admin\' loaded')
+        log.info(f'Cog \'Admin\' loaded')
 
     @commands.Cog.listener()
     async def on_ready(self):
         await asyncio.sleep(3.0)
-        await self.reload_task.start()
+        asyncio.ensure_future(self.reload_category_task.start())
+        await asyncio.sleep(6.0)
+        asyncio.ensure_future(self.reload_item_task.start())
 
     @admin_commands.command(
         name="load",
@@ -105,6 +106,9 @@ class Admin(commands.Cog):
         elif str(cog).upper() in ['DB', 'COMPENDIUM']:
             await self._reload_DB(ctx)
             await ctx.respond(f'Done')
+        elif str(cog).upper() in ['INVENTORY']:
+            await self._reload_items(ctx)
+            await ctx.respond(f'Done')
         else:
             try:
                 self.bot.unload_extension(f'ProphetBot.cogs.{cog}')
@@ -136,6 +140,18 @@ class Admin(commands.Cog):
                 files.append(file_name[:-3])
         await ctx.respond("\n".join(files))
 
+
+    @admin_commands.command(
+        name="test"
+    )
+    async def test(self, ctx: ApplicationContext):
+        test = list(ctx.bot.compendium.c_rarity[1].keys())
+        ctx.respond(f"here")
+
+    # --------------------------- #
+    # Private Methods
+    # --------------------------- #
+
     async def _reload_sheets(self, ctx):
         await ctx.trigger_typing()
         try:
@@ -148,24 +164,20 @@ class Admin(commands.Cog):
         await ctx.send("Connection to BPdia reloaded")
 
     async def _reload_DB(self, ctx):
-        await self.bot.compendium.reload(self.bot)
+        await self.bot.compendium.reload_categories(self.bot)
         await ctx.send("Compendium reloaded")
 
-    @admin_commands.command(
-        name="test",
-        description="Test Command"
-    )
-    async def test_command(self, ctx: ApplicationContext):
-        role = discord.utils.get(ctx.guild.roles, name="Bots")
-
-        players = [p.id for p in list(set(filter(lambda p: p.id != 261302296103747584,
-                                                 role.members)))]
-
-        await ctx.respond(f"Testing")
+    async def _reload_items(self, ctx):
+        await self.bot.compendium.load_items(self.bot)
+        await ctx.send("Items reloading")
 
     # --------------------------- #
     # Tasks
     # --------------------------- #
-    @tasks.loop(minutes=10)
-    async def reload_task(self):
-        await self.bot.compendium.reload(self.bot)
+    @tasks.loop(minutes=30)
+    async def reload_category_task(self):
+        await self.bot.compendium.reload_categories(self.bot)
+
+    @tasks.loop(hours=24)
+    async def reload_item_task(self):
+        await self.bot.compendium.load_items(self.bot)

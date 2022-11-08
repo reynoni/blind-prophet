@@ -12,11 +12,22 @@ For the Blind Prophet Discord ~~Gsheet~~ bot.
 
 ## Roles:
 All assumed roles by the bot.
-* **Council**: Primary administrator role
-* **Bot Admin**: Bot administrator role
 * **Magewright**: Archivist/Log masters. Wizards of the DB
 * **Loremaster**: Adventure/Lore overseer
 * **Lead DM**: Helps manage adventures/DM's
 * **Quester**: Players eligible for adventures
 * **Bots**: Bots....
 * **Fledgling**: Members who have yet to create a character
+
+### Faction Roles
+Used by the faction commands. Each faction should have a Role with the same name
+* **Guild Initiate**: Inital role for starting characters 
+* **Guild Member**: Role for characters who have completed initial quests
+* **Order of the Copper Dragons**: Nerds
+* **Silent Whispers**: Naruto fans
+* **Silver Wolves**: #TeamJacob
+* **Crimson Blades**: Lookin for a fight
+* **Clover Conclave**: Likes trees
+* **Sunstone Lotus**: Huff paint
+* **Falcon Eyes**: Reads/watches a lot of Sherlock Holmes
+* **Azure Guardians**: Thicc blue line

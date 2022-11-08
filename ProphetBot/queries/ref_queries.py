@@ -4,7 +4,7 @@ from ProphetBot.models.db_tables import *
 from sqlalchemy import null, and_, or_
 from sqlalchemy.sql.selectable import FromClause, TableClause
 
-from ProphetBot.models.db_objects import RefCategoryDashboard, RefWeeklyStipend
+from ProphetBot.models.db_objects import RefCategoryDashboard, RefWeeklyStipend, GlobalEvent, GlobalPlayer
 
 
 def get_dashboard_by_category_channel(category_channel_id: int) -> FromClause:
@@ -80,3 +80,86 @@ def get_guild_weekly_stipends(guild_id: int) -> FromClause:
 
 def delete_weekly_stipend(stipend: RefWeeklyStipend) -> TableClause:
     return ref_weekly_stipend_table.delete().where(ref_weekly_stipend_table.c.role_id == stipend.role_id)
+
+
+def insert_new_global_event(g_event: GlobalEvent) -> TableClause:
+    return ref_gb_staging_table.insert().values(
+        guild_id=g_event.guild_id,
+        name=g_event.name,
+        base_gold=g_event.base_gold,
+        base_xp=g_event.base_xp,
+        base_mod=g_event.base_mod.id,
+        combat=g_event.combat
+    )
+
+
+def get_active_global(guild_id: int) -> FromClause:
+    return ref_gb_staging_table.select().where(
+        and_(ref_gb_staging_table.c.guild_id == guild_id)
+    )
+
+
+def update_global_event(g_event: GlobalEvent):
+    return ref_gb_staging_table.update() \
+        .where(ref_gb_staging_table.c.guild_id == g_event.guild_id) \
+        .values(
+        name=g_event.name,
+        base_gold=g_event.base_gold,
+        base_xp=g_event.base_xp,
+        base_mod=g_event.base_mod.id,
+        combat=g_event.combat,
+        channels=g_event.channels
+    )
+
+
+def get_all_global_players(guild_id: int) -> FromClause:
+    return ref_gb_staging_player_table.select().where(
+        ref_gb_staging_player_table.c.guild_id == guild_id
+    )
+
+
+def get_global_player(guild_id: int, player_id: int) -> FromClause:
+    return ref_gb_staging_player_table.select().where(
+        and_(ref_gb_staging_table.c.guild_id == guild_id, ref_gb_staging_player_table.c.player_id == player_id)
+    )
+
+
+def update_global_player(g_player: GlobalPlayer):
+    return ref_gb_staging_player_table.update() \
+        .where(ref_gb_staging_player_table.c.id == g_player.id) \
+        .values(
+        modifier=g_player.modifier.id,
+        host=None if g_player.host is None else g_player.host.id,
+        gold=g_player.gold,
+        xp=g_player.xp,
+        update=g_player.update,
+        active=g_player.active,
+        num_messages=g_player.num_messages,
+        channels=g_player.channels
+    )
+
+
+def delete_global_event(guild_id: int) -> TableClause:
+    return ref_gb_staging_table.delete() \
+        .where(ref_gb_staging_table.c.guild_id == guild_id)
+
+
+def delete_global_players(guild_id: int) -> TableClause:
+    return ref_gb_staging_player_table.delete()\
+        .where(ref_gb_staging_player_table.c.guild_id == guild_id)
+
+
+def add_global_player(g_player: GlobalPlayer):
+    return ref_gb_staging_player_table.insert().values(
+        guild_id=g_player.guild_id,
+        player_id=g_player.player_id,
+        modifier=g_player.modifier.id,
+        host=None if g_player.host is None else g_player.host.id,
+        gold=g_player.gold,
+        xp=g_player.xp,
+        update=g_player.update,
+        active=g_player.active,
+        num_messages=g_player.num_messages,
+        channels=g_player.channels
+    ).returning(ref_gb_staging_player_table)
+

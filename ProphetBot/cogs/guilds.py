@@ -2,7 +2,8 @@ from discord import *
 from ProphetBot.bot import BpBot
 from discord.ext import commands
 from timeit import default_timer as timer
-from ProphetBot.helpers import get_or_create_guild, is_admin, get_weekly_stipend, create_logs
+from ProphetBot.helpers import get_or_create_guild, is_admin, get_weekly_stipend, create_logs, \
+    get_guild_character_stats, get_level_cap
 from ProphetBot.models.embeds import GuildEmbed, GuildStatus
 from ProphetBot.models.schemas import CharacterSchema, RefWeeklyStipendSchema
 from ProphetBot.queries import update_guild, get_characters, update_character, insert_weekly_stipend, \
@@ -28,7 +29,6 @@ class Guilds(commands.Cog):
         name="max_reroll",
         description="Set the max number of character rerolls. Default is 1"
     )
-    @commands.check(is_admin)
     async def set_max_reroll(self, ctx: ApplicationContext,
                              amount: Option(int, description="Max number of rerolls allowed", required=True,
                                             default=1)):
@@ -41,7 +41,7 @@ class Guilds(commands.Cog):
 
         await ctx.defer()
 
-        g: PlayerGuild = await get_or_create_guild(ctx)
+        g: PlayerGuild = await get_or_create_guild(ctx.bot.db, ctx.guild_id)
 
         g.max_reroll = amount
         async with self.bot.db.acquire() as conn:
@@ -53,7 +53,6 @@ class Guilds(commands.Cog):
         name="max_level",
         description="Set the maximum character level for the server. Default is 3"
     )
-    @commands.check(is_admin)
     async def set_max_level(self, ctx: ApplicationContext,
                             amount: Option(int, description="Max character level", required=True,
                                            default=3)):
@@ -66,7 +65,7 @@ class Guilds(commands.Cog):
 
         await ctx.defer()
 
-        g: PlayerGuild = await get_or_create_guild(ctx)
+        g: PlayerGuild = await get_or_create_guild(ctx.bot.db, ctx.guild_id)
         g.max_level = amount
         async with self.bot.db.acquire() as conn:
             await conn.execute(update_guild(g))
@@ -77,17 +76,17 @@ class Guilds(commands.Cog):
         name="status",
         description="Gets the current server's settings/status"
     )
-    @commands.check(is_admin)
-    async def guild_stats(self, ctx: ApplicationContext):
-        """
-        Displays the current server stats
-        :param ctx: Context
-        """
+    async def guild_status(self, ctx: ApplicationContext,
+                           display_inactive: Option(bool, description="Display inactive players",
+                                                    required=False,
+                                                    default=False)):
         await ctx.defer()
 
-        g: PlayerGuild = await get_or_create_guild(ctx)
+        g: PlayerGuild = await get_or_create_guild(ctx.bot.db, ctx.guild_id)
 
-        await ctx.respond(embed=GuildStatus(ctx, g))
+        total, inactive = await get_guild_character_stats(ctx.bot, ctx.guild_id)
+
+        await ctx.respond(embed=GuildStatus(ctx, g, total, inactive, display_inactive))
 
     @guilds_commands.command(
         name="add_stipend",
@@ -139,7 +138,7 @@ class Guilds(commands.Cog):
     )
     async def guild_weekly_reset(self, ctx: ApplicationContext):
         start = timer()
-        g: PlayerGuild = await get_or_create_guild(ctx)
+        g: PlayerGuild = await get_or_create_guild(ctx.bot.db, ctx.guild_id)
         guild_xp = g.week_xp
         player_xp = 0
         player_gold = 0
@@ -168,7 +167,7 @@ class Guilds(commands.Cog):
                     stipend: RefWeeklyStipend = RefWeeklyStipendSchema().load(row)
                     slist.append(stipend)
 
-        if len(slist) > 0:
+        if len(slist) > 0:  # TODO: Track duplicate members so they don't get multiple stipends
             act: Activity = ctx.bot.compendium.get_object("c_activity", "STIPEND")
             for s in slist:
                 players = [p.id for p in s.get_role(ctx).members]
@@ -176,7 +175,7 @@ class Guilds(commands.Cog):
                     async for row in await conn.execute(get_multiple_characters(players, ctx.guild_id)):
                         if row is not None:
                             character: PlayerCharacter = CharacterSchema(ctx.bot.compendium).load(row)
-                            cap: LevelCaps = ctx.bot.compendium.get_object("c_level_caps", character.get_level())
+                            cap: LevelCaps = get_level_cap(character, g, ctx.bot.compendium)
                             await create_logs(ctx, character, act, f"Stipend Role: {s.get_role(ctx).name} - {s.reason}",
                                               cap.max_gold * s.ratio)
         end = timer()

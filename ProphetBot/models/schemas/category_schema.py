@@ -171,8 +171,17 @@ class AdventureRewardsSchema(Schema):
     id = fields.Integer(data_key="id", required=True)
     ep = fields.Integer(data_key="ep", required=True)
     tier = fields.Integer(data_key="tier", required=True)
-    rarity = fields.Integer(data_key="rarity", required=True)
+    rarity = fields.Integer(data_key="rarity", required=False, allow_none=True)
 
     @post_load
     def make_adventure_reward(self, data, **kwargs):
         return AdventureRewards(**data)
+
+
+class ShopTierSchema(Schema):
+    id = fields.Integer(data_key="id", required=True)
+    rarity = fields.Integer(data_key="rarity", required=True)
+
+    @post_load
+    def make_shop_tier(self, data, **kwargs):
+        return ShopTier(**data)

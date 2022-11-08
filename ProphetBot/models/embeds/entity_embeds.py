@@ -5,7 +5,9 @@ import discord
 from discord import Embed, Member, ApplicationContext, Color
 
 from ProphetBot.constants import THUMBNAIL
-from ProphetBot.models.db_objects import PlayerCharacter, PlayerCharacterClass, DBLog, LevelCaps, Arena, Adventure
+from ProphetBot.models.db_objects import PlayerCharacter, PlayerCharacterClass, DBLog, LevelCaps, Arena, Adventure, \
+    PlayerGuild, Rarity
+from ProphetBot.models.db_objects.item_objects import ItemBlacksmith, ItemWondrous, ItemConsumable, ItemScroll
 
 
 class NewCharacterEmbed(Embed):
@@ -156,6 +158,35 @@ class AdventureEPEmbed(Embed):
             color=Color.random()
         )
 
+        dms = list(set(filter(lambda p: p.id in adventure.dms, adventure.get_adventure_role(ctx).members)))
+        players = list(set(filter(lambda p: p.id not in adventure.dms, adventure.get_adventure_role(ctx).members)))
+
+        if len(dms) > 0:
+            self.add_field(
+                name="DM(s)",
+                value="\n".join([f"\u200b - {p.mention}" for p in dms]),
+                inline=False
+            )
+        if len(players) > 0:
+            self.add_field(
+                name="Players",
+                value="\n".join([f"\u200b - {p.mention}" for p in players]),
+                inline=False
+            )
+
+        self.set_thumbnail(url=THUMBNAIL)
+        self.set_footer(text=f"Logged by {ctx.author.name}#{ctx.author.discriminator}",
+                        icon_url=ctx.author.display_avatar.url)
+
+
+class AdventureCloseEmbed(Embed):
+    def __init__(self, ctx: ApplicationContext, adventure: Adventure):
+        super().__init__(
+            title="Adventure Complete!",
+            description=f"**Adventure:** {adventure.name}\n"
+                        f"**Tier:** {adventure.tier.id}\n"
+                        f"**Total EP:** {adventure.ep}\n"
+        )
         self.add_field(
             name="DM(s)",
             value="\n".join([f"\u200b - {p.mention}" for p in list(set(filter(lambda p: p.id in adventure.dms,
@@ -167,10 +198,135 @@ class AdventureEPEmbed(Embed):
         self.add_field(
             name="Players",
             value="\n".join([f"\u200b - {p.mention}" for p in list(set(filter(lambda p: p.id not in adventure.dms,
-                                                                              adventure.get_adventure_role(ctx).members)))]),
+                                                                              adventure.get_adventure_role(
+                                                                                  ctx).members)))]),
             inline=False
         )
 
         self.set_thumbnail(url=THUMBNAIL)
         self.set_footer(text=f"Logged by {ctx.author.name}#{ctx.author.discriminator}",
                         icon_url=ctx.author.display_avatar.url)
+
+
+class GuildEmbed(Embed):
+    def __init__(self, ctx: ApplicationContext, g: PlayerGuild):
+        super().__init__(title=f'Server Settings for {ctx.guild.name}',
+                         colour=Color.random())
+        self.set_thumbnail(url=THUMBNAIL)
+
+        self.add_field(name="**Settings**",
+                       value=f"**Max Level:** {g.max_level}\n"
+                             f"**Max Rerolls:** {g.max_reroll}",
+                       inline=False)
+
+
+class GuildStatus(Embed):
+    def __init__(self, ctx: ApplicationContext, g: PlayerGuild, total: int, inactive: List[PlayerCharacter] | None,
+                 display_inact: bool):
+        super().__init__(title=f"Server Info - {ctx.guild.name}",
+                         color=Color.random(),
+                         description=f"**Max Level:** {g.max_level}\n"
+                                     f"**Server XP:** {g.server_xp}\n"
+                                     f"**Week XP:** {g.week_xp}\n"
+                                     f"**# Weeks:** {g.weeks}")
+
+        self.set_thumbnail(url=THUMBNAIL)
+
+        in_count = 0 if inactive is None else len(inactive)
+
+        self.description += f"\n**Total Characters:** {total}\n" \
+                            f"**Inactive Characters:** {in_count}\n" \
+                            f"*Inactive defined by no logs in past two calendar weeks*"
+
+        if display_inact and inactive is not None:
+            self.add_field(name="Inactive Characters",
+                           value="\n".join([f"\u200b - {p.get_member(ctx).mention}" for p in inactive]))
+
+
+class BlacksmithItemEmbed(Embed):
+    def __init__(self, item: ItemBlacksmith):
+        super().__init__(title=f"{item.name}",
+                         color=Color.random(),
+                         description=f"**Type:** {item.sub_type.value}\n"
+                                     f"**Rarity:** {item.rarity.value}\n"
+                                     f"**Cost:** {item.display_cost()}gp\n")
+
+        if item.attunement:
+            self.description += f"**Attunement Required:** Yes\n"
+        else:
+            self.description += f"**Attunement Required:** No\n"
+
+        if item.seeking_only:
+            self.description += f"**Seeking:** Yes\n"
+        else:
+            self.description += f"**Seeking:** No\n"
+
+        if item.notes is not None:
+            self.add_field(name="Notes", value=item.notes, inline=False)
+
+        self.set_footer(text=f"Source: {item.source} | id: {item.id}")
+
+
+class MagicItemEmbed(Embed):
+    def __init__(self, item: ItemWondrous):
+        super().__init__(title=f"{item.name}",
+                         color=Color.random(),
+                         description=f"**Rarity:** {item.rarity.value}\n"
+                                     f"**Cost:** {item.cost}gp\n")
+
+        if item.attunement:
+            self.description += f"**Attunement Required:** Yes\n"
+        else:
+            self.description += f"**Attunement Required:** No\n"
+
+        if item.seeking_only:
+            self.description += f"**Seeking:** Yes\n"
+        else:
+            self.description += f"**Seeking:** No\n"
+
+        if item.notes is not None:
+            self.add_field(name="Notes", value=item.notes, inline=False)
+
+        self.set_footer(text=f"Source: {item.source} | id: {item.id}")
+
+
+class ConsumableItemEmbed(Embed):
+    def __init__(self, item: ItemConsumable):
+        super().__init__(title=f"{item.name}",
+                         color=Color.random(),
+                         description=f"**Type:** {item.sub_type.value}\n"
+                                     f"**Rarity:** {item.rarity.value}\n"
+                                     f"**Cost:** {item.cost}gp\n")
+
+        if item.attunement:
+            self.description += f"**Attunement Required:** Yes\n"
+        else:
+            self.description += f"**Attunement Required:** No\n"
+
+        if item.seeking_only:
+            self.description += f"**Seeking:** Yes\n"
+        else:
+            self.description += f"**Seeking:** No\n"
+
+        if item.notes is not None:
+            self.add_field(name="Notes", value=item.notes, inline=False)
+
+        self.set_footer(text=f"Source: {item.source} | id: {item.id}")
+
+
+class ScrollItemEmbed(Embed):
+    def __init__(self, item: ItemScroll):
+        super().__init__(title=f"{item.display_name()}",
+                         color=Color.random(),
+                         description=f"**Rarity:** {item.rarity.value}\n"
+                                     f"**Cost:** {item.cost}gp\n"
+                                     f"**Schools:** {item.school.value}\n")
+
+        if len(item.classes) > 0:
+            self.description = f"**Classes:** "
+            self.description += ", ".join([f"{c.value}" for c in item.classes])
+
+        if item.notes is not None:
+            self.add_field(name="Notes", value=item.notes, inline=False)
+
+        self.set_footer(text=f"Source: {item.source} | id: {item.id}")

@@ -1,38 +1,38 @@
 import bisect
+import re
 from datetime import datetime
 from statistics import mean
-from typing import Optional, List
 
 import aiopg
 import discord
-from discord import ApplicationContext, Member, Role
+from discord import ApplicationContext, Member, Role, Bot, Client
+from texttable import Texttable
 
 from ProphetBot.compendium import Compendium
-from ProphetBot.models.db_objects import PlayerGuild, PlayerCharacter, PlayerCharacterClass, Activity, DBLog, LevelCaps, \
-    Adventure, Arena
+from ProphetBot.models.db_objects import PlayerGuild, PlayerCharacter, Adventure, Arena
 from ProphetBot.models.embeds import ArenaStatusEmbed
-from ProphetBot.models.schemas import GuildSchema, CharacterSchema, PlayerCharacterClassSchema, LogSchema, \
-    AdventureSchema, ArenaSchema
-from ProphetBot.queries import get_guild, insert_new_guild, get_log_by_player_and_activity, get_active_character, \
-    get_character_class, update_guild, update_character, insert_new_log, get_adventure_by_category_channel_id, \
-    get_arena_by_channel, get_multiple_characters, update_arena, get_adventure_by_role_id
+from ProphetBot.models.schemas import GuildSchema, CharacterSchema, AdventureSchema, ArenaSchema
+from ProphetBot.queries import get_guild, insert_new_guild, get_adventure_by_category_channel_id, \
+    get_arena_by_channel, get_multiple_characters, update_arena, get_adventure_by_role_id, get_characters, \
+    get_two_weeks_logs
 
 
-async def get_or_create_guild(ctx: ApplicationContext) -> PlayerGuild:
+async def get_or_create_guild(db: aiopg.sa.Engine, guild_id: int) -> PlayerGuild:
     """
     Retrieves the PlayerGuild object for the current server, or will create a shell object if not found
 
-    :param ctx: Context
+    :param db: DB Engine
+    :param guild_id:  Guild ID
     :return: PlayerGuild
     """
-    async with ctx.bot.db.acquire() as conn:
-        results = await conn.execute(get_guild(ctx.guild.id))
+    async with db.acquire() as conn:
+        results = await conn.execute(get_guild(guild_id))
         g_row = await results.first()
 
     if g_row is None:
-        g = PlayerGuild(id=ctx.guild_id, max_level=3, server_xp=0, weeks=0, week_xp=0, max_reroll=1)
+        g = PlayerGuild(id=guild_id, max_level=3, server_xp=0, weeks=0, week_xp=0, max_reroll=1)
 
-        async with ctx.bot.db.acquire() as conn:
+        async with db.acquire() as conn:
             results = await conn.execute(insert_new_guild(g))
             g_row = await results.first()
 
@@ -41,129 +41,18 @@ async def get_or_create_guild(ctx: ApplicationContext) -> PlayerGuild:
     return g
 
 
-async def remove_fledgling_role(ctx: ApplicationContext, member: Member, reason: Optional[str]):
-    """
-    Removes the Fledgling role from the given member
-
-    :param ctx: Context
-    :param member: Member to remove the role from
-    :param reason: Reason in the audit to remove the role
-    """
-    fledgling_role = discord.utils.get(ctx.guild.roles, name="Fledgling")
-    if fledgling_role and (fledgling_role in member.roles):
-        await member.remove_roles(fledgling_role, reason=reason)
-
-
-async def get_character_quests(ctx: ApplicationContext, character: PlayerCharacter) -> PlayerCharacter:
-    async with ctx.bot.db.acquire() as conn:
-        rp_list = await conn.execute(
-            get_log_by_player_and_activity(character.id, ctx.bot.compendium.get_object("c_activity", "RP").id))
-        arena_list = await conn.execute(
-            get_log_by_player_and_activity(character.id,
-                                           ctx.bot.compendium.get_object("c_activity", "ARENA").id))
-
-    character.completed_rps = rp_list.rowcount if character.get_level() == 1 else rp_list.rowcount - 1 if rp_list.rowcount > 0 else 0
-    character.needed_rps = 1 if character.get_level() == 1 else 2
-    character.completed_arenas = arena_list.rowcount if character.get_level() == 1 else arena_list.rowcount - 1 if arena_list.rowcount > 0 else 0
-    character.needed_arenas = 1 if character.get_level() == 1 else 2
-
-    return character
-
-
-async def get_character(ctx: ApplicationContext, player_id: int, guild_id: int) -> PlayerCharacter | None:
-    async with ctx.bot.db.acquire() as conn:
-        results = await conn.execute(get_active_character(player_id, guild_id))
-        row = await results.first()
-
-    if row is None:
-        return None
-    else:
-        character: PlayerCharacter = CharacterSchema(ctx.bot.compendium).load(row)
-        return character
-
-
-async def get_player_character_class(ctx: ApplicationContext, char_id: int) -> List[PlayerCharacterClass] | None:
-    class_ary = []
-
-    async with ctx.bot.db.acquire() as conn:
-        async for row in conn.execute(get_character_class(char_id)):
-            if row is not None:
-                char_class: PlayerCharacterClass = PlayerCharacterClassSchema(ctx).load(row)
-                class_ary.append(char_class)
-
-    if len(class_ary) < 1:
-        return None
-    else:
-        return class_ary
-
-
-def get_activity_amount(character: PlayerCharacter, activity: Activity, cap: LevelCaps, g: PlayerGuild, gold: int,
-                        xp: int):
-    if activity.ratio is not None:
-        # Calculate the ratio unless we have a manual override
-        reward_gold = cap.max_gold * activity.ratio if gold == 0 else gold
-        reward_xp = cap.max_xp * activity.ratio if xp == 0 else xp
-    else:
-        reward_gold = gold
-        reward_xp = xp
-
-    max_xp = (g.max_level - 1) * 1000
-    server_xp, char_gold, char_xp = 0, 0, 0
-
-    if activity.diversion:  # Apply diversion limits
-        if character.div_gold + reward_gold > cap.max_gold:
-            char_gold = 0 if cap.max_gold - character.div_gold < 0 else cap.max_gold - character.div_gold
-        else:
-            char_gold = reward_gold
-
-        if character.div_xp + reward_xp > cap.max_xp:
-            xp = 0 if cap.max_xp - character.div_xp < 0 else cap.max_xp - character.div_xp
-        else:
-            xp = reward_xp
-    else:
-        char_gold = reward_gold
-        xp = reward_xp
-
-    # Guild Server Stats
-    if character.xp + xp >= max_xp:
-        char_xp = 0 if max_xp - character.xp < 0 else max_xp - character.xp
-        server_xp = 0 if xp - char_xp < 0 else xp - char_xp
-    else:
-        char_xp = xp
-
-    return char_gold, char_xp, server_xp
-
-
-async def create_logs(ctx: ApplicationContext, character: PlayerCharacter, activity: Activity, notes: str = None,
-                      gold: int = 0, xp: int = 0) -> DBLog:
-    cap: LevelCaps = ctx.bot.compendium.get_object("c_level_caps", character.get_level())
-    g: PlayerGuild = await get_or_create_guild(ctx)
-
-    char_gold, char_xp, server_xp = get_activity_amount(character, activity, cap, g, gold, xp)
-
-    char_log = DBLog(author=ctx.author.id, xp=char_xp, gold=char_gold, character_id=character.id, activity=activity,
-                     notes=notes)
-    character.gold += char_gold
-    character.xp += char_xp
-    g.week_xp += server_xp
-
-    if activity.diversion:
-        character.div_gold += char_gold
-        character.div_xp += char_xp
-
-    async with ctx.bot.db.acquire() as conn:
-        results = await conn.execute(insert_new_log(char_log))
-        row = await results.first()
-        await conn.execute(update_character(character))
-        await conn.execute(update_guild(g))
-
-    log_entry: DBLog = LogSchema(ctx).load(row)
-
-    return log_entry
-
-
 async def update_dm(dm: Member, category_permissions: dict, role: Role, adventure_name: str,
                     remove: bool = False) -> dict:
+    """
+    Adds/removes a DM from an adventure
+
+    :param dm: Member to add/remove
+    :param category_permissions: PermissionOverWrite
+    :param role: Role of the Adventure
+    :param adventure_name: Name of the adventure for audit purposes
+    :param remove: True to remove dm, otherwise add the dm
+    :return: Updated PermissionOverwrite dict
+    """
     if remove:
         await dm.remove_roles(role, reason=f"Removed from adventure {adventure_name}")
         del category_permissions[dm]
@@ -174,43 +63,71 @@ async def update_dm(dm: Member, category_permissions: dict, role: Role, adventur
     return category_permissions
 
 
-async def get_adventure(ctx: ApplicationContext) -> Adventure | None:
-    async with ctx.bot.db.acquire() as conn:
-        results = await conn.execute(get_adventure_by_category_channel_id(ctx.channel.category_id))
+async def get_adventure(bot: Bot, category_id: int) -> Adventure | None:
+    """
+    Retrieves the Adventure for the given category_ic
+
+    :param bot: Bot
+    :param category_id: Channel Category ID of the Adventure
+    :return: Adventure if found, else None
+    """
+    async with bot.db.acquire() as conn:
+        results = await conn.execute(get_adventure_by_category_channel_id(category_id))
         row = await results.first()
 
     if row is None:
         return None
     else:
-        adventure: Adventure = AdventureSchema(ctx).load(row)
+        adventure: Adventure = AdventureSchema(bot.compendium).load(row)
         return adventure
 
 
-async def get_adventure_from_role(ctx: ApplicationContext, role_id: int) -> Adventure | None:
-    async with ctx.bot.db.acquire() as conn:
+async def get_adventure_from_role(bot: Bot, role_id: int) -> Adventure | None:
+    """
+    Get the Adventure given the role
+
+    :param bot: Bot
+    :param role_id: Role id
+    :return: Adventure if found, else None
+    """
+    async with bot.db.acquire() as conn:
         results = await conn.execute(get_adventure_by_role_id(role_id))
         row = await results.first()
 
     if row is None:
         return None
     else:
-        adventure: Adventure = AdventureSchema(ctx).load(row)
+        adventure: Adventure = AdventureSchema(bot.compendium).load(row)
         return adventure
 
 
-async def get_arena(db: aiopg.sa.Engine, channel_id: int, compendium) -> Arena | None:
-    async with db.acquire() as conn:
+async def get_arena(bot: Bot | Client, channel_id: int) -> Arena | None:
+    """
+    Get the active Arena for the given channel
+
+    :param bot: Bot or Client
+    :param channel_id: TextChannel id to get the arena for
+    :return: Arena if found, else None
+    """
+    async with bot.db.acquire() as conn:
         results = await conn.execute(get_arena_by_channel(channel_id))
         row = await results.first()
 
     if row is None:
         return None
     else:
-        arena: Arena = ArenaSchema(compendium).load(row)
+        arena: Arena = ArenaSchema(bot.compendium).load(row)
         return arena
 
 
 async def remove_post_from_arena_board(ctx: ApplicationContext | discord.Interaction, member: Member):
+    """
+    Removes a Member's post from the arena-board channel
+
+    :param ctx: Context
+    :param member: Member
+    """
+
     def predicate(message):
         return message.author == member
 
@@ -227,6 +144,15 @@ async def remove_post_from_arena_board(ctx: ApplicationContext | discord.Interac
 
 async def add_player_to_arena(ctx: discord.Interaction, player: Member, arena: Arena,
                               db: aiopg.sa.Engine, compendium: Compendium):
+    """
+    Adds a player to the Arena
+
+    :param ctx: Context
+    :param player: Member to add
+    :param arena: Arena to add the player to
+    :param db: Engine
+    :param compendium: Compendium for category reference
+    """
     await player.add_roles(arena.get_role(ctx))
     await remove_post_from_arena_board(ctx, player)
 
@@ -238,6 +164,14 @@ async def add_player_to_arena(ctx: discord.Interaction, player: Member, arena: A
 
 
 async def update_arena_tier(ctx: discord.Interaction, db: aiopg.sa.Engine, arena: Arena, compendium: Compendium):
+    """
+    Recalculates and updates the arena tier
+
+    :param ctx: Context
+    :param db: Engine
+    :param arena: Arena
+    :param compendium: Compendium
+    """
     players = [p.id for p in list(set(filter(lambda p: p.id != arena.host_id,
                                              arena.get_role(ctx).members)))]
 
@@ -249,7 +183,7 @@ async def update_arena_tier(ctx: discord.Interaction, db: aiopg.sa.Engine, arena
                     character: PlayerCharacter = CharacterSchema(compendium).load(row)
                     chars.append(character)
         avg_level = mean(c.get_level() for c in chars)
-        tier = bisect.bisect([t.avg_level for t in compendium.c_arena_tier], avg_level)
+        tier = bisect.bisect([t.avg_level for t in list(compendium.c_arena_tier[0].values())], avg_level)
         arena.tier = compendium.get_object("c_arena_tier", tier)
 
         async with db.acquire() as conn:
@@ -257,6 +191,12 @@ async def update_arena_tier(ctx: discord.Interaction, db: aiopg.sa.Engine, arena
 
 
 async def update_arena_status(ctx: ApplicationContext | discord.Interaction, arena: Arena):
+    """
+    Updates the ArenaStatusEmbed
+
+    :param ctx: Context
+    :param arena: Arena
+    """
     embed = ArenaStatusEmbed(ctx, arena)
 
     msg: discord.Message = await ctx.channel.fetch_message(arena.pin_message_id)
@@ -266,6 +206,12 @@ async def update_arena_status(ctx: ApplicationContext | discord.Interaction, are
 
 
 async def end_arena(ctx: ApplicationContext, arena: Arena):
+    """
+    Ends the current arena
+
+    :param ctx: Context
+    :param arena: Arena
+    """
     for member in arena.get_role(ctx).members:
         await member.remove_roles(arena.get_role(ctx), reason=f"Arena complete")
 
@@ -282,19 +228,62 @@ async def end_arena(ctx: ApplicationContext, arena: Arena):
     await ctx.respond("Arena closed. This channel is now free for use")
 
 
-def get_faction_roles(ctx: ApplicationContext, player: Member) -> List[Role] | None:
-    faction_names = [f.value for f in ctx.bot.compendium.c_faction]
-    faction_names.remove("Guild Initiate")
-    faction_names.remove("Guild Member")
+async def get_guild_character_stats(bot: Bot, guild_id: int):
+    inactive = []
+    chars = []
+    total = 0
 
-    roles = list(filter(lambda r: r.name in faction_names, player.roles))
+    async with bot.db.acquire() as conn:
+        async for row in await conn.execute(get_characters(guild_id)):
+            if row is not None:
+                character: PlayerCharacter = CharacterSchema(bot.compendium).load(row)
+                chars.append(character)
+                total += 1
 
-    if len(roles) == 0:
-        return None
-    return roles
+    if len(chars) > 0:
+        for c in chars:
+            async with bot.db.acquire() as conn:
+                results = await conn.execute(get_two_weeks_logs(c.id))
+                row = await results.first()
+
+            if row is None:
+                inactive.append(c)
+
+    if len(inactive) == 0:
+        inactive = None
+
+    return total, inactive
 
 
+def build_table(matches, result_map, headers):
+    table = Texttable()
+    if len(matches) > 1:
+        table.set_deco(Texttable.HEADER | Texttable.HLINES | Texttable.VLINES)
+        table.set_cols_align(['c'] * len(headers))
+        table.set_cols_valign(['c'] * len(headers))
+        table.header(headers)
+
+        for match in matches:
+            print(f'match: {match}: {result_map[match]}')
+            data = [match]
+            data.extend(value for value in result_map[match][0:])
+            # print(f'Adding row: {data}')
+            table.add_row(data)
+
+        output = '```' + table.draw() + '```'
+    else:
+        table.set_cols_align(["l", "r"])
+        table.set_cols_valign(["m", "m"])
+        table.set_cols_width([10, 20])
+        table.header([headers[0], matches[0]])
+        data = list(zip(headers[1:], (result_map[matches[0]])[0:]))
+        table.add_rows(data, header=False)
+        output = '`' + table.draw() + '`'
+
+    return output
 
 
-
-
+def sort_stock(stock):
+    # reverse = None (Sorts in Ascending order)
+    # key is set to sort using third element of sublist
+    return sorted(stock, key=lambda x: int(re.sub(r'\D+', '', x[2])))

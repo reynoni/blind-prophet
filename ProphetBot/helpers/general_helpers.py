@@ -1,5 +1,3 @@
-from typing import List, TypeVar, Callable
-
 import discord
 from discord import ApplicationContext
 from sqlalchemy.util import asyncio

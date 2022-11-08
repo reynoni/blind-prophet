@@ -1,13 +1,15 @@
+import logging
 import os
 import aiopg.sa
 from aiopg.sa import create_engine
-from discord import ApplicationContext
 from discord.ext import commands
 from timeit import default_timer as timer
 from sqlalchemy.schema import CreateTable
 from ProphetBot.compendium import Compendium
 from ProphetBot.sheets_client import GsheetsClient
 from ProphetBot.models.db_tables import *
+
+log = logging.getLogger(__name__)
 
 
 async def create_tables(conn: aiopg.sa.SAConnection):
@@ -23,7 +25,7 @@ class BpBot(commands.Bot):
     # Extending/overriding discord.ext.commands.Bot
     def __init__(self, **options):
         super(BpBot, self).__init__(**options)
-        self.sheets = GsheetsClient()
+        self.sheets = GsheetsClient()  # TODO: Delete once conversion is complete
         self.compendium = Compendium()
 
     async def on_ready(self):
@@ -31,11 +33,11 @@ class BpBot(commands.Bot):
         self.db = await create_engine(os.environ["DATABASE_URL"])
         end = timer()
 
-        print(f"Time to create db engine: {end - start}")
+        log.info(f"Time to create db engine: {end - start}")
 
         async with self.db.acquire() as conn:
             await create_tables(conn)
 
-        print(f"Logged in as {self.user} (ID: {self.user.id})")
-        print("------")
+        log.info(f"Logged in as {self.user} (ID: {self.user.id})")
+        log.info("------")
 

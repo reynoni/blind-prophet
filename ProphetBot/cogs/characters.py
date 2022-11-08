@@ -6,15 +6,12 @@ from discord import SlashCommandGroup, Option, ApplicationContext, Member, Embed
 from discord.ext import commands
 from ProphetBot.bot import BpBot
 from ProphetBot.helpers import remove_fledgling_role, get_character_quests, get_character, get_player_character_class, \
-    create_logs, get_faction_roles
+    create_logs, get_faction_roles, get_level_cap, get_or_create_guild
 from ProphetBot.helpers.autocomplete_helpers import *
-from ProphetBot.models.db_objects import PlayerCharacter, PlayerCharacterClass, DBLog, Faction
+from ProphetBot.models.db_objects import PlayerCharacter, PlayerCharacterClass, DBLog, Faction, LevelCaps, PlayerGuild
 from ProphetBot.models.embeds import ErrorEmbed, NewCharacterEmbed, CharacterGetEmbed
 from ProphetBot.models.schemas import CharacterSchema
 from ProphetBot.queries import insert_new_character, insert_new_class, update_character
-
-
-# TODO: Fix the compendium references to get rid of all the helper calls. Can really reduce those
 
 def setup(bot: commands.Bot):
     bot.add_cog(Character(bot))
@@ -54,7 +51,7 @@ class Character(commands.Cog):
         start = timer()
         await ctx.defer()
 
-        character: PlayerCharacter = await get_character(ctx, player.id, ctx.guild.id)
+        character: PlayerCharacter = await get_character(ctx.bot, player.id, ctx.guild_id)
 
         if character is not None:
             return await ctx.respond(f"Player {player.mention} already has a character. Have a council member"
@@ -108,7 +105,8 @@ class Character(commands.Cog):
         if player is None:
             player = ctx.author
 
-        character: PlayerCharacter = await get_character(ctx, player.id, ctx.guild.id)
+        character: PlayerCharacter = await get_character(ctx.bot, player.id, ctx.guild_id)
+        g: PlayerGuild = await get_or_create_guild(ctx.bot.db, ctx.guild_id)
 
         if character is None:
             print(f"No character information found for player [ {player.id} ], aborting")
@@ -116,12 +114,12 @@ class Character(commands.Cog):
                 description=f"No character information found for {player.mention}"),
                 ephemeral=True)
 
-        class_ary: List[PlayerCharacterClass] = await get_player_character_class(ctx, character.id)
+        class_ary: List[PlayerCharacterClass] = await get_player_character_class(ctx.bot, character.id)
 
-        caps = ctx.bot.compendium.get_object("c_level_caps", character.get_level())
+        caps: LevelCaps = get_level_cap(character, g, ctx.bot.compendium)
 
-        if character.get_level() < 4:
-            character = await get_character_quests(ctx, character)
+        if character.get_level() < 3:
+            character = await get_character_quests(ctx.bot, character)
 
         await ctx.respond(embed=CharacterGetEmbed(character, class_ary, caps, ctx))
 
@@ -133,7 +131,7 @@ class Character(commands.Cog):
                               player: Option(Member, description="Player receiving the level bump", required=True)):
         await ctx.defer()
 
-        character: PlayerCharacter = await get_character(ctx, player.id, ctx.guild.id)
+        character: PlayerCharacter = await get_character(ctx.bot, player.id, ctx.guild_id)
 
         if character is None:
             print(f"No character information found for player [ {player.id} ], aborting")
@@ -147,7 +145,7 @@ class Character(commands.Cog):
                                                       f"If they leveled the hard way then, well, congrats"),
                                      ephemeral=True)
 
-        character = await get_character_quests(ctx, character)
+        character = await get_character_quests(ctx.bot, character)
 
         if character.needed_rps > character.completed_rps or character.needed_arenas > character.completed_arenas:
             return await ctx.respond(embed=ErrorEmbed(
@@ -184,7 +182,7 @@ class Character(commands.Cog):
 
         await ctx.defer()
 
-        character: PlayerCharacter = await get_character(ctx, player.id, ctx.guild.id)
+        character: PlayerCharacter = await get_character(ctx.bot, player.id, ctx.guild_id)
 
         if character is None:
             print(f"No character information found for player [ {player.id} ], aborting")
@@ -199,10 +197,7 @@ class Character(commands.Cog):
         character.subrace = c_subrace
 
         async with ctx.bot.db.acquire() as conn:
-            results = await conn.execute(update_character(character))
-            row = await results.first()
-
-        character = CharacterSchema(ctx.bot.compendium).load(row)
+            await conn.execute(update_character(character))
 
         embed = Embed(title="Update successful!",
                       description=f"{character.name} now is {character.get_formatted_race()}",
@@ -220,10 +215,10 @@ class Character(commands.Cog):
                           faction: Option(str, autocomplete=faction_autocomplete, required=True)):
         await ctx.defer()
 
-        current_faction_roles = get_faction_roles(ctx, player)
+        current_faction_roles = get_faction_roles(ctx.bot.compendium, player)
         faction: Faction = ctx.bot.compendium.get_object("c_faction", faction)
 
-        character: PlayerCharacter = await get_character(ctx, player.id, ctx.guild_id)
+        character: PlayerCharacter = await get_character(ctx.bot, player.id, ctx.guild_id)
 
         if character is None:
             return await ctx.respond(embed=ErrorEmbed(f"No character information found for {player.mention}"),

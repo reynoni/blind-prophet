@@ -140,7 +140,7 @@ class Dashboards(commands.Cog):
     # Tasks
     # --------------------------- #
     @tasks.loop(
-        minutes=float(os.environ["DASHBOARD_REFRESH_INTERVAL"]))
+        minutes=float(os.environ["DASHBOARD_REFRESH_INTERVAL"]))  #  TODO: Change to get function
     async def update_dashboards(self):
         print("Starting to update dashboards")
         start = timer()

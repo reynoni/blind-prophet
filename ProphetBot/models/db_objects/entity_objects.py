@@ -1,8 +1,6 @@
 import math
 from typing import List
-
 import discord
-from discord import Member, ApplicationContext
 from ProphetBot.models.db_objects.category_objects import *
 
 
@@ -78,7 +76,6 @@ class Adventure(object):
     tier: AdventureTier
     category_channel_id: int
     ep: int
-    active: bool
 
     def __init__(self, **kwargs):
         for key, value in kwargs.items():

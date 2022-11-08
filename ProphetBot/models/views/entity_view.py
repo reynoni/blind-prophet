@@ -12,16 +12,14 @@ from ProphetBot.models.db_objects import Arena, ArenaTier
 
 class ArenaView(discord.ui.View):
     db: aiopg.sa.Engine
-    tier_ref: List[ArenaTier]
 
-    def __init__(self, db: aiopg.sa.Engine, tier_ref: List[ArenaTier]):
+    def __init__(self, db: aiopg.sa.Engine):
         super().__init__(timeout=None)
         self.db = db
-        self.tier_ref = tier_ref
 
     @discord.ui.button(label="Join Arena", custom_id="join_arena", style=ButtonStyle.primary)
     async def view_callback(self, button: Button, interaction: discord.Interaction):
-        arena: Arena = await get_arena(self.db, interaction.channel_id, interaction.client.compendium)
+        arena: Arena = await get_arena(interaction.client, interaction.channel_id)
 
         if arena is None:
             return await interaction.response.send_message(f"Error: No active arena present in this channel.",

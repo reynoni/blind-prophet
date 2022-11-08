@@ -4,26 +4,24 @@ from ProphetBot.models.db_objects import PlayerCharacter, PlayerCharacterClass, 
 
 
 class PlayerCharacterClassSchema(Schema):
-    ctx: ApplicationContext
-
     id = fields.Integer(data_key="id", required=True)
     character_id = fields.Integer(data_key="character_id", required=True)
     primary_class = fields.Method(None, "load_primary_class")
     subclass = fields.Method(None, "load_subclass", allow_none=True)
 
-    def __init__(self, ctx: ApplicationContext, **kwargs):
+    def __init__(self, compendium, **kwargs):
         super().__init__(**kwargs)
-        self.ctx = ctx
+        self.compendium = compendium
 
     @post_load
     def make_class(self, data, **kwargs):
         return PlayerCharacterClass(**data)
 
     def load_primary_class(self, value):
-        return self.ctx.bot.compendium.get_object("c_character_class", value)
+        return self.compendium.get_object("c_character_class", value)
 
     def load_subclass(self, value):
-        return self.ctx.bot.compendium.get_object("c_character_subclass", value)
+        return self.compendium.get_object("c_character_subclass", value)
 
 
 class CharacterSchema(Schema):
@@ -102,8 +100,6 @@ class LogSchema(Schema):
 
 
 class AdventureSchema(Schema):
-    ctx: ApplicationContext
-
     id = fields.Integer(data_key="id", required=True)
     name = fields.String(data_key="name", required=True)
     role_id = fields.Integer(data_key="role_id", required=True)
@@ -113,18 +109,17 @@ class AdventureSchema(Schema):
     ep = fields.Integer(data_key="ep", required=True)
     created_ts = fields.Method(None, "load_timestamp")
     end_ts = fields.Method(None, "load_timestamp", allow_none=True)
-    active = fields.Boolean(data_key="active", required=True)
 
-    def __init__(self, ctx: ApplicationContext, **kwargs):
+    def __init__(self, compendium, **kwargs):
         super().__init__(**kwargs)
-        self.ctx = ctx
+        self.compendium = compendium
 
     @post_load
     def make_adventure(self, data, **kwargs):
         return Adventure(**data)
 
     def load_tier(self, value):
-        return self.ctx.bot.compendium.get_object("c_adventure_tier", value)
+        return self.compendium.get_object("c_adventure_tier", value)
 
     def load_timestamp(self, value):  # Marshmallow doesn't like loading DateTime for some reason. This is a workaround
         return value

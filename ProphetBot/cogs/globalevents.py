@@ -1,32 +1,24 @@
 from discord import *
 from discord.ext import commands
 from ProphetBot.bot import BpBot
-from ProphetBot.helpers import calc_amt, confirm
-from ProphetBot.models.db_objects import gEvent, gPlayer
+from ProphetBot.helpers import calc_amt, confirm, get_all_players, global_mod_autocomplete, get_global, get_player, \
+    get_character, create_logs, close_global
+from ProphetBot.models.db_objects import GlobalEvent, GlobalPlayer, PlayerCharacter
 from ProphetBot.models.embeds import GlobalEmbed
 from discord.commands import SlashCommandGroup
 
-from ProphetBot.models.schemas import gEventSchema, gPlayerSchema
+from ProphetBot.models.schemas import GlobalEventSchema, GlobalPlayerSchema
 from ProphetBot.models.sheets_objects import GlobalHost, GlobalModifier, GlobalEntry
-from ProphetBot.queries import get_active_global, insert_new_global_event, update_global_event, close_global_event, \
-    add_global_player, update_global_channels, get_all_global_players, update_global_player
+from ProphetBot.queries import get_active_global, insert_new_global_event, update_global_event, delete_global_event, \
+    add_global_player, update_global_player, delete_global_players
 
 
 def setup(bot):
-    bot.add_cog(GlobalEvent(bot))
+    bot.add_cog(GlobalEvents(bot))
 
 
-async def get_all_players(self, event_id: int) -> []:
-    players = []
-
-    async with self.bot.db.acquire() as conn:
-        async for row in conn.execute(get_all_global_players(event_id)):
-            player: gPlayer = gPlayerSchema().load(row)
-            players.append(player)
-    return players
-
-
-class GlobalEvent(commands.Cog):
+# TODO: Add command to mass alter modifier based on # of messages
+class GlobalEvents(commands.Cog):
     bot: BpBot  # Typing annotation for my IDE's sake
     global_event_commands = SlashCommandGroup("global_event", "Commands related to global event management.")
 
@@ -42,33 +34,40 @@ class GlobalEvent(commands.Cog):
     async def gb_new(self, ctx: ApplicationContext,
                      gname: Option(str, description="Global event name", required=True),
                      gold: Option(int, description="Base gold for the event", required=True),
-                     exp: Option(int, description="Base experience for the event", required=True),
+                     xp: Option(int, description="Base experience for the event", required=True),
                      combat: Option(bool, description="Indicated if this is a global event or not. If true then "
                                                       "ignores mod", required=False, default=False),
                      mod: Option(str, description="Base modifier for the event",
-                                 choices=GlobalModifier.optionchoice_list(), required=False)):
+                                 autocomplete=global_mod_autocomplete, required=False)):
+        """
+        Create a new global event
+
+        :param ctx: Context
+        :param gname: GlobalEvent name
+        :param gold: GlobalEvent base gold
+        :param xp: GlobalEvent base xp
+        :param combat: Whether the GlobalEvent is combat focused, if false then RP focused
+        :param mod: Default GlobalModifier for the event
+        """
         await ctx.defer()
 
-        async with self.bot.db.acquire() as conn:
-            results = await conn.execute(get_active_global(ctx.guild_id))
-            gRow = await results.first()
+        g_event: GlobalEvent = await get_global(ctx.bot, ctx.guild_id)
 
-        if gRow is not None:
-            await ctx.respond(f'Error: Already an active global event', ephemeral=True)
-            return
+        if g_event is not None:
+            return await ctx.respond(f'Error: Already an active global event', ephemeral=True)
 
         if mod is None:
             mod = "Medium"
 
-        globEvent = gEvent(name=gname, base_gold=gold, base_exp=exp, base_mod=mod, combat=combat, channels=[],
-                           guild_id=ctx.guild_id,
-                           active=True)
+        mod = ctx.bot.compendium.get_object("c_global_modifier", mod)
+
+        g_event = GlobalEvent(guild_id=ctx.guild_id, name=gname, base_gold=gold, base_xp=xp, base_mod=mod,
+                              combat=combat, channels=[])
 
         async with self.bot.db.acquire() as conn:
-            await conn.execute(insert_new_global_event(globEvent.guild_id, globEvent.name, globEvent.base_gold,
-                                                       globEvent.base_exp, globEvent.base_mod, globEvent.combat))
+            await conn.execute(insert_new_global_event(g_event))
 
-        await ctx.respond(embed=GlobalEmbed(ctx=ctx, globEvent=globEvent))
+        await ctx.respond(embed=GlobalEmbed(ctx, g_event, []))
 
     @global_event_commands.command(
         name="update_event",
@@ -77,68 +76,61 @@ class GlobalEvent(commands.Cog):
     async def gb_update(self, ctx: ApplicationContext,
                         gname: Option(str, description="Global event name", required=False),
                         gold: Option(int, description="Base gold for the event", required=False),
-                        exp: Option(int, description="Base experience for the event", required=False),
+                        xp: Option(int, description="Base experience for the event", required=False),
                         mod: Option(str, description="Base modifier for the event",
                                     choices=GlobalModifier.optionchoice_list(), required=False),
                         combat: Option(bool, description="Indicated if this is a global event or not. If true then "
                                                          "ignores mod", required=False, default=False)):
         await ctx.defer()
 
-        async with self.bot.db.acquire() as conn:
-            results = await conn.execute(get_active_global(ctx.guild_id))
-            gRow = await results.first()
+        g_event: GlobalEvent = await get_global(ctx.bot, ctx.guild_id)
 
-        if gRow is None:
-            await ctx.respond(f'Error: No active global event on this server', ephemeral=True)
-            return
-        elif gname is None and gold is None and exp is None and mod is None and combat is None:
-            await ctx.respond(f'Error: Nothing given to update', ephemeral=True)
-            return
+        if g_event is None:
+            return await ctx.respond(f'Error: No active global event on this server', ephemeral=True)
 
-        globEvent: gEvent = gEventSchema().load(gRow)
-        oldMod = globEvent.base_mod
+        elif gname is None and gold is None and xp is None and mod is None and combat is None:
+            return await ctx.respond(f'Error: Nothing given to update', ephemeral=True)
+
+        oldMod = g_event.base_mod
 
         if gname is not None:
-            globEvent.name = gname
+            g_event.name = gname
 
         if gold is not None:
-            globEvent.base_gold = gold
+            g_event.base_gold = gold
 
-        if exp is not None:
-            globEvent.base_exp = exp
+        if xp is not None:
+            g_event.base_xp = xp
 
         if mod is not None:
-            globEvent.base_mod = mod
+            g_event.base_mod = ctx.bot.compendium.get_object("c_global_modifier", mod)
 
         if combat is not None:
-            globEvent.combat = combat
+            g_event.combat = combat
 
         async with self.bot.db.acquire() as conn:
-            await conn.execute(
-                update_global_event(globEvent.event_id, globEvent.name, globEvent.base_gold, globEvent.base_exp,
-                                    globEvent.base_mod, globEvent.combat))
+            await conn.execute(update_global_event(g_event))
 
-        if gold or exp or mod or combat is not None:
-            players = await get_all_players(self=self, event_id=globEvent.event_id)
-            for p in players:
-                if p.active and p.update:
-                    bGold = globEvent.base_gold if gold is None else gold
-                    bExp = globEvent.base_exp if exp is None else exp
+        if gold or xp or mod or combat is not None:
+            players = await get_all_players(ctx.bot, ctx.guild_id)
+            if players is not None:
+                for p in players:
+                    if p.active and p.update:
+                        bGold = g_event.base_gold if gold is None else gold
+                        bExp = g_event.base_xp if xp is None else xp
 
-                    if p.modifier == oldMod:
-                        bMod = globEvent.base_mod if mod is None else mod
-                    else:
-                        bMod = p.modifier
+                        if p.modifier == oldMod:
+                            bMod = g_event.base_mod if mod is None else mod
+                        else:
+                            bMod = p.modifier
 
-                    p.gold = bGold if globEvent.combat else calc_amt(bGold, bMod, p.host)
-                    p.exp = bExp if globEvent.combat else calc_amt(bExp, bMod, p.host)
+                        p.gold = bGold if g_event.combat else calc_amt(ctx.bot.compendium, bGold, bMod, p.host)
+                        p.xp = bExp if g_event.combat else calc_amt(ctx.bot.compendium, bExp, bMod, p.host)
 
-                    async with self.bot.db.acquire() as conn:
-                        await conn.execute(
-                            update_global_player(id=p.id, modifier=p.modifier, host=p.host, gold=p.gold, exp=p.exp,
-                                                 update=p.update, active=p.active))
+                        async with self.bot.db.acquire() as conn:
+                            await conn.execute(update_global_player(p))
 
-        await ctx.respond(embed=GlobalEmbed(ctx, globEvent, players))
+        await ctx.respond(embed=GlobalEmbed(ctx, g_event, players))
 
     #
     @global_event_commands.command(
@@ -148,18 +140,12 @@ class GlobalEvent(commands.Cog):
     async def gb_purge(self, ctx: ApplicationContext):
         await ctx.defer()
 
-        async with self.bot.db.acquire() as conn:
-            results = await conn.execute(get_active_global(ctx.guild_id))
-            gRow = await results.first()
+        g_event: GlobalEvent = await get_global(ctx.bot, ctx.guild_id)
 
-        if gRow is None:
-            await ctx.respond(f'Error: No active global event on this server', ephemeral=True)
-            return
+        if g_event is None:
+            return await ctx.respond(f'Error: No active global event on this server', ephemeral=True)
 
-        globEvent: gEvent = gEventSchema().load(gRow)
-
-        async with self.bot.db.acquire() as conn:
-            await conn.execute(close_global_event(globEvent.event_id))
+        await close_global(ctx.bot.db, g_event.guild_id)
 
         embed = Embed(title="Global purge")
         embed.set_footer(text="Sickness must be purged!")
@@ -175,49 +161,56 @@ class GlobalEvent(commands.Cog):
                         channel: Option(TextChannel, description="Channel to pull players from", required=True)):
         await ctx.defer()
 
-        async with self.bot.db.acquire() as conn:
-            results = await conn.execute(get_active_global(ctx.guild_id))
-            gRow = await results.first()
+        g_event: GlobalEvent = await get_global(ctx.bot, ctx.guild_id)
 
-        if gRow is None:
-            await ctx.respond(f'Error: No active global event on this server', ephemeral=True)
-            return
+        if g_event is None:
+            return await ctx.respond(f'Error: No active global event on this server', ephemeral=True)
 
-        globEvent: gEvent = gEventSchema().load(gRow)
-
-        players = await get_all_players(self=self, event_id=globEvent.event_id)
+        players = await get_all_players(ctx.bot, ctx.guild_id)
         messages = await channel.history(oldest_first=True).flatten()
 
         for msg in messages:
-            if msg.author.bot == False and msg.author.id not in [p.player_id for p in players]:
-                player = gPlayer(player_id=msg.author.id, global_id=globEvent.event_id, modifier=globEvent.base_mod,
-                                 host=None,
-                                 gold=globEvent.base_gold if not globEvent.combat else calc_amt(globEvent.base_gold,
-                                                                                                globEvent.base_mod),
-                                 exp=globEvent.base_exp if not globEvent.combat else calc_amt(globEvent.base_exp,
-                                                                                              globEvent.base_mod),
-                                 update=True, active=True
-                                 )
-                players.append(player)
-                async with self.bot.db.acquire() as conn:
-                    await conn.execute(
-                        add_global_player(event_id=player.global_id, player_id=player.player_id,
-                                          modifier=player.modifier, host=player.host, gold=player.gold,
-                                          exp=player.exp, update=player.update, active=player.active))
+            if not msg.author.bot:
+                if msg.author.id in players:
+                    player = players[msg.author.id]
+                    player.num_messages += 1
 
-        if channel.id not in globEvent.channels:
-            globEvent.channels.append(channel.id)
+                    if msg.channel.id not in player.channels:
+                        player.channels.append(msg.channel.id)
+
+                else:
+                    player = GlobalPlayer(player_id=msg.author.id, guild_id=g_event.guild_id,
+                                          modifier=g_event.base_mod, host=None,
+                                          gold=g_event.base_gold if not g_event.combat else calc_amt(
+                                              ctx.bot.compendium, g_event.base_gold, g_event.base_mod),
+                                          xp=g_event.base_xp if not g_event.combat else calc_amt(
+                                              ctx.bot.compendium, g_event.base_xp, g_event.base_mod),
+                                          update=True, active=True, num_messages=1, channels=[msg.channel.id]
+                                          )
+                    async with self.bot.db.acquire() as conn:
+                        results = await conn.execute(add_global_player(player))
+                        row = await results.first()
+
+                    player = GlobalPlayerSchema(ctx.bot.compendium).load(row)
+
+                players[player.player_id] = player
+
+        if channel.id not in g_event.channels:
+            g_event.channels.append(channel.id)
             async with self.bot.db.acquire() as conn:
-                await conn.execute(update_global_channels(globEvent.event_id, globEvent.channels))
+                await conn.execute(update_global_event(g_event))
 
-        await ctx.respond(embed=GlobalEmbed(ctx, globEvent, players))
+                for p in players.keys():
+                    await conn.execute(update_global_player(players[p]))
+
+        await ctx.respond(embed=GlobalEmbed(ctx, g_event, list(players.values())))
 
     @global_event_commands.command(
         name="player_update",
         description="Fine tune a player, or add a player. Will re-activate a player if previously inactive"
     )
     async def gb_user_update(self, ctx: ApplicationContext,
-                             pid: Option(Member, description="Player to add/modify", required=True),
+                             player: Option(Member, description="Player to add/modify", required=True),
                              mod: Option(str, description="Players effort modifier",
                                          choices=GlobalModifier.optionchoice_list(), required=False),
                              host: Option(str, description="Players host status",
@@ -232,96 +225,79 @@ class GlobalEvent(commands.Cog):
                                          required=False)):
         await ctx.defer()
 
-        async with self.bot.db.acquire() as conn:
-            results = await conn.execute(get_active_global(ctx.guild_id))
-            gRow = await results.first()
+        g_event = await get_global(ctx.bot, ctx.guild_id)
 
-        if gRow is None:
-            await ctx.respond(f'Error: No active global event on this server', ephemeral=True)
-            return
+        if g_event is None:
+            return await ctx.respond(f'Error: No active global event on this server', ephemeral=True)
 
-        globEvent: gEvent = gEventSchema().load(gRow)
-
-        players = await get_all_players(self=self, event_id=globEvent.event_id)
+        g_player: GlobalPlayer = await get_player(ctx.bot, ctx.guild_id, player.id)
 
         if gold or exp is not None:
             update = False
         else:
             update = True
 
-        if pid.id not in [p.player_id for p in players]:
-            bGold = globEvent.base_gold if gold is None else gold
-            bExp = globEvent.base_exp if exp is None else exp
-            bMod = globEvent.base_mod if mod is None else mod
-            bHost = None if host is None else host
+        if g_player is None:
+            bGold = g_event.base_gold if gold is None else gold
+            bExp = g_event.base_xp if exp is None else exp
+            bMod = g_event.base_mod if mod is None else ctx.bot.compendium.get_object("c_global_modifier", mod)
+            bHost = None if host is None else ctx.bot.compendium.get_object("c_host_status", host)
 
-            player = gPlayer(player_id=pid.id, global_id=globEvent.event_id, modifier=bMod, host=bHost,
-                             gold=calc_amt(bGold, bMod, bHost) if update else bGold,
-                             exp=calc_amt(bExp, bMod, bHost) if update else bGold,
-                             update=update, active=True)
-            players.append(player)
+            g_player = GlobalPlayer(player_id=player.id, guild_id=g_event.guild_id, modifier=bMod, host=bHost,
+                                    gold=calc_amt(ctx.bot.compendium, bGold, bMod, bHost) if update else bGold,
+                                    xp=calc_amt(ctx.bot.compendium, bExp, bMod, bHost) if update else bGold,
+                                    update=update, active=True, num_messages=0, channels=[])
+
             async with self.bot.db.acquire() as conn:
-                await conn.execute(
-                    add_global_player(event_id=player.global_id, player_id=player.player_id,
-                                      modifier=player.modifier, host=player.host, gold=player.gold,
-                                      exp=player.exp, update=player.update, active=player.active))
+                await conn.execute(add_global_player(g_player))
         else:
-            player = next((p for p in players if p.player_id == pid.id), None)
-            bGold = globEvent.base_gold if gold is None else gold
-            bExp = globEvent.base_exp if exp is None else exp
-            bMod = globEvent.base_mod if mod is None else mod
-            bHost = None if host is None else host
+            bGold = g_event.base_gold if gold is None else gold
+            bExp = g_event.base_xp if exp is None else exp
+            bMod = g_event.base_mod if mod is None else ctx.bot.compendium.get_object("c_global_modifier", mod)
+            bHost = None if host is None else ctx.bot.compendium.get_object("c_host_status", host)
 
-            player.gold = calc_amt(bGold, bMod, bHost) if update and not globEvent.combat else bGold
-            player.exp = calc_amt(bExp, bMod, bHost) if update and not globEvent.combat else bExp
-            player.modifier = bMod
-            player.host = bHost
-            player.update = update
-            player.active = True
+            g_player.gold = calc_amt(ctx.bot.compendium, bGold, bMod, bHost) if update and not g_event.combat else bGold
+            g_player.exp = calc_amt(ctx.bot.compendium, bExp, bMod, bHost) if update and not g_event.combat else bExp
+            g_player.modifier = bMod
+            g_player.host = bHost
+            g_player.update = update
+            g_player.active = True
 
             async with self.bot.db.acquire() as conn:
-                await conn.execute(
-                    update_global_player(id=player.id, modifier=player.modifier, host=player.host, gold=player.gold,
-                                         exp=player.exp, update=player.update, active=player.active)
-                )
+                await conn.execute(update_global_player(g_player))
 
-        await ctx.respond(embed=GlobalEmbed(ctx, globEvent, players))
+        g_players = await get_all_players(ctx.bot, ctx.guild_id)
+
+        await ctx.respond(embed=GlobalEmbed(ctx, g_event, list(g_players.values())))
 
     @global_event_commands.command(
         name="remove",
         description="Remove a player from the global event"
     )
     async def gb_remove(self, ctx: ApplicationContext,
-                        pid: Option(Member, description="Player to remove from the Global Event", required=True)):
+                        player: Option(Member, description="Player to remove from the Global Event", required=True)):
         await ctx.defer()
 
-        async with self.bot.db.acquire() as conn:
-            results = await conn.execute(get_active_global(ctx.guild_id))
-            gRow = await results.first()
+        g_event: GlobalEvent = await get_global(ctx.bot, ctx.guild_id)
 
-        if gRow is None:
-            await ctx.respond(f'Error: No active global event on this server', ephemeral=True)
-            return
+        if g_event is None:
+            return await ctx.respond(f'Error: No active global event on this server', ephemeral=True)
 
-        globEvent: gEvent = gEventSchema().load(gRow)
+        g_player: GlobalPlayer = await get_player(ctx.bot, ctx.guild_id, player.id)
 
-        players = await get_all_players(self=self, event_id=globEvent.event_id)
-
-        if pid.id not in [p.player_id for p in players]:
+        if g_player is None:
             await ctx.respond(f'Player is not in the current global event', ephemeral=True)
 
-        player = next((p for p in players if p.player_id == pid.id), None)
-
-        if not player.active:
+        if not g_player.active:
             await ctx.respond(f'Player is already inactive for the global', ephemeral=True)
         else:
+            g_player.active = False
             async with self.bot.db.acquire() as conn:
-                await conn.execute(
-                    update_global_player(player.id, player.modifier, player.host, player.gold, player.exp,
-                                         player.update, False)
-                )
+                await conn.execute(update_global_player(g_player))
 
-        await ctx.respond(embed=GlobalEmbed(ctx, globEvent, players))
+        players = await get_all_players(ctx.bot, ctx.guild_id)
+
+        await ctx.respond(embed=GlobalEmbed(ctx, g_event, list(players.values())))
 
     @global_event_commands.command(
         name="review",
@@ -332,17 +308,13 @@ class GlobalEvent(commands.Cog):
                                        default=False)):
         await ctx.defer()
 
-        async with self.bot.db.acquire() as conn:
-            results = await conn.execute(get_active_global(ctx.guild_id))
-            gRow = await results.first()
+        g_event: GlobalEvent = await get_global(ctx.bot, ctx.guild_id)
 
-        if gRow is None:
-            await ctx.respond(f'Error: No active global event on this server', ephemeral=True)
-            return
+        if g_event is None:
+            return await ctx.respond(f'Error: No active global event on this server', ephemeral=True)
         else:
-            globEvent: gEvent = gEventSchema().load(gRow)
-            players = await get_all_players(self=self, event_id=globEvent.event_id)
-            await ctx.respond(embed=GlobalEmbed(ctx, globEvent, players, gblist))
+            players = await get_all_players(ctx.bot, ctx.guild_id)
+            await ctx.respond(embed=GlobalEmbed(ctx, g_event, list(players.values()), gblist))
 
     @global_event_commands.command(
         name="commit",
@@ -351,45 +323,35 @@ class GlobalEvent(commands.Cog):
     async def gb_commit(self, ctx: ApplicationContext):
         await ctx.defer()
 
-        async with self.bot.db.acquire() as conn:
-            results = await conn.execute(get_active_global(ctx.guild_id))
-            gRow = await results.first()
+        g_event: GlobalEvent = await get_global(ctx.bot, ctx.guild_id)
 
-        if gRow is None:
-            await ctx.respond(f'Error: No active global event on this server', ephemeral=True)
-            return
+        if g_event is None:
+            return await ctx.respond(f'Error: No active global event on this server', ephemeral=True)
 
         to_end = await confirm(ctx, "Are you sure you want to log this global? (Reply with yes/no)", True)
 
         if to_end is None:
-            await ctx.respond(f'Timed out waiting for a response or invalid response.', delete_after=10)
-            return
+            return await ctx.respond(f'Timed out waiting for a response or invalid response.', delete_after=10)
         elif not to_end:
-            await ctx.respond(f'Ok, cancelling.', delete_after=10)
-            return
+            return await ctx.respond(f'Ok, cancelling.', delete_after=10)
 
-        globEvent: gEvent = gEventSchema().load(gRow)
-        players = await get_all_players(self=self, event_id=globEvent.event_id)
-        characters = self.bot.sheets.get_all_characters()
+        players = await get_all_players(ctx.bot, ctx.guild_id)
         fail_players = []
         log_list = []
+        act = ctx.bot.compendium.get_object("c_activity", "GLOBAL")
 
         for p in players:
-            character = next((c for c in characters if c.player_id == p.player_id), None)
-            if p.active:
+            player = players[p]
+            character: PlayerCharacter = await get_character(ctx.bot, player.player_id, g_event.guild_id)
+            if player.active:
                 if not character:
-                    fail_players.append(p)
+                    fail_players.append(player)
                 else:
-                    log_entry = GlobalEntry(f"{ctx.author.name}#{ctx.author.discriminator}", character, globEvent.name,
-                                            p.gold, p.exp)
-                    log_list.append(log_entry)
+                    log_list.append(await create_logs(ctx, character, act, g_event.name, player.gold, player.xp))
 
-        self.bot.sheets.log_activities(log_list)
+        await close_global(ctx.bot.db, g_event.guild_id)
 
-        async with self.bot.db.acquire() as conn:
-            await conn.execute(close_global_event(globEvent.event_id))
-
-        embed = Embed(title=f"Global: {globEvent.name} - has been logged")
+        embed = Embed(title=f"Global: {g_event.name} - has been logged")
         embed.add_field(name="**# of Entries**",
                         value=f"{len(log_list)}",
                         inline=False)

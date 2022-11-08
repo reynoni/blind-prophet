@@ -140,6 +140,13 @@ c_adventure_rewards_table = sa.Table(
     Column("id", Integer, primary_key=True),
     Column("ep", Integer, nullable=False),
     Column("tier", Integer, nullable=False),
+    Column("rarity", Integer, nullable=True)  # ref: > c_rarity.id
+)
+
+c_shop_tier_table = sa.Table(
+    "c_shop_tier",
+    metadata,
+    Column("id", Integer, primary_key=True),
     Column("rarity", Integer, nullable=False)  # ref: > c_rarity.id
 )
 

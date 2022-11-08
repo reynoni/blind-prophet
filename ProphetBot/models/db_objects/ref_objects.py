@@ -3,7 +3,7 @@ from typing import List
 import discord.utils
 from discord import ApplicationContext, Role, TextChannel, CategoryChannel, Message, Bot
 
-from ProphetBot.models.db_objects import DashboardType
+from ProphetBot.models.db_objects import DashboardType, GlobalModifier, HostStatus
 
 
 class RefCategoryDashboard(object):
@@ -39,6 +39,7 @@ class RefCategoryDashboard(object):
 
 
 class RefWeeklyStipend(object):
+    guild_id: int
     role_id: int
     ratio: float
     reason: str
@@ -49,3 +50,50 @@ class RefWeeklyStipend(object):
 
     def get_role(self, ctx: ApplicationContext | discord.Interaction) -> Role:
         return discord.utils.get(ctx.guild.roles, id=self.role_id)
+
+
+class GlobalPlayer(object):
+    guild_id: int
+    player_id: int
+    modifier: GlobalModifier
+    host: HostStatus
+    gold: int
+    xp: int
+    update: bool
+    active: bool
+    num_messages: int
+    channels: List[int]
+
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+    def get_name(self, ctx: ApplicationContext):
+        try:
+            name = discord.utils.get(ctx.bot.get_all_members(), id=self.player_id).mention
+            pass
+        except:
+            name = f"Player {self.player_id} not found on this server"
+            pass
+
+        return name
+
+
+class GlobalEvent(object):
+    guild_id: int
+    name: str
+    base_gold: int
+    base_xp: int
+    base_mod: GlobalModifier
+    combat: bool
+    channels: List[int]
+
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+    def get_channel_names(self, bot: Bot):
+        names = []
+        for c in self.channels:
+            names.append(bot.get_channel(int(c)).name)
+        return names
