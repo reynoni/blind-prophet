@@ -1,21 +1,9 @@
-import asyncio
-import bisect
-import random
-from typing import List
-from timeit import default_timer as timer
-
 from discord import SlashCommandGroup, ApplicationContext, Option
 from discord.ext import commands
-from texttable import Texttable
 
 from ProphetBot.bot import BpBot
-from ProphetBot.helpers import shop_type_autocomplete, get_or_create_guild, sort_stock, item_autocomplete
-from ProphetBot.models.db_objects import PlayerGuild
-from ProphetBot.models.db_objects.item_objects import ItemBlacksmith
+from ProphetBot.helpers import item_autocomplete
 from ProphetBot.models.embeds import BlacksmithItemEmbed, MagicItemEmbed, ConsumableItemEmbed, ScrollItemEmbed
-from ProphetBot.models.schemas.item_schema import ItemBlacksmithSchema, ItemWondrousSchema, ItemConsumableSchema, \
-    ItemScrollSchema
-from ProphetBot.queries import get_blacksmith_items, get_wondrous_items, get_consumable_items, get_scroll_items
 
 
 def setup(bot: commands.Bot):
@@ -39,6 +27,12 @@ class Items(commands.Cog):
                           item: Option(str, description="Item to lookup",
                                        autocomplete=item_autocomplete,
                                        required=True)):
+        """
+        Looks up item information
+
+        :param ctx: Context
+        :param item: Item to lookup
+        """
 
         if item_record := ctx.bot.compendium.get_object("blacksmith", item):
             embed = BlacksmithItemEmbed(item_record)

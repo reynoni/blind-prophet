@@ -17,8 +17,11 @@ log = logging.getLogger(__name__)
 def setup(bot: commands.Bot):
     bot.add_cog(Adventures(bot))
 
-# TODO: Add @Spectator role option for view only into all IC channels; @Quester for sign-ups and spectator for viewing
-# TODO: Script for modifing/integrating @Spectator role
+
+ # TODO: Add @Spectator role option for view only into all IC channels; @Quester for sign-ups and spectator for viewing
+ # TODO: Script for modifing/integrating @Spectator role
+ # TODO: Error embeds
+ # TODO: Set tier
 
 class Adventures(commands.Cog):
     bot: BpBot  # Typing annotation for my IDE's sake
@@ -211,6 +214,8 @@ class Adventures(commands.Cog):
             return await ctx.respond(f"Error: No adventure associated with this channel")
         elif dm.id not in adventure.dms:
             return await ctx.respond(f"Error: Player not listed as a DM")
+        elif len(adventure.dms) == 1:
+            return await ctx.respond(f"Error: Adventure has only 1 DM, please add another before removing")
         else:
             adventure.dms.remove(dm.id)
             adventure_role = adventure.get_adventure_role(ctx)
@@ -286,7 +291,8 @@ class Adventures(commands.Cog):
 
             avg_level = mean([c.get_level() for c in characters])
 
-            tier = bisect.bisect([t.avg_level for t in list(ctx.bot.compendium.c_adventure_tier[0].values())], avg_level)
+            tier = bisect.bisect([t.avg_level for t in list(ctx.bot.compendium.c_adventure_tier[0].values())],
+                                 avg_level)
 
             adventure.tier = ctx.bot.compendium.get_object("c_adventure_tier", tier)
 
@@ -396,7 +402,7 @@ class Adventures(commands.Cog):
     async def addroom_errors(self, ctx, error):
         if isinstance(error, commands.NoPrivateMessage):
             await ctx.send('Error: Command cannot be used via private messages')
-        print(error)
+        log.error(error)
 
     @room_commands.command(
         name="rename",

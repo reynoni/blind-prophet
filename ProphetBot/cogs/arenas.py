@@ -111,6 +111,11 @@ class Arenas(commands.Cog):
     )
     async def arena_add(self, ctx: ApplicationContext,
                         player: Option(Member, description="Player to add to arena", required=True)):
+        """
+        Adds a specified player to the current arena
+        :param ctx: Context
+        :param player: Member
+        """
 
         arena: Arena = await get_arena(ctx.bot, ctx.channel_id)
 
@@ -132,6 +137,12 @@ class Arenas(commands.Cog):
     )
     async def arena_remove(self, ctx: ApplicationContext,
                            player: Option(Member, description="Player to remove from arena", required=True)):
+        """
+        Removes a specified player from the current arena
+
+        :param ctx: Context
+        :param player: Member
+        """
         await ctx.defer()
 
         arena: Arena = await get_arena(ctx.bot, ctx.channel_id)
@@ -161,6 +172,12 @@ class Arenas(commands.Cog):
     async def arena_phase(self, ctx: ApplicationContext,
                           result: Option(str, description="The result of the phase", required=True,
                                          choices=["WIN", "LOSS"])):
+        """
+        Logs the outcome of an arena phase
+
+        :param ctx: Context
+        :param result: Result of the arena
+        """
         await ctx.defer()
 
         arena: Arena = await get_arena(ctx.bot, ctx.channel_id)
@@ -211,6 +228,11 @@ class Arenas(commands.Cog):
         description="Closes out a finished arena"
     )
     async def arena_close(self, ctx: ApplicationContext):
+        """
+        Manually closes an arena
+
+        :param ctx: Context
+        """
         await ctx.defer()
 
         arena: Arena = await get_arena(ctx.bot, ctx.channel_id)

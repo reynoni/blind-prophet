@@ -48,9 +48,6 @@ class RefWeeklyStipend(object):
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-    def get_role(self, ctx: ApplicationContext | discord.Interaction) -> Role:
-        return discord.utils.get(ctx.guild.roles, id=self.role_id)
-
 
 class GlobalPlayer(object):
     guild_id: int

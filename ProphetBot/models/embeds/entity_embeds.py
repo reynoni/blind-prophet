@@ -1,4 +1,5 @@
 import calendar
+import datetime
 from typing import List
 
 import discord
@@ -6,7 +7,7 @@ from discord import Embed, Member, ApplicationContext, Color
 
 from ProphetBot.constants import THUMBNAIL
 from ProphetBot.models.db_objects import PlayerCharacter, PlayerCharacterClass, DBLog, LevelCaps, Arena, Adventure, \
-    PlayerGuild, Rarity
+    PlayerGuild
 from ProphetBot.models.db_objects.item_objects import ItemBlacksmith, ItemWondrous, ItemConsumable, ItemScroll
 
 
@@ -30,7 +31,7 @@ class CharacterGetEmbed(Embed):
                  cap: LevelCaps, ctx: ApplicationContext):
         super().__init__(title=f"Character Info - {character.name}")
 
-        self.description = f"**Class**:"
+        self.description = f"**Class**:" if len(char_class) == 1 else f"**Classes**"
         self.description += f"\n".join([f" {c.get_formatted_class()}" for c in char_class])
         self.description += f"\n**Faction:** {character.faction.value}\n" \
                             f"**Level:** {character.get_level()}\n" \
@@ -62,7 +63,7 @@ class HxLogEmbed(Embed):
         self.set_thumbnail(url=character.get_member(ctx).display_avatar.url)
 
         if len(log_ary) < 1:
-            self.description(f"No logs for this week")
+            self.description = f"No logs for this week"
 
         for log in log_ary:
             log_time = log.created_ts
@@ -71,7 +72,8 @@ class HxLogEmbed(Embed):
             value = f"**Author:** {log.get_author(ctx).mention}\n" \
                     f"**Activity:** {log.activity.value}\n" \
                     f"**Gold:** {log.gold}\n" \
-                    f"**XP:** {log.xp}\n"
+                    f"**XP:** {log.xp}\n" \
+                    f"**Server XP:** {log.server_xp}\n"
 
             if log.notes is not None:
                 value += f"**Notes:** {log.notes}"
@@ -90,7 +92,9 @@ class DBLogEmbed(Embed):
             description += f"**Gold:** {log_entry.gold}\n"
         if log_entry.xp is not None:
             description += f"**Experience:** {log_entry.xp}\n"
-        if hasattr(log_entry, "note"):
+        if log_entry.server_xp is not None:
+            description += f"**Server Experience Contributed:** {log_entry.server_xp}\n"
+        if hasattr(log_entry, "notes"):
             description += f"**Notes:** {log_entry.notes}\n"
 
         self.description = description
@@ -219,6 +223,20 @@ class GuildEmbed(Embed):
                              f"**Max Rerolls:** {g.max_reroll}",
                        inline=False)
 
+        if hasattr(g, "reset_hour"):
+            now = datetime.datetime.utcnow()
+            day_offset = (g.reset_day - now.weekday() + 7) % 7
+            if g.reset_hour > now.hour and now > g.last_reset:
+                day_offset + 7
+            run_date = now + datetime.timedelta(days=day_offset)
+
+            dt = calendar.timegm(
+                datetime.datetime(run_date.year, run_date.month, run_date.day, g.reset_hour, 0, 0).utctimetuple())
+            last_reset = calendar.timegm(g.last_reset.utctimetuple())
+            self.add_field(name="**Reset Schedule**",
+                           value=f"**Approx Next Run:** <t:{dt}>\n"
+                                 f"**Last Reset: ** <t:{last_reset}>")
+
 
 class GuildStatus(Embed):
     def __init__(self, ctx: ApplicationContext, g: PlayerGuild, total: int, inactive: List[PlayerCharacter] | None,
@@ -237,6 +255,20 @@ class GuildStatus(Embed):
         self.description += f"\n**Total Characters:** {total}\n" \
                             f"**Inactive Characters:** {in_count}\n" \
                             f"*Inactive defined by no logs in past two calendar weeks*"
+
+        if g.reset_hour is not None:
+            now = datetime.datetime.utcnow()
+            day_offset = (g.reset_day - now.weekday() + 7) % 7
+            if g.reset_hour < now.hour and now > g.last_reset:
+                day_offset += 7
+            run_date = now + datetime.timedelta(days=day_offset)
+
+            dt = calendar.timegm(
+                datetime.datetime(run_date.year, run_date.month, run_date.day, g.reset_hour, 0, 0).utctimetuple())
+            last_reset = calendar.timegm(g.last_reset.utctimetuple())
+            self.add_field(name="**Reset Schedule**",
+                           value=f"**Approx Next Run:** <t:{dt}>\n"
+                                 f"**Last Reset: ** <t:{last_reset}>")
 
         if display_inact and inactive is not None:
             self.add_field(name="Inactive Characters",

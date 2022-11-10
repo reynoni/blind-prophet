@@ -8,10 +8,12 @@ import discord
 from discord import Intents, ApplicationContext
 from discord.ext import commands
 from ProphetBot.bot import BpBot
+from ProphetBot.constants import BOT_TOKEN, DEFAULT_PREFIX, DEBUG_GUILDS
 
 intents = Intents.default()
 intents.members = True
 intents.message_content = True
+
 
 # TODO: Close adventure Role parameter to make it option in channels outside of adventure
 # TODO: Double the cap for player under server max level (get embed, calc_amt)
@@ -37,12 +39,12 @@ log = logging.getLogger("bot")
 if sys.version_info >= (3, 8) and sys.platform.lower().startswith("win"):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-bot = BpBot(command_prefix=os.environ['COMMAND_PREFIX'],
+bot = BpBot(command_prefix=DEFAULT_PREFIX,
             description='ProphetBot - Created and maintained by Nick!#8675 and Alesha#0362',
             case_insensitive=True,
             help_command=MyHelpCommand(),
             intents=intents,
-            debug_guilds=[os.environ.get("GUILD", [])]
+            debug_guilds=DEBUG_GUILDS
             )
 
 for filename in listdir('ProphetBot/cogs'):
@@ -67,7 +69,7 @@ async def on_application_command_error(ctx: ApplicationContext, error):
 
     # Prevent any commands with local error handling from being handled here
     if hasattr(ctx.command, 'on_error'):
-        return await ctx.respond(f"something")
+        return
 
     if isinstance(error, commands.CheckFailure):
         return await ctx.respond(f'Do not have required permissions for {ctx.command}')
@@ -75,7 +77,7 @@ async def on_application_command_error(ctx: ApplicationContext, error):
         log.warning("Error in command: '{}'".format(ctx.command))
         for line in traceback.format_exception(type(error), error, error.__traceback__):
             log.warning(line)
-        return await ctx.respond(f'Something went wrong: {error}')
+        return await ctx.respond(f'Something went wrong. Let us know if it keeps up!')
 
 
 @bot.event
@@ -89,4 +91,4 @@ async def on_application_command(ctx):
         log.info("Command in PM with {0.message.author} ({0.message.author.id}): {0.message.content}.".format(ctx))
 
 
-bot.run(os.environ['BOT_TOKEN'])
+bot.run(BOT_TOKEN)

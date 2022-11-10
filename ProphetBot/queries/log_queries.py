@@ -11,6 +11,7 @@ def insert_new_log(log: DBLog):
     return log_table.insert().values(
         author=log.author,
         xp=log.xp,
+        server_xp=log.server_xp,
         gold=log.gold,
         character_id=log.character_id,
         activity=log.activity.id,
@@ -34,4 +35,18 @@ def get_two_weeks_logs(char_id: int) -> FromClause:
 def get_log_by_player_and_activity(char_id: int, act_id: int) -> FromClause:
     return log_table.select().where(
         and_(log_table.c.character_id == char_id, log_table.c.activity == act_id)
+    )
+
+
+def get_log_by_id(log_id: int) -> FromClause:
+    return log_table.select().where(log_table.c.id == log_id)
+
+
+def update_log(log: DBLog):
+    return log_table.update().where(log_table.c.id == log.id).values(
+        activity=log.activity.id,
+        notes=None if not hasattr(log, "notes") else log.notes,
+        xp=log.xp,
+        server_xp=log.server_xp,
+        gold=log.gold
     )

@@ -1,17 +1,21 @@
+import datetime
+
+import discord
 from discord import *
 from ProphetBot.bot import BpBot
-from discord.ext import commands
+from discord.ext import commands, tasks
 from timeit import default_timer as timer
-from ProphetBot.helpers import get_or_create_guild, is_admin, get_weekly_stipend, create_logs, \
+from ProphetBot.helpers import get_or_create_guild, get_weekly_stipend, create_logs, \
     get_guild_character_stats, get_level_cap
 from ProphetBot.models.embeds import GuildEmbed, GuildStatus
-from ProphetBot.models.schemas import CharacterSchema, RefWeeklyStipendSchema
+from ProphetBot.models.schemas import CharacterSchema, RefWeeklyStipendSchema, GuildSchema
 from ProphetBot.queries import update_guild, get_characters, update_character, insert_weekly_stipend, \
-    update_weekly_stipend, delete_weekly_stipend, get_guild_weekly_stipends, get_multiple_characters
+    update_weekly_stipend, delete_weekly_stipend, get_guild_weekly_stipends, get_multiple_characters, \
+    get_guilds_with_reset
 from ProphetBot.models.db_objects import PlayerGuild, PlayerCharacter, RefWeeklyStipend, LevelCaps
 
+log = logging.getLogger(__name__)
 
-# TODO: Setup appropriate security checks and update with the new get_or_create_guild function
 
 def setup(bot: commands.Bot):
     bot.add_cog(Guilds(bot))
@@ -19,11 +23,16 @@ def setup(bot: commands.Bot):
 
 class Guilds(commands.Cog):
     bot: BpBot
-    guilds_commands = SlashCommandGroup("guilds", "Commands related to guild specific settings")
+    guilds_commands = SlashCommandGroup("guild", "Commands related to guild specific settings")
 
     def __init__(self, bot):
         self.bot = bot
-        print(f'Cog \'Guilds\' loaded')
+        log.info(f'Cog \'Guilds\' loaded')
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        await asyncio.sleep(3.0)
+        asyncio.ensure_future(self.schedule_weekly_reset.start())
 
     @guilds_commands.command(
         name="max_reroll",
@@ -80,6 +89,12 @@ class Guilds(commands.Cog):
                            display_inactive: Option(bool, description="Display inactive players",
                                                     required=False,
                                                     default=False)):
+        """
+        Displays the current server's/Guilds status
+
+        :param ctx: Context
+        :param display_inactive: Display the inactive players (defined by no logs in the past two weeks)
+        """
         await ctx.defer()
 
         g: PlayerGuild = await get_or_create_guild(ctx.bot.db, ctx.guild_id)
@@ -96,6 +111,14 @@ class Guilds(commands.Cog):
                           role: Option(Role, description="Role to give a stipend for", required=True),
                           ratio: Option(float, description="Ratio of the stipend", required=True),
                           reason: Option(str, description="Reason for the stipend", required=False)):
+        """
+        Add/modify a stipend for a server
+
+        :param ctx: Context
+        :param role: Role for stipend
+        :param ratio: Ratio of weekly cap for the stipend
+        :param reason: Reason for the stipend
+        """
         await ctx.defer()
 
         stipend: RefWeeklyStipend = await get_weekly_stipend(ctx.bot.db, role)
@@ -120,6 +143,12 @@ class Guilds(commands.Cog):
     )
     async def stipend_remove(self, ctx: ApplicationContext,
                              role: Option(Role, description="Role to remove stipend for", required=True)):
+        """
+        Removes a stipend
+
+        :param ctx: Context
+        :param role: Role to remove stipend for
+        """
         await ctx.defer()
 
         stipend: RefWeeklyStipend = await get_weekly_stipend(ctx.bot.db, role)
@@ -133,51 +162,158 @@ class Guilds(commands.Cog):
                 await conn.execute(delete_weekly_stipend(stipend))
 
     @guilds_commands.command(
+        name="schedule_reset",
+        description="Schedules the weekly reset"
+    )
+    async def schedule_reset(self, ctx: ApplicationContext,
+                             day_of_week: Option(str, description="Day of week for the reset", required=True,
+                                                 choices=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
+                                                          "Saturday", "Sunday", "None"]),
+                             hour: Option(int, description="Hour to do the reset in UTC time",
+                                          required=True, min_value=0, max_value=23)):
+        """
+        Sets up the schedule for weekly resets
+
+        :param ctx: Context
+        :param day_of_week: Day of the week
+        :param hour: Hour in UTC time
+        """
+        await ctx.defer()
+
+        g: PlayerGuild = await get_or_create_guild(ctx.bot.db, ctx.guild_id)
+
+        if day_of_week == "None":
+            day = None
+            tm = None
+
+
+        else:
+            if day_of_week == "Monday":
+                day = 0
+            elif day_of_week == "Tuesday":
+                day = 1
+            elif day_of_week == "Wednesday":
+                day = 2
+            elif day_of_week == "Thursday":
+                day = 3
+            elif day_of_week == "Friday":
+                day = 4
+            elif day_of_week == "Saturday":
+                day = 5
+            else:
+                day = 6
+
+            tm = hour
+
+        g.reset_day = day
+        g.reset_hour = tm
+
+        async with ctx.bot.db.acquire() as conn:
+            await conn.execute(update_guild(g))
+
+        await ctx.respond(embed=GuildEmbed(ctx, g))
+
+    @guilds_commands.command(
         name="weekly_reset",
         description="Performs a weekly reset for the server"
     )
     async def guild_weekly_reset(self, ctx: ApplicationContext):
-        start = timer()
+        """
+        Manually trigger the weekly reset for a server.
+
+        :param ctx: Context
+        """
+        await ctx.defer()
+
         g: PlayerGuild = await get_or_create_guild(ctx.bot.db, ctx.guild_id)
+
+        await self.perform_weekly_reset(g)
+        await ctx.respond("Weekly reset manually completed")
+
+    async def perform_weekly_reset(self, g: PlayerGuild):
+        """
+        Primary method for performing a weekly reset for a server
+
+        :param g: PlayerGuild
+        """
+        # Setup
+        start = timer()
         guild_xp = g.week_xp
         player_xp = 0
         player_gold = 0
-        slist = []
+        stipend_list = []
 
+        # Guild updates
         g.server_xp += g.week_xp
         g.week_xp = 0
         g.weeks += 1
+        g.last_reset = datetime.datetime.utcnow()
 
-        async with ctx.bot.db.acquire() as conn:
+        # Reset weekly stats
+        async with self.bot.db.acquire() as conn:
             await conn.execute(update_guild(g))
-            async for row in await conn.execute(get_characters(ctx.guild_id)):
+            async for row in await conn.execute(get_characters(g.id)):
                 if row is not None:
-                    character: PlayerCharacter = CharacterSchema(ctx.bot.compendium).load(row)
+                    character: PlayerCharacter = CharacterSchema(self.bot.compendium).load(row)
                     player_xp += character.div_xp
                     player_gold += character.div_gold
                     character.div_xp = 0
                     character.div_gold = 0
                     await conn.execute(update_character(character))
 
-            print(f"Weekly stats for {ctx.guild.name}: Weekly Server XP = {guild_xp} | Player XP = {player_xp} |"
-                  f" Player gold = {player_gold}")
+            log.info(
+                f"Weekly stats for {self.bot.get_guild(g.id).name} [ {g.id} ]: "
+                f"Weekly Server XP = {guild_xp} | Player XP = {player_xp} | "
+                f"Player gold = {player_gold}")
 
-            async for row in await conn.execute(get_guild_weekly_stipends(ctx.guild_id)):
+            # Stipends
+            async for row in await conn.execute(get_guild_weekly_stipends(g.id)):
                 if row is not None:
                     stipend: RefWeeklyStipend = RefWeeklyStipendSchema().load(row)
-                    slist.append(stipend)
+                    stipend_list.append(stipend)
 
-        if len(slist) > 0:  # TODO: Track duplicate members so they don't get multiple stipends
-            act: Activity = ctx.bot.compendium.get_object("c_activity", "STIPEND")
-            for s in slist:
-                players = [p.id for p in s.get_role(ctx).members]
-                async with ctx.bot.db.acquire() as conn:
-                    async for row in await conn.execute(get_multiple_characters(players, ctx.guild_id)):
-                        if row is not None:
-                            character: PlayerCharacter = CharacterSchema(ctx.bot.compendium).load(row)
-                            cap: LevelCaps = get_level_cap(character, g, ctx.bot.compendium)
-                            await create_logs(ctx, character, act, f"Stipend Role: {s.get_role(ctx).name} - {s.reason}",
-                                              cap.max_gold * s.ratio)
+        if len(stipend_list) > 0:
+            act: Activity = self.bot.compendium.get_object("c_activity", "STIPEND")
+            s_players = []
+            for s in stipend_list:
+                if stipend_role := self.bot.get_guild(g.id).get_role(s.role_id):
+                    players = list(filter(lambda s: s not in s_players, [p.id for p in stipend_role.members]))
+                    async with self.bot.db.acquire() as conn:
+                        async for row in await conn.execute(get_multiple_characters(players, g.id)):
+                            if row is not None:
+                                character: PlayerCharacter = CharacterSchema(self.bot.compendium).load(row)
+                                s_players.append(character.player_id)
+                                cap: LevelCaps = get_level_cap(character, g, self.bot.compendium)
+                                await create_logs(self, character, act,
+                                                  f"Stipend Role: {stipend_role.name} - {s.reason}",
+                                                  cap.max_gold * s.ratio)
+                else:
+                    # Role doesn't exist....
+                    async with self.bot.db.acquire() as conn:
+                        await conn.execute(delete_weekly_stipend(s))
         end = timer()
 
-        await ctx.respond(f"Weekly reset complete in {end - start:.2f} seconds.")
+        # Announce we're all done!
+        if announcement_channel := discord.utils.get(self.bot.get_guild(g.id).channels, name="announcements"):
+            try:
+                await announcement_channel.send(content=f"Weekly reset complete in {end - start:.2f} seconds.")
+            except Exception as error:
+                if isinstance(error, discord.errors.HTTPException):
+                    log.error(f"WEEKLY RESET: Error sending message to announcements channel in "
+                              f"{self.bot.get_guild(g.id).name} [ {g.id} ]")
+                else:
+                    log.error(error)
+
+    # --------------------------- #
+    # Task Helpers
+    # --------------------------- #
+    @tasks.loop(minutes=30)
+    async def schedule_weekly_reset(self):
+        hour = datetime.datetime.utcnow().hour
+        day = datetime.datetime.utcnow().weekday()
+        log.info(f"GUilDS: Checking reset for day {day} and hour {hour}")
+        async with self.bot.db.acquire() as conn:
+            async for row in await conn.execute(get_guilds_with_reset(day, hour)):
+                if row is not None:
+                    g: PlayerGuild = GuildSchema().load(row)
+                    await self.perform_weekly_reset(g)

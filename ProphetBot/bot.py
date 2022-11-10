@@ -6,6 +6,7 @@ from discord.ext import commands
 from timeit import default_timer as timer
 from sqlalchemy.schema import CreateTable
 from ProphetBot.compendium import Compendium
+from ProphetBot.constants import DB_URL
 from ProphetBot.sheets_client import GsheetsClient
 from ProphetBot.models.db_tables import *
 
@@ -30,7 +31,7 @@ class BpBot(commands.Bot):
 
     async def on_ready(self):
         start = timer()
-        self.db = await create_engine(os.environ["DATABASE_URL"])
+        self.db = await create_engine(DB_URL)
         end = timer()
 
         log.info(f"Time to create db engine: {end - start}")

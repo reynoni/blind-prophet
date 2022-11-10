@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 from sqlalchemy.sql.selectable import FromClause
 from sqlalchemy import and_, null
 from ProphetBot.models.db_tables import guilds_table, adventures_table, arenas_table
@@ -8,6 +10,14 @@ def get_guild(guild_id: int) -> FromClause:
     return guilds_table.select().where(
         guilds_table.c.id == guild_id
     )
+
+
+def get_guilds_with_reset(day: int, hour: int) -> FromClause:
+    six_days_ago = datetime.today() - timedelta(days=6)
+    return guilds_table.select().where(
+        and_(guilds_table.c.reset_day == day, guilds_table.c.reset_hour == hour,
+             guilds_table.c.last_reset < six_days_ago)
+    ).order_by(guilds_table.c.id.desc())
 
 
 def insert_new_guild(guild: PlayerGuild):
@@ -28,6 +38,9 @@ def update_guild(guild: PlayerGuild):
         server_xp=guild.server_xp,
         weeks=guild.weeks,
         week_xp=guild.week_xp,
+        reset_day=None if not hasattr(guild, "reset_day") else guild.reset_day,
+        reset_hour=None if not hasattr(guild, "reset_hour") else guild.reset_hour,
+        last_reset=guild.last_reset
     )
 
 
@@ -102,5 +115,3 @@ def select_active_arena_by_channel(channel_id: int) -> FromClause:
     return arenas_table.select().where(
         and_(arenas_table.c.channel_id == channel_id, arenas_table.c.end_ts == null())
     )
-
-

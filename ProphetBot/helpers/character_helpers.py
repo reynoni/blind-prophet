@@ -6,7 +6,8 @@ from discord import ApplicationContext, Member, Bot, Role
 from ProphetBot.compendium import Compendium
 from ProphetBot.models.db_objects import PlayerCharacter, PlayerCharacterClass, PlayerGuild, LevelCaps
 from ProphetBot.models.schemas import CharacterSchema, PlayerCharacterClassSchema
-from ProphetBot.queries import get_log_by_player_and_activity, get_active_character, get_character_class
+from ProphetBot.queries import get_log_by_player_and_activity, get_active_character, get_character_class, \
+    get_character_from_id
 
 
 async def remove_fledgling_role(ctx: ApplicationContext, member: Member, reason: Optional[str]):
@@ -63,6 +64,27 @@ async def get_character(bot: Bot, player_id: int, guild_id: int) -> PlayerCharac
     else:
         character: PlayerCharacter = CharacterSchema(bot.compendium).load(row)
         return character
+
+
+async def get_character_from_char_id(bot: Bot, char_id: int) -> PlayerCharacter | None:
+    """
+    Retrieves the given PlayerCharacter
+
+    :param bot: Bot
+    :param char_id: Character ID
+    :return: PlayerCharacter if found, else None
+    """
+    async with bot.db.acquire() as conn:
+        results = await conn.execute(get_character_from_id(char_id))
+        row = await results.first()
+
+    if row is None:
+        return None
+
+    character: PlayerCharacter = CharacterSchema(bot.compendium).load(row)
+    return character
+
+
 
 
 async def get_player_character_class(bot: Bot, char_id: int) -> List[PlayerCharacterClass] | None:

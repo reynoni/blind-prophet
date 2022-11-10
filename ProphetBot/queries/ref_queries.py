@@ -75,7 +75,7 @@ def update_weekly_stipend(stipend: RefWeeklyStipend) -> TableClause:
 def get_guild_weekly_stipends(guild_id: int) -> FromClause:
     return ref_weekly_stipend_table.select() \
         .where(ref_weekly_stipend_table.c.guild_id == guild_id) \
-        .order_by(ref_weekly_stipend_table.c.role_id.desc())
+        .order_by(ref_weekly_stipend_table.c.ratio.desc())
 
 
 def delete_weekly_stipend(stipend: RefWeeklyStipend) -> TableClause:

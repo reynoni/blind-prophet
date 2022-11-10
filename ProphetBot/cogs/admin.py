@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import logging
 from discord import SlashCommandGroup, Option, ExtensionAlreadyLoaded, ExtensionNotFound, ExtensionNotLoaded, \
     ApplicationContext
@@ -10,6 +11,10 @@ from ProphetBot.bot import BpBot
 
 log = logging.getLogger(__name__)
 
+
+# TODO: Command to modify item
+# TODO: Command to add item
+# TODO: Command to remove item
 
 def setup(bot: commands.Bot):
     bot.add_cog(Admin(bot))
@@ -140,13 +145,13 @@ class Admin(commands.Cog):
                 files.append(file_name[:-3])
         await ctx.respond("\n".join(files))
 
-
     @admin_commands.command(
         name="test"
     )
     async def test(self, ctx: ApplicationContext):
-        test = list(ctx.bot.compendium.c_rarity[1].keys())
-        ctx.respond(f"here")
+        dt = datetime.datetime.utcnow()
+        day = dt.weekday()
+        await ctx.respond(f"dt: {dt} and day {day}")
 
     # --------------------------- #
     # Private Methods

@@ -6,11 +6,12 @@ from ProphetBot.helpers import calc_amt, confirm, get_all_players, global_mod_au
 from ProphetBot.models.db_objects import GlobalEvent, GlobalPlayer, PlayerCharacter
 from ProphetBot.models.embeds import GlobalEmbed
 from discord.commands import SlashCommandGroup
+from ProphetBot.models.schemas import GlobalPlayerSchema
+from ProphetBot.models.sheets_objects import GlobalHost, GlobalModifier
+from ProphetBot.queries import insert_new_global_event, update_global_event, \
+    add_global_player, update_global_player
 
-from ProphetBot.models.schemas import GlobalEventSchema, GlobalPlayerSchema
-from ProphetBot.models.sheets_objects import GlobalHost, GlobalModifier, GlobalEntry
-from ProphetBot.queries import get_active_global, insert_new_global_event, update_global_event, delete_global_event, \
-    add_global_player, update_global_player, delete_global_players
+log = logging.getLogger(__name__)
 
 
 def setup(bot):
@@ -25,7 +26,7 @@ class GlobalEvents(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-        print(f'Cog \'Global\' loaded')
+        log.info(f'Cog \'Global\' loaded')
 
     @global_event_commands.command(
         name="new_event",
@@ -81,6 +82,16 @@ class GlobalEvents(commands.Cog):
                                     choices=GlobalModifier.optionchoice_list(), required=False),
                         combat: Option(bool, description="Indicated if this is a global event or not. If true then "
                                                          "ignores mod", required=False, default=False)):
+        """
+        Updates a GlobalEvent's information
+
+        :param ctx: Context
+        :param gname: GlobalEvent name
+        :param gold: GlobalEvent.base_gold
+        :param xp: GlobalEvent.base_xp
+        :param mod: GlobalEvent.base_mod
+        :param combat: Boolean whether the global is combat focused, if false assumed RP focused.
+        """
         await ctx.defer()
 
         g_event: GlobalEvent = await get_global(ctx.bot, ctx.guild_id)
@@ -138,6 +149,11 @@ class GlobalEvents(commands.Cog):
         description="Purge all global event currently staged"
     )
     async def gb_purge(self, ctx: ApplicationContext):
+        """
+        Clears out the currently stages GlobalEvent and GlobalPlayer
+
+        :param ctx: Context
+        """
         await ctx.defer()
 
         g_event: GlobalEvent = await get_global(ctx.bot, ctx.guild_id)
@@ -159,6 +175,12 @@ class GlobalEvents(commands.Cog):
     )
     async def gb_scrape(self, ctx: ApplicationContext,
                         channel: Option(TextChannel, description="Channel to pull players from", required=True)):
+        """
+        Scrapes over a channel adding non-bot players to the GlobalEvent and gathering statistics
+
+        :param ctx: Context
+        :param channel: TextChannel to scrape
+        """
         await ctx.defer()
 
         g_event: GlobalEvent = await get_global(ctx.bot, ctx.guild_id)
@@ -219,10 +241,20 @@ class GlobalEvents(commands.Cog):
                                           description="Players gold reward. NOTE: This will disable auto-calculation "
                                                       "for a user",
                                           required=False),
-                             exp: Option(int,
-                                         description="Players exp reward. NOTE: This will disable auto-calculation "
-                                                     "for a user",
-                                         required=False)):
+                             xp: Option(int,
+                                        description="Players xp reward. NOTE: This will disable auto-calculation "
+                                                    "for a user",
+                                        required=False)):
+        """
+        Updates or adds a GlobalPlayer to the GlobalEvent
+
+        :param ctx: Context
+        :param player: Member
+        :param mod: GlobalModifier
+        :param host: HostStatus
+        :param gold: Player gold
+        :param xp: Player xp
+        """
         await ctx.defer()
 
         g_event = await get_global(ctx.bot, ctx.guild_id)
@@ -232,14 +264,14 @@ class GlobalEvents(commands.Cog):
 
         g_player: GlobalPlayer = await get_player(ctx.bot, ctx.guild_id, player.id)
 
-        if gold or exp is not None:
+        if gold or xp is not None:
             update = False
         else:
             update = True
 
         if g_player is None:
             bGold = g_event.base_gold if gold is None else gold
-            bExp = g_event.base_xp if exp is None else exp
+            bExp = g_event.base_xp if xp is None else xp
             bMod = g_event.base_mod if mod is None else ctx.bot.compendium.get_object("c_global_modifier", mod)
             bHost = None if host is None else ctx.bot.compendium.get_object("c_host_status", host)
 
@@ -252,7 +284,7 @@ class GlobalEvents(commands.Cog):
                 await conn.execute(add_global_player(g_player))
         else:
             bGold = g_event.base_gold if gold is None else gold
-            bExp = g_event.base_xp if exp is None else exp
+            bExp = g_event.base_xp if xp is None else xp
             bMod = g_event.base_mod if mod is None else ctx.bot.compendium.get_object("c_global_modifier", mod)
             bHost = None if host is None else ctx.bot.compendium.get_object("c_host_status", host)
 
@@ -276,6 +308,12 @@ class GlobalEvents(commands.Cog):
     )
     async def gb_remove(self, ctx: ApplicationContext,
                         player: Option(Member, description="Player to remove from the Global Event", required=True)):
+        """
+        Removes a player from the GlobalEvent
+
+        :param ctx: Context
+        :param player: Member to remove
+        """
         await ctx.defer()
 
         g_event: GlobalEvent = await get_global(ctx.bot, ctx.guild_id)
@@ -306,6 +344,11 @@ class GlobalEvents(commands.Cog):
     async def gb_review(self, ctx: ApplicationContext,
                         gblist: Option(bool, description="Whether to list out all players in the global", required=True,
                                        default=False)):
+        """
+        Review the currently staged GlobalEvent information
+        :param ctx: Context
+        :param gblist: Bool - List all active members
+        """
         await ctx.defer()
 
         g_event: GlobalEvent = await get_global(ctx.bot, ctx.guild_id)
@@ -321,6 +364,11 @@ class GlobalEvents(commands.Cog):
         description="Commits the global rewards"
     )
     async def gb_commit(self, ctx: ApplicationContext):
+        """
+        Commits the GlobalEvent and creates appropriate logs.
+
+        :param ctx: Context
+        """
         await ctx.defer()
 
         g_event: GlobalEvent = await get_global(ctx.bot, ctx.guild_id)
@@ -377,9 +425,9 @@ class GlobalEvents(commands.Cog):
                         inline=False)
 
         embed.add_field(name=f"**How Rewards are calculated**",
-                        value=f"*Combat global* - All players and hosts receive the base gold/exp unless otherwise "
+                        value=f"*Combat global* - All players and hosts receive the base gold/xp unless otherwise "
                               f"modified\n\n"
-                              f"*Non-combat global* - Players will receive base gold/exp * effort modifier capped at"
+                              f"*Non-combat global* - Players will receive base gold/xp * effort modifier capped at"
                               f"a defined maximum per modifier\n"
                               f"__Modifier multipliers:__ High (1.25), Medium (1.00), Low (0.75)\n"
                               f"__Defined maximum:__ High (250), Medium (200), Low (150)\n\n"

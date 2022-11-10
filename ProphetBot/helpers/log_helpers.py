@@ -1,10 +1,12 @@
-from discord import ApplicationContext
+from typing import Any
+
+from discord import ApplicationContext, Bot
 
 from ProphetBot.helpers.entity_helpers import get_or_create_guild
 from ProphetBot.helpers.character_helpers import get_level_cap
-from ProphetBot.models.db_objects import PlayerCharacter, Activity, LevelCaps, PlayerGuild, DBLog
+from ProphetBot.models.db_objects import PlayerCharacter, Activity, LevelCaps, PlayerGuild, DBLog, Adventure
 from ProphetBot.models.schemas import LogSchema
-from ProphetBot.queries import insert_new_log, update_character, update_guild
+from ProphetBot.queries import insert_new_log, update_character, update_guild, get_log_by_id
 
 
 def get_activity_amount(character: PlayerCharacter, activity: Activity, cap: LevelCaps, g: PlayerGuild, gold: int,
@@ -56,8 +58,8 @@ def get_activity_amount(character: PlayerCharacter, activity: Activity, cap: Lev
     return char_gold, char_xp, server_xp
 
 
-async def create_logs(ctx: ApplicationContext, character: PlayerCharacter, activity: Activity, notes: str = None,
-                      gold: int = 0, xp: int = 0) -> DBLog:
+async def create_logs(ctx: ApplicationContext | Any, character: PlayerCharacter, activity: Activity, notes: str = None,
+                      gold: int = 0, xp: int = 0, adventure: Adventure = None) -> DBLog:
     """
     Primary function to create any Activity log
 
@@ -67,15 +69,27 @@ async def create_logs(ctx: ApplicationContext, character: PlayerCharacter, activ
     :param notes: Any notes/reason for the log
     :param gold: Manual override
     :param xp: Manual override
+    :param adventure: Adventure
     :return: DBLog for the character
     """
-    g: PlayerGuild = await get_or_create_guild(ctx.bot.db, ctx.guild_id)
+    if not hasattr(ctx, "guild_id"):
+        guild_id = ctx.bot.get_guild(character.guild_id).id
+    else:
+        guild_id = ctx.guild_id
+
+    if not hasattr(ctx, "author"):
+        author_id = ctx.bot.user.id
+    else:
+        author_id = ctx.author.id
+
+    g: PlayerGuild = await get_or_create_guild(ctx.bot.db, guild_id)
     cap: LevelCaps = get_level_cap(character, g, ctx.bot.compendium)
+    adventure_id = None if adventure is None else adventure.id
 
     char_gold, char_xp, server_xp = get_activity_amount(character, activity, cap, g, gold, xp)
 
-    char_log = DBLog(author=ctx.author.id, xp=char_xp, gold=char_gold, character_id=character.id, activity=activity,
-                     notes=notes)
+    char_log = DBLog(author=author_id, xp=char_xp, gold=char_gold, character_id=character.id, activity=activity,
+                     notes=notes, adventure_id=adventure_id, server_xp=server_xp)
     character.gold += char_gold
     character.xp += char_xp
     g.week_xp += server_xp
@@ -90,6 +104,19 @@ async def create_logs(ctx: ApplicationContext, character: PlayerCharacter, activ
         await conn.execute(update_character(character))
         await conn.execute(update_guild(g))
 
-    log_entry: DBLog = LogSchema(ctx).load(row)
+    log_entry: DBLog = LogSchema(ctx.bot.compendium).load(row)
+
+    return log_entry
+
+
+async def get_log(bot: Bot, log_id: int) -> DBLog | None:
+    async with bot.db.acquire() as conn:
+        results = await conn.execute(get_log_by_id(log_id))
+        row = await results.first()
+
+    if row is None:
+        return None
+
+    log_entry = LogSchema(bot.compendium).load(row)
 
     return log_entry

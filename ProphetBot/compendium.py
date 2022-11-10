@@ -1,6 +1,6 @@
 import asyncio
+import logging
 from timeit import default_timer as timer
-from typing import List
 
 from ProphetBot.models.db_objects.item_objects import ItemBlacksmith, ItemWondrous, ItemConsumable, ItemScroll
 from ProphetBot.models.schemas.category_schema import *
@@ -8,6 +8,8 @@ from ProphetBot.models.schemas.item_schema import ItemBlacksmithSchema, ItemWond
     ItemScrollSchema
 from ProphetBot.queries import get_blacksmith_items, get_wondrous_items, get_consumable_items, get_scroll_items
 from ProphetBot.queries.category_queries import *
+
+log = logging.getLogger(__name__)
 
 
 async def get_table_values(conn, query, obj, schema) -> []:
@@ -69,7 +71,6 @@ class Compendium:
         self.scroll = []
 
     async def reload_categories(self, bot):
-        print(f'Reloading data')
         start = timer()
 
         if not hasattr(bot, "db"):
@@ -109,7 +110,7 @@ class Compendium:
             self.c_shop_tier = await get_table_values(conn, get_c_shop_tiers(), ShopTier, ShopTierSchema())
 
         end = timer()
-        print(f'Categories reloaded into compendium in [ {end - start} ]s')
+        log.info(f'COMPENDIUM: Categories reloaded in [ {end - start:.2f} ]s')
 
     async def load_items(self, bot):
         if not hasattr(bot, "db"):
@@ -127,7 +128,7 @@ class Compendium:
                                                      ItemScrollSchema(self))
 
             end = timer()
-            print(f"Items loaded into compendium in [ {end - start} ]s")
+            log.info(f"COMPENDIUM: Items reloaded in [ {end - start:.2f} ]s")
 
     def get_object(self, node: str, value: str | int = None):
         try:

@@ -8,6 +8,7 @@ class PlayerCharacterClassSchema(Schema):
     character_id = fields.Integer(data_key="character_id", required=True)
     primary_class = fields.Method(None, "load_primary_class")
     subclass = fields.Method(None, "load_subclass", allow_none=True)
+    active = fields.Boolean(data_key="active", required=True)
 
     def __init__(self, compendium, **kwargs):
         super().__init__(**kwargs)
@@ -64,18 +65,23 @@ class GuildSchema(Schema):
     weeks = fields.Integer(data_key="weeks", required=True)
     week_xp = fields.Integer(data_key="week_xp", required=True)
     max_reroll = fields.Integer(data_key="max_reroll", required=True)
+    reset_day = fields.Integer(data_key="reset_day", required=False, allow_none=True)
+    reset_hour = fields.Integer(data_key="reset_hour", required=False, allow_none=True)
+    last_reset = fields.Method(None, "load_timestamp")
 
     @post_load
     def make_guild(self, data, **kwargs):
         return PlayerGuild(**data)
 
+    def load_timestamp(self, value):  # Marshmallow doesn't like loading DateTime for some reason. This is a workaround
+        return value
+
 
 class LogSchema(Schema):
-    ctx: ApplicationContext
-
     id = fields.Integer(data_key="id", required=True)
     author = fields.Integer(data_key="author", required=True)
     xp = fields.Integer(data_key="xp", required=True)
+    server_xp = fields.Integer(data_key="server_xp", required=True)
     gold = fields.Integer(data_key="gold", required=True)
     created_ts = fields.Method(None, "load_timestamp")
     character_id = fields.Integer(data_key="character_id", required=True)
@@ -84,16 +90,16 @@ class LogSchema(Schema):
     shop_id = fields.Integer(data_key="shop_id", required=False, allow_none=True)
     adventure_id = fields.Integer(data_key="adventure_id", required=False, allow_none=True)
 
-    def __init__(self, ctx: ApplicationContext, **kwargs):
+    def __init__(self, compendium, **kwargs):
         super().__init__(**kwargs)
-        self.ctx = ctx
+        self.compendium = compendium
 
     @post_load
     def make_log(self, data, **kwargs):
         return DBLog(**data)
 
     def load_activity(self, value):
-        return self.ctx.bot.compendium.get_object("c_activity", value)
+        return self.compendium.get_object("c_activity", value)
 
     def load_timestamp(self, value):  # Marshmallow doesn't like loading DateTime for some reason. This is a workaround
         return value

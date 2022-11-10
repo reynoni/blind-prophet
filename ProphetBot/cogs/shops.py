@@ -1,4 +1,5 @@
 import bisect
+import logging
 import random
 
 from discord import SlashCommandGroup, ApplicationContext, Member, Option
@@ -9,6 +10,8 @@ from ProphetBot.bot import BpBot
 from ProphetBot.helpers import get_character, create_logs, shop_type_autocomplete, get_or_create_guild, sort_stock
 from ProphetBot.models.db_objects import PlayerCharacter, DBLog, PlayerGuild
 from ProphetBot.models.embeds import ErrorEmbed, DBLogEmbed
+
+log = logging.getLogger(__name__)
 
 
 def setup(bot: commands.Bot):
@@ -21,7 +24,7 @@ class Shops(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        print(f'Cog \'Shops\' loaded')
+        log.info(f'Cog \'Shops\' loaded')
 
     @shop_commands.command(
         name="buy",
@@ -38,7 +41,6 @@ class Shops(commands.Cog):
         character: PlayerCharacter = await get_character(ctx.bot, player.id, ctx.guild_id)
 
         if character is None:
-            print(f"No character information found for player [ {player.id} ], aborting")
             return await ctx.respond(
                 embed=ErrorEmbed(description=f"No character information found for {player.mention}"),
                 ephemeral=True)
@@ -57,16 +59,15 @@ class Shops(commands.Cog):
         descrption="Logs the sale of an item from a player. Not for player establishment sales"
     )
     async def sell_log(self, ctx: ApplicationContext,
-                      player: Option(Member, description="Player who bought the item", required=True),
-                      item: Option(str, description="The item being bought", required=True),
-                      cost: Option(int, description="The cost of the item", min_value=0, max_value=999999,
-                                   required=True)):
+                       player: Option(Member, description="Player who bought the item", required=True),
+                       item: Option(str, description="The item being bought", required=True),
+                       cost: Option(int, description="The cost of the item", min_value=0, max_value=999999,
+                                    required=True)):
         await ctx.defer()
 
         character: PlayerCharacter = await get_character(ctx.bot, player.id, ctx.guild_id)
 
         if character is None:
-            print(f"No character information found for player [ {player.id} ], aborting")
             return await ctx.respond(
                 embed=ErrorEmbed(description=f"No character information found for {player.mention}"),
                 ephemeral=True)
@@ -98,7 +99,8 @@ class Shops(commands.Cog):
             elif inventory_type.upper() in [x.upper() for x in list(ctx.bot.compendium.c_blacksmith_type[1].keys())]:
                 shop = inventory_type.upper()
             else:
-                shop = next((s.value.upper() for s in list(ctx.bot.compendium.c_shop_type[0].values()) if inventory_type in s.synonyms), None)
+                shop = next((s.value.upper() for s in list(ctx.bot.compendium.c_shop_type[0].values()) if
+                             inventory_type in s.synonyms), None)
         else:
             shop = shop.value.upper()
 
@@ -135,7 +137,6 @@ class Shops(commands.Cog):
         table.set_cols_align(['l', 'c', 'l'])
         table.set_cols_valign(['m', 'm', 'm'])
         table.set_cols_width([20, 5, 7])
-
 
         if shop in ["BLACKSMITH", "WEAPON", "ARMOR"]:
             table.header(['Item', 'Qty', 'Cost'])
@@ -224,5 +225,3 @@ class Shops(commands.Cog):
 
         await _paginate(table_str)
         await ctx.delete()
-
-

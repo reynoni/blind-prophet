@@ -1,17 +1,21 @@
 import asyncio
+import logging
 import os
 
 import discord.utils
-from discord import SlashCommandGroup, ApplicationContext, TextChannel, Option, InteractionMessage, Message
+from discord import SlashCommandGroup, ApplicationContext, TextChannel, Option, Message
 from discord.ext import commands, tasks
 
 from ProphetBot.bot import BpBot
+from ProphetBot.constants import DASHBOARD_REFRESH_INTERVAL
 from ProphetBot.helpers import get_dashboard_from_category_channel_id, get_last_message
 from ProphetBot.models.db_objects import RefCategoryDashboard, DashboardType
 from ProphetBot.models.embeds import ErrorEmbed, RpDashboardEmbed
 from ProphetBot.models.schemas import RefCategoryDashboardSchema
 from ProphetBot.queries import insert_new_dashboard, get_dashboards, delete_dashboard, update_dashboard
 from timeit import default_timer as timer
+
+log = logging.getLogger(__name__)
 
 
 def setup(bot: commands.Bot):
@@ -29,6 +33,7 @@ class Dashboards(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         await asyncio.sleep(3.0)
+        log.info(f"Reloading dashboards every {DASHBOARD_REFRESH_INTERVAL} minutes.")
         await self.update_dashboards.start()
 
     @dashboard_commands.command(
@@ -46,6 +51,16 @@ class Dashboards(commands.Cog):
                                                              required=False, default=None),
                                   excluded_channel_5: Option(TextChannel, "The fifth channel to exclude",
                                                              required=False, default=None)):
+        """
+        Creates a RP Dashboard in the channel to show channel availability
+
+        :param ctx: Context
+        :param excluded_channel_1: TextChannel to exclude from the dashboard
+        :param excluded_channel_2: TextChannel to exclude from the dashboard
+        :param excluded_channel_3: TextChannel to exclude from the dashboard
+        :param excluded_channel_4: TextChannel to exclude from the dashboard
+        :param excluded_channel_5: TextChannel to exclude from the dashboard
+        """
 
         await ctx.defer()
 
@@ -87,9 +102,19 @@ class Dashboards(commands.Cog):
     async def dashboard_rp_exclude(self, ctx: ApplicationContext,
                                    excluded_channel: Option(TextChannel, description="Channel to exclude",
                                                             required=True)):
+        """
+        Add a channel to the exclusions list
+
+        :param ctx: Context
+        :param excluded_channel: TextChannel to exclude from the dashboard
+        """
         await ctx.defer()
 
         dashboard: RefCategoryDashboard = await get_dashboard_from_category_channel_id(ctx)
+
+        if dashboard is None:
+            return await ctx.respond(embed=ErrorEmbed(description=f"No dashboard found for this category"),
+                                     ephemeral=True)
 
         dashboard.excluded_channel_ids.append(excluded_channel.id)
 
@@ -100,6 +125,11 @@ class Dashboards(commands.Cog):
         await ctx.respond(f"Exclusion added", ephemeral=True)
 
     async def update_dashboard(self, dashboard: RefCategoryDashboard):
+        """
+        Primary method to update a dashboard
+
+        :param dashboard: RefCategoryDashboard to update
+        """
 
         original_message = await dashboard.get_pinned_post(self.bot)
 
@@ -130,23 +160,18 @@ class Dashboards(commands.Cog):
                 else:
                     channels_dict["In Use"].append(c.mention)
 
-
             category = dashboard.get_category_channel(self.bot)
             await original_message.edit(content='', embed=RpDashboardEmbed(channels_dict, category.name))
-
-
 
     # --------------------------- #
     # Tasks
     # --------------------------- #
-    @tasks.loop(
-        minutes=float(os.environ["DASHBOARD_REFRESH_INTERVAL"]))  #  TODO: Change to get function
+    @tasks.loop(minutes=DASHBOARD_REFRESH_INTERVAL)
     async def update_dashboards(self):
-        print("Starting to update dashboards")
         start = timer()
         async with self.bot.db.acquire() as conn:
             async for row in conn.execute(get_dashboards()):
                 dashboard: RefCategoryDashboard = RefCategoryDashboardSchema().load(row)
                 await self.update_dashboard(dashboard)
         end = timer()
-        print(f"Channel status dashboards updated in [ {end - start} ]s")
+        log.info(f"DASHBOARD: Channel status dashboards updated in [ {end - start:.2f} ]s")

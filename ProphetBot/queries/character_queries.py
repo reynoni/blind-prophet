@@ -12,6 +12,12 @@ def get_active_character(player_id: int, guild_id: int) -> FromClause:
     )
 
 
+def get_character_from_id(char_id: int) -> FromClause:
+    return characters_table.select().where(
+        and_(characters_table.c.id == char_id, characters_table.c.active == True)
+    )
+
+
 def insert_new_character(character: PlayerCharacter):
     return characters_table.insert().values(
         name=character.name,
@@ -53,13 +59,24 @@ def insert_new_class(char_class: PlayerCharacterClass):
         character_id=char_class.character_id,
         primary_class=char_class.primary_class.id,
         subclass=None if not hasattr(char_class.subclass, "id") else char_class.subclass.id,
+        active=char_class.active
+    )
+
+
+def update_class(char_class: PlayerCharacterClass):
+    return character_class_table.update()\
+        .where(character_class_table.c.id == char_class.id) \
+        .values(
+        primary_class=char_class.primary_class.id,
+        subclass=None if not hasattr(char_class.subclass, "id") else char_class.subclass.id,
+        active=char_class.active
     )
 
 
 def get_character_class(char_id: int) -> FromClause:
     return character_class_table.select().where(
-        character_class_table.c.character_id == char_id
-    )
+        and_(character_class_table.c.character_id == char_id, character_class_table.c.active == True)
+    ).order_by(character_class_table.c.id.asc())
 
 
 def get_multiple_characters(players: list[int], guild_id: int) -> FromClause:

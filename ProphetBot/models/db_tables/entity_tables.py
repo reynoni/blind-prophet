@@ -27,6 +27,9 @@ guilds_table = sa.Table(
     Column("weeks", Integer, nullable=False, default=0),
     Column("week_xp", Integer, nullable=False, default=0),
     Column("max_reroll", Integer, nullable=False, default=1),
+    Column("reset_day", Integer, nullable=True),
+    Column("reset_hour", Integer, nullable=True),
+    Column("last_reset", DateTime(timezone=False), nullable=False, default=datetime.utcnow())
 )
 
 characters_table = sa.Table(
@@ -54,6 +57,7 @@ character_class_table = sa.Table(
     Column("character_id", Integer, nullable=False),  # ref: > characters.id
     Column("primary_class", Integer, nullable=False),  # ref: > c_character_class.id
     Column("subclass", Integer, nullable=True),  # ref: > c_character_subclass.id
+    Column("active", BOOLEAN, nullable=False, default=True)
 )
 
 shops_table = sa.Table(
@@ -78,6 +82,7 @@ log_table = sa.Table(
     Column("id", Integer, primary_key=True, autoincrement='auto'),
     Column("author", BigInteger, nullable=False),
     Column("xp", Integer, nullable=True),
+    Column("server_xp", Integer, nullable=True),
     Column("gold", Integer, nullable=True),
     Column("created_ts", DateTime(timezone=False), nullable=False, default=datetime.utcnow),
     Column("character_id", Integer, nullable=False),  # ref: > characters.id

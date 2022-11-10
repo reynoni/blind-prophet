@@ -8,6 +8,7 @@ class PlayerCharacterClass(object):
     character_id: int
     primary_class: CharacterClass
     subclass: CharacterSubclass
+    active: bool
 
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
@@ -68,6 +69,11 @@ class PlayerGuild(object):
         for key, value in kwargs.items():
             setattr(self, key, value)
 
+    def get_reset_day(self):
+        if hasattr(self, "reset_day"):
+            weekDays = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+            return weekDays[self.reset_day]
+
 
 class Adventure(object):
     name: str
@@ -88,6 +94,7 @@ class Adventure(object):
 class DBLog(object):
     author: int
     xp: int
+    server_xp: int
     gold: int
     character_id: int
     activity: Activity

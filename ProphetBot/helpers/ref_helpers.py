@@ -4,7 +4,6 @@ from discord import ApplicationContext, TextChannel, Role
 from discord.ext.commands import Bot
 
 from ProphetBot.compendium import Compendium
-from ProphetBot.constants import GLOBAL_MOD_MAP, GLOBAL_MOD_MAX_MAP
 from ProphetBot.models.db_objects import RefCategoryDashboard, RefWeeklyStipend, GlobalPlayer, GlobalEvent, \
     GlobalModifier, HostStatus
 from ProphetBot.models.schemas import RefCategoryDashboardSchema, RefWeeklyStipendSchema, GlobalPlayerSchema, \
