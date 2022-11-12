@@ -72,13 +72,13 @@ def update_adventure(adventure: Adventure):
 
 def get_adventure_by_category_channel_id(category_channel_id: int) -> FromClause:
     return adventures_table.select().where(
-        adventures_table.c.category_channel_id == category_channel_id
+        and_(adventures_table.c.category_channel_id == category_channel_id, adventures_table.c.end_ts == null())
     )
 
 
 def get_adventure_by_role_id(role_id: int) -> FromClause:
     return adventures_table.select().where(
-        adventures_table.c.role_id == role_id
+        and_(adventures_table.c.role_id == role_id, adventures_table.c.end_ts == null())
     )
 
 

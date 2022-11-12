@@ -89,6 +89,7 @@ class LogSchema(Schema):
     notes = fields.String(data_key="notes", required=False, allow_none=True)
     shop_id = fields.Integer(data_key="shop_id", required=False, allow_none=True)
     adventure_id = fields.Integer(data_key="adventure_id", required=False, allow_none=True)
+    invalid = fields.Boolean(data_key="invalid", required=True)
 
     def __init__(self, compendium, **kwargs):
         super().__init__(**kwargs)

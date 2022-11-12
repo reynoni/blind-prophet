@@ -73,7 +73,8 @@ class HxLogEmbed(Embed):
                     f"**Activity:** {log.activity.value}\n" \
                     f"**Gold:** {log.gold}\n" \
                     f"**XP:** {log.xp}\n" \
-                    f"**Server XP:** {log.server_xp}\n"
+                    f"**Server XP:** {log.server_xp}\n" \
+                    f"**Invalidated?:** {log.invalid}\n"
 
             if log.notes is not None:
                 value += f"**Notes:** {log.notes}"
@@ -82,19 +83,20 @@ class HxLogEmbed(Embed):
 
 
 class DBLogEmbed(Embed):
-    def __init__(self, ctx: ApplicationContext, log_entry: DBLog, character: PlayerCharacter):
+    def __init__(self, ctx: ApplicationContext, log_entry: DBLog, character: PlayerCharacter, show_amounts: bool = True):
         super().__init__(title=f"{log_entry.activity.value} Logged - {character.name}",
                          color=Color.random())
 
         player = character.get_member(ctx)
         description = f"**Player:** {player.mention}\n"
-        if log_entry.gold is not None:
-            description += f"**Gold:** {log_entry.gold}\n"
-        if log_entry.xp is not None:
-            description += f"**Experience:** {log_entry.xp}\n"
-        if log_entry.server_xp is not None:
-            description += f"**Server Experience Contributed:** {log_entry.server_xp}\n"
-        if hasattr(log_entry, "notes"):
+        if show_amounts:
+            if log_entry.gold is not None and log_entry.gold > 0:
+                description += f"**Gold:** {log_entry.gold}\n"
+            if log_entry.xp is not None and log_entry.xp > 0:
+                description += f"**Experience:** {log_entry.xp}\n"
+            if log_entry.server_xp is not None and log_entry.server_xp > 0:
+                description += f"**Server Experience Contributed:** {log_entry.server_xp}\n"
+        if hasattr(log_entry, "notes") and log_entry.notes is not None:
             description += f"**Notes:** {log_entry.notes}\n"
 
         self.description = description
@@ -223,19 +225,10 @@ class GuildEmbed(Embed):
                              f"**Max Rerolls:** {g.max_reroll}",
                        inline=False)
 
-        if hasattr(g, "reset_hour"):
-            now = datetime.datetime.utcnow()
-            day_offset = (g.reset_day - now.weekday() + 7) % 7
-            if g.reset_hour > now.hour and now > g.last_reset:
-                day_offset + 7
-            run_date = now + datetime.timedelta(days=day_offset)
-
-            dt = calendar.timegm(
-                datetime.datetime(run_date.year, run_date.month, run_date.day, g.reset_hour, 0, 0).utctimetuple())
-            last_reset = calendar.timegm(g.last_reset.utctimetuple())
+        if g.reset_hour is not None:
             self.add_field(name="**Reset Schedule**",
-                           value=f"**Approx Next Run:** <t:{dt}>\n"
-                                 f"**Last Reset: ** <t:{last_reset}>")
+                           value=f"**Approx Next Run:** <t:{g.get_next_reset()}>\n"
+                                 f"**Last Reset: ** <t:{g.get_last_reset()}>")
 
 
 class GuildStatus(Embed):
@@ -257,18 +250,9 @@ class GuildStatus(Embed):
                             f"*Inactive defined by no logs in past two calendar weeks*"
 
         if g.reset_hour is not None:
-            now = datetime.datetime.utcnow()
-            day_offset = (g.reset_day - now.weekday() + 7) % 7
-            if g.reset_hour < now.hour and now > g.last_reset:
-                day_offset += 7
-            run_date = now + datetime.timedelta(days=day_offset)
-
-            dt = calendar.timegm(
-                datetime.datetime(run_date.year, run_date.month, run_date.day, g.reset_hour, 0, 0).utctimetuple())
-            last_reset = calendar.timegm(g.last_reset.utctimetuple())
             self.add_field(name="**Reset Schedule**",
-                           value=f"**Approx Next Run:** <t:{dt}>\n"
-                                 f"**Last Reset: ** <t:{last_reset}>")
+                           value=f"**Approx Next Run:** <t:{g.get_next_reset()}>\n"
+                                 f"**Last Reset: ** <t:{g.get_last_reset()}>")
 
         if display_inact and inactive is not None:
             self.add_field(name="Inactive Characters",
@@ -277,7 +261,7 @@ class GuildStatus(Embed):
 
 class BlacksmithItemEmbed(Embed):
     def __init__(self, item: ItemBlacksmith):
-        super().__init__(title=f"{item.name}",
+        super().__init__(title=f"Blacksmith Shop Item - {item.name}",
                          color=Color.random(),
                          description=f"**Type:** {item.sub_type.value}\n"
                                      f"**Rarity:** {item.rarity.value}\n"
@@ -301,7 +285,7 @@ class BlacksmithItemEmbed(Embed):
 
 class MagicItemEmbed(Embed):
     def __init__(self, item: ItemWondrous):
-        super().__init__(title=f"{item.name}",
+        super().__init__(title=f"Magic Shop Item - {item.name}",
                          color=Color.random(),
                          description=f"**Rarity:** {item.rarity.value}\n"
                                      f"**Cost:** {item.cost}gp\n")
@@ -324,7 +308,7 @@ class MagicItemEmbed(Embed):
 
 class ConsumableItemEmbed(Embed):
     def __init__(self, item: ItemConsumable):
-        super().__init__(title=f"{item.name}",
+        super().__init__(title=f"Consumable Shop Item - {item.name}",
                          color=Color.random(),
                          description=f"**Type:** {item.sub_type.value}\n"
                                      f"**Rarity:** {item.rarity.value}\n"
@@ -348,7 +332,7 @@ class ConsumableItemEmbed(Embed):
 
 class ScrollItemEmbed(Embed):
     def __init__(self, item: ItemScroll):
-        super().__init__(title=f"{item.display_name()}",
+        super().__init__(title=f"Consumable Shop Item - {item.display_name()}",
                          color=Color.random(),
                          description=f"**Rarity:** {item.rarity.value}\n"
                                      f"**Cost:** {item.cost}gp\n"

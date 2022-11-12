@@ -46,7 +46,7 @@ class Shops(commands.Cog):
                 ephemeral=True)
 
         if character.gold < cost:
-            return await ctx.respond(embed=ErrorEmbed(description=f"{player.mention} cannot afford the {cost}go cost"))
+            return await ctx.respond(embed=ErrorEmbed(description=f"{player.mention} cannot afford the {cost}gp cost"))
 
         act = ctx.bot.compendium.get_object("c_activity", "BUY")
 
@@ -60,7 +60,7 @@ class Shops(commands.Cog):
     )
     async def sell_log(self, ctx: ApplicationContext,
                        player: Option(Member, description="Player who bought the item", required=True),
-                       item: Option(str, description="The item being bought", required=True),
+                       item: Option(str, description="The item being sold", required=True),
                        cost: Option(int, description="The cost of the item", min_value=0, max_value=999999,
                                     required=True)):
         await ctx.defer()
@@ -119,10 +119,15 @@ class Shops(commands.Cog):
                 filtered_items = list(
                     filter(lambda i: i.cost <= max_cost and i.rarity.id <= rarity_value,
                            items))
+            if len(filtered_items) == 0:
+                return None
 
             stock = dict()
 
-            for i in range(quantity + num_offset):
+            if quantity - num_offset <= 0:
+                return None
+
+            for i in range(quantity - num_offset):
                 rand_item = random.choice(filtered_items)
                 qty = random.randint(1, max_qty if max_qty > 1 else 1)
 
@@ -147,6 +152,10 @@ class Shops(commands.Cog):
                     list(filter(lambda i: i.sub_type == weapon_type, list(ctx.bot.compendium.blacksmith[0].values()))),
                     max_qty=1)
 
+                if weapon_stock is None:
+                    return await ctx.respond(embed=ErrorEmbed(description="No items found matching parameters"),
+                                             ephemeral=True)
+
                 weapon_data = []
                 for i in weapon_stock:
                     weapon = ctx.bot.compendium.get_object("blacksmith", i)
@@ -158,6 +167,10 @@ class Shops(commands.Cog):
                 armor_stock = roll_stock(
                     list(filter(lambda i: i.sub_type == armor_type, list(ctx.bot.compendium.blacksmith[0].values()))),
                     max_qty=1)
+
+                if armor_stock is None:
+                    return await ctx.respond(embed=ErrorEmbed(description="No items found matching parameters"),
+                                             ephemeral=True)
 
                 armor_data = []
                 for i in armor_stock:
@@ -172,9 +185,13 @@ class Shops(commands.Cog):
                 # healing_pots = list(filter(lambda i: 'healing' in i.name.lower(), self.consumable))
                 # potion_stock = roll_stock(healing_pots, 4, 1)
                 potion_stock = {'Potion of Healing': random.randint(1, 4)}
-                potion_stock.update(roll_stock(ctx.bot.compendium.consumable[0].values(), 4, 1))
+                potion_stock.update(roll_stock(list(ctx.bot.compendium.consumable[0].values()), 4, 1))
             else:
-                potion_stock = roll_stock(ctx.bot.compendium.consumable[0].values(), 4, 1)
+                potion_stock = roll_stock(list(ctx.bot.compendium.consumable[0].values()), 4)
+
+            if potion_stock is None:
+                return await ctx.respond(embed=ErrorEmbed(description="No items found matching parameters"),
+                                         ephemeral=True)
 
             potion_data = []
             for p in potion_stock:
@@ -191,6 +208,10 @@ class Shops(commands.Cog):
 
             scroll_stock = roll_stock(list(ctx.bot.compendium.scroll[0].values()), 2)
 
+            if scroll_stock is None:
+                return await ctx.respond(embed=ErrorEmbed(description="No items found matching parameters"),
+                                         ephemeral=True)
+
             scroll_data = []
 
             for s in scroll_stock:
@@ -203,6 +224,10 @@ class Shops(commands.Cog):
             table.header(['Item', 'Qty', 'Cost'])
 
             magic_stock = roll_stock(list(ctx.bot.compendium.wondrous[0].values()), 1)
+
+            if magic_stock is None:
+                return await ctx.respond(embed=ErrorEmbed(description="No items found matching parameters"),
+                                         ephemeral=True)
 
             magic_data = []
             for m in magic_stock:

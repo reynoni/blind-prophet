@@ -31,16 +31,24 @@ async def get_character_quests(bot: Bot, character: PlayerCharacter) -> PlayerCh
     :param character: PlayerCharacter
     :return: Update PlayerCharacter
     """
+
+
+
     async with bot.db.acquire() as conn:
         rp_list = await conn.execute(
             get_log_by_player_and_activity(character.id, bot.compendium.get_object("c_activity", "RP").id))
         arena_list = await conn.execute(
             get_log_by_player_and_activity(character.id,
                                            bot.compendium.get_object("c_activity", "ARENA").id))
+        arena_host_list = await conn.execute(get_log_by_player_and_activity(character.id,
+                                                                            bot.compendium.get_object("c_activity", "ARENA_HOST").id))
 
-    character.completed_rps = rp_list.rowcount if character.get_level() == 1 else rp_list.rowcount - 1 if rp_list.rowcount > 0 else 0
+    rp_count = rp_list.rowcount
+    arena_count = arena_list.rowcount + arena_host_list.rowcount
+
+    character.completed_rps = rp_count if character.get_level() == 1 else rp_count - 1 if rp_count > 0 else 0
     character.needed_rps = 1 if character.get_level() == 1 else 2
-    character.completed_arenas = arena_list.rowcount if character.get_level() == 1 else arena_list.rowcount - 1 if arena_list.rowcount > 0 else 0
+    character.completed_arenas = arena_count if character.get_level() == 1 else arena_count - 1 if arena_count > 0 else 0
     character.needed_arenas = 1 if character.get_level() == 1 else 2
 
     return character
@@ -111,14 +119,13 @@ async def get_player_character_class(bot: Bot, char_id: int) -> List[PlayerChara
 
 def get_faction_roles(compendium: Compendium, player: Member) -> List[Role] | None:
     """
-    Get the associated roles for all factions excluding the default Guild Initiate and Guild Member
+    Get the associated roles for all factions excluding Guild Member
 
     :param compendium: Compendium
     :param player: Member
     :return: List[Roles] if found, else None
     """
     faction_names = [f.value for f in list(compendium.c_faction[0].values())]
-    faction_names.remove("Guild Initiate")
     faction_names.remove("Guild Member")
 
     roles = list(filter(lambda r: r.name in faction_names, player.roles))

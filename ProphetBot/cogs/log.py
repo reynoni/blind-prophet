@@ -1,16 +1,16 @@
 import logging
 
-from discord import SlashCommandGroup, Option, ApplicationContext, Member, Role
+from discord import SlashCommandGroup, Option, ApplicationContext, Member, Role, Embed, Color
 from discord.ext import commands
 
 from ProphetBot.helpers import get_character, create_logs, get_adventure_from_role, get_or_create_guild, get_level_cap, \
-    get_log, get_character_from_char_id, confirm
+    get_log, get_character_from_char_id, confirm, is_admin
 from ProphetBot.bot import BpBot
 from ProphetBot.models.db_objects import PlayerCharacter, Activity, DBLog, Adventure, LevelCaps, PlayerGuild
 from ProphetBot.models.embeds import ErrorEmbed, HxLogEmbed, DBLogEmbed, AdventureEPEmbed
 from ProphetBot.models.schemas import LogSchema, CharacterSchema
 from ProphetBot.queries import get_n_player_logs, get_multiple_characters, update_adventure, update_log, update_guild, \
-    update_character
+    update_character, insert_new_log
 
 log = logging.getLogger(__name__)
 
@@ -86,7 +86,7 @@ class Log(commands.Cog):
 
         log_entry = await create_logs(ctx, character, act)
 
-        await ctx.respond(embed=DBLogEmbed(ctx, log_entry, character))
+        await ctx.respond(embed=DBLogEmbed(ctx, log_entry, character, False))
 
     @log_commands.command(
         name="bonus",
@@ -163,14 +163,18 @@ class Log(commands.Cog):
         name="null",
         description="Nullifies a log"
     )
+    @commands.check(is_admin)
     async def null_log(self, ctx: ApplicationContext,
-                       log_id: Option(int, description="ID of the log to modify", required=True)):
+                       log_id: Option(int, description="ID of the log to modify", required=True),
+                       reason: Option(str, description="Reason for nulling the log", required=True)):
         await ctx.defer()
 
         log_entry: DBLog = await get_log(ctx.bot, log_id)
 
         if log_entry is None:
             return await ctx.respond(embed=ErrorEmbed(description=f"No log found with id [ {log_id} ]"), ephemeral=True)
+        elif log_entry.invalid == True:
+            return await ctx.respond(embed=ErrorEmbed(description=f"Log [ {log_entry.id} ] already invalidated."), ephemeral=True)
         else:
             character: PlayerCharacter = await get_character_from_char_id(ctx.bot, log_entry.character_id)
 
@@ -191,7 +195,6 @@ class Log(commands.Cog):
                 elif not conf:
                     return await ctx.respond(f'Ok, cancelling.', delete_after=10)
 
-                log_entry.activity = ctx.bot.compendium.get_object("c_activity", "MOD")
                 g: PlayerGuild = await get_or_create_guild(ctx.bot.db, ctx.guild_id)
 
                 character.gold -= log_entry.gold
@@ -205,17 +208,58 @@ class Log(commands.Cog):
                 else:
                     g.server_xp -= log_entry.server_xp
 
-                log_entry.xp = 0
-                log_entry.gold = 0
-                log_entry.server_xp = 0
-                if log_entry.notes is None:
-                    log_entry.notes = f"[Nulled by {ctx.author.name}#{ctx.author.discriminator}]"
-                else:
-                    log_entry.notes = log_entry.notes + f" [Nulled by {ctx.author.name}#{ctx.author.discriminator}]"
+                note = f"{log_entry.activity.value} log # {log_entry.id} nulled by " \
+                       f"{ctx.author.name}#{ctx.author.discriminator} for reason: {reason}"
+
+                act = ctx.bot.compendium.get_object("c_activity", "MOD")
+
+                mod_log = DBLog(author=ctx.bot.user.id, xp=-log_entry.xp, gold=-log_entry.gold,
+                                character_id=character.id, activity=act, notes=note, server_xp=-log_entry.server_xp,
+                                invalid=False)
+                log_entry.invalid = True
 
                 async with ctx.bot.db.acquire() as conn:
+                    results = await conn.execute(insert_new_log(mod_log))
+                    row = await results.first()
                     await conn.execute(update_log(log_entry))
                     await conn.execute(update_guild(g))
                     await conn.execute(update_character(character))
 
-                await ctx.respond(embed=DBLogEmbed(ctx, log_entry, character))
+                result_log = LogSchema(ctx.bot.compendium).load(row)
+
+                await ctx.respond(embed=DBLogEmbed(ctx, result_log, character))
+
+    @log_commands.command(
+        name="global",
+        description="Manually log a global event for a character"
+    )
+    async def global_log(self, ctx: ApplicationContext,
+                         player: Option(Member, description="Player receiving the bonus", required=True),
+                         global_name: Option(str, description="The reason for the bonus", required=True),
+                         gold: Option(int, description="The amount of gold", default=0, min_value=0, max_value=2000,
+                                      required=True),
+                         xp: Option(int, description="The amount of xp", default=0, min_value=0, max_value=150,
+                                    required=True)):
+        """
+        Log a global event for a player
+        :param ctx: Context
+        :param player: Member
+        :param global_name: Reason for the bonus
+        :param gold: Amount of gold
+        :param xp: Amount of xp
+        """
+        await ctx.defer()
+
+        character: PlayerCharacter = await get_character(ctx.bot, player.id, ctx.guild_id)
+
+        if character is None:
+            print(f"No character information found for player [ {player.id} ], aborting")
+            return await ctx.respond(
+                embed=ErrorEmbed(description=f"No character information found for {player.mention}"),
+                ephemeral=True)
+
+        act: Activity = ctx.bot.compendium.get_object("c_activity", "GLOBAL")
+
+        log_entry = await create_logs(ctx, character, act, global_name, gold, xp)
+
+        await ctx.respond(embed=DBLogEmbed(ctx, log_entry, character, False))

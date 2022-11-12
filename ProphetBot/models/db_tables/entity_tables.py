@@ -89,7 +89,8 @@ log_table = sa.Table(
     Column("activity", Integer, nullable=False),  # ref: > c_activity.id
     Column("notes", String, nullable=True),
     Column("shop_id", Integer, nullable=True),  # ref: > shops.id
-    Column("adventure_id", Integer, nullable=True)  # ref: > adventures.id
+    Column("adventure_id", Integer, nullable=True),  # ref: > adventures.id
+    Column("invalid", BOOLEAN, nullable=False, default=False)
 )
 
 adventures_table = sa.Table(

@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import os
 import sys
 import traceback
 from os import listdir
@@ -14,9 +13,7 @@ intents = Intents.default()
 intents.members = True
 intents.message_content = True
 
-
-# TODO: Close adventure Role parameter to make it option in channels outside of adventure
-# TODO: Double the cap for player under server max level (get embed, calc_amt)
+# TODO: Error embeds instead of straight ctx.responds for consistency
 
 
 class MyHelpCommand(commands.MinimalHelpCommand):
@@ -71,8 +68,8 @@ async def on_application_command_error(ctx: ApplicationContext, error):
     if hasattr(ctx.command, 'on_error'):
         return
 
-    if isinstance(error, commands.CheckFailure):
-        return await ctx.respond(f'Do not have required permissions for {ctx.command}')
+    if isinstance(error, discord.errors.CheckFailure):
+        return await ctx.respond(f'You do not have required permissions for `{ctx.command}`')
     else:
         log.warning("Error in command: '{}'".format(ctx.command))
         for line in traceback.format_exception(type(error), error, error.__traceback__):
@@ -83,9 +80,10 @@ async def on_application_command_error(ctx: ApplicationContext, error):
 @bot.event
 async def on_application_command(ctx):
     try:
+        params = "".join([f" [{p['name']}: {p['value']}]" for p in ctx.selected_options])
         log.info(
-            "cmd: chan {0.channel} ({0.channel.id}), serv: {0.guild} ({0.guild.id}),"
-            "auth: {0.user} ({0.user.id}): {0.command}".format(ctx)
+            "cmd: chan {0.channel} [{0.channel.id}], serv: {0.guild} [{0.guild.id}],"
+            "auth: {0.user} [{0.user.id}]: {0.command} ".format(ctx) + params
         )
     except AttributeError:
         log.info("Command in PM with {0.message.author} ({0.message.author.id}): {0.message.content}.".format(ctx))

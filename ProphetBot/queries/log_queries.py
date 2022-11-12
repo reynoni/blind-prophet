@@ -17,24 +17,28 @@ def insert_new_log(log: DBLog):
         activity=log.activity.id,
         notes=None if not hasattr(log, "notes") else log.notes,
         shop_id=None if not hasattr(log, "shop_id") else log.shop_id,
-        adventure_id=None if not hasattr(log, "adventure_id") else log.adventure_id
+        adventure_id=None if not hasattr(log, "adventure_id") else log.adventure_id,
+        invalid=log.invalid
     ).returning(log_table)
 
 
 def get_n_player_logs(char_id: int, n: int) -> FromClause:
-    return log_table.select().where(log_table.c.character_id == char_id).order_by(log_table.c.id.desc()).limit(n)
+    return log_table.select()\
+        .where(log_table.c.character_id == char_id)\
+        .order_by(log_table.c.id.desc()).limit(n)
 
 
 def get_two_weeks_logs(char_id: int) -> FromClause:
     two_weeks_ago = datetime.today() - timedelta(days=14)
     return log_table.select().where(
-        and_(log_table.c.character_id == char_id, log_table.c.created_ts > two_weeks_ago)
+        and_(log_table.c.character_id == char_id, log_table.c.created_ts > two_weeks_ago,
+             log_table.c.invalid == False)
     ).order_by(log_table.c.id.desc())
 
 
 def get_log_by_player_and_activity(char_id: int, act_id: int) -> FromClause:
     return log_table.select().where(
-        and_(log_table.c.character_id == char_id, log_table.c.activity == act_id)
+        and_(log_table.c.character_id == char_id, log_table.c.activity == act_id, log_table.c.invalid == False)
     )
 
 
@@ -48,5 +52,6 @@ def update_log(log: DBLog):
         notes=None if not hasattr(log, "notes") else log.notes,
         xp=log.xp,
         server_xp=log.server_xp,
-        gold=log.gold
+        gold=log.gold,
+        invalid=log.invalid
     )

@@ -311,7 +311,7 @@ class Guilds(commands.Cog):
     async def schedule_weekly_reset(self):
         hour = datetime.datetime.utcnow().hour
         day = datetime.datetime.utcnow().weekday()
-        log.info(f"GUilDS: Checking reset for day {day} and hour {hour}")
+        log.info(f"GUIlDS: Checking reset for day {day} and hour {hour}")
         async with self.bot.db.acquire() as conn:
             async for row in await conn.execute(get_guilds_with_reset(day, hour)):
                 if row is not None:

@@ -33,7 +33,11 @@ async def character_subrace_autocomplete(ctx: discord.AutocompleteContext):
 
 
 async def faction_autocomplete(ctx: discord.AutocompleteContext):
-    return [c for c in list(ctx.bot.compendium.c_faction[1].keys()) if c.lower().startswith(ctx.value.lower())
+    slist = [c for c in list(ctx.bot.compendium.c_faction[1].keys())]
+    slist.remove("Guild Initiate")
+    slist.remove("Guild Member")
+    slist.append("None")
+    return [c for c in slist if c.lower().startswith(ctx.value.lower())
             or ctx.value.lower() in c.lower()]
 
 

@@ -54,7 +54,7 @@ async def get_weekly_stipend(db: aiopg.sa.Engine, role: Role) -> RefWeeklyStipen
 
 
 def calc_amt(compendium: Compendium, base: int, pmod: GlobalModifier = None, hostmod: HostStatus = None) -> int:
-    if pmod is None:
+    if pmod is None or (hostmod is not None and hostmod.value.upper() == "HOSTING ONLY"):
         pmod = compendium.get_object("c_global_modifier", "Low")
 
     ratio_adj = 1
@@ -68,7 +68,7 @@ def calc_amt(compendium: Compendium, base: int, pmod: GlobalModifier = None, hos
     else:
         host_addition = 0
 
-    amt = round((base * (pmod.adjustment * ratio_adj)))
+    amt = round(base * (pmod.adjustment * ratio_adj))
 
     if amt > pmod.max:
         amt = pmod.max

@@ -49,9 +49,9 @@ def get_activity_amount(character: PlayerCharacter, activity: Activity, cap: Lev
         xp = reward_xp
 
     # Guild Server Stats
-    if character.xp + xp >= max_xp:
-        char_xp = 0 if max_xp - character.xp < 0 else max_xp - character.xp
-        server_xp = 0 if xp - char_xp < 0 else xp - char_xp
+    if character.xp + reward_xp >= max_xp:
+        char_xp = 0 if max_xp - character.xp + xp < 0 else max_xp - character.xp
+        server_xp = 0 if xp - char_xp < 0 or not activity.diversion else reward_xp
     else:
         char_xp = xp
 
@@ -89,7 +89,7 @@ async def create_logs(ctx: ApplicationContext | Any, character: PlayerCharacter,
     char_gold, char_xp, server_xp = get_activity_amount(character, activity, cap, g, gold, xp)
 
     char_log = DBLog(author=author_id, xp=char_xp, gold=char_gold, character_id=character.id, activity=activity,
-                     notes=notes, adventure_id=adventure_id, server_xp=server_xp)
+                     notes=notes, adventure_id=adventure_id, server_xp=server_xp, invalid=False)
     character.gold += char_gold
     character.xp += char_xp
     g.week_xp += server_xp

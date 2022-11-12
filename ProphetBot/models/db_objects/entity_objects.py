@@ -1,4 +1,6 @@
 import math
+import datetime
+import calendar
 from typing import List
 import discord
 from ProphetBot.models.db_objects.category_objects import *
@@ -74,6 +76,28 @@ class PlayerGuild(object):
             weekDays = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
             return weekDays[self.reset_day]
 
+    def get_next_reset(self):
+        if self.reset_hour is not None:
+            now = datetime.datetime.utcnow()
+            day_offset = (self.reset_day - now.weekday() + 7) % 7
+            test = now - datetime.timedelta(days=6)
+
+            run_date = now + datetime.timedelta(days=day_offset)
+
+            if (self.reset_hour < now.hour and run_date <= now) \
+                    or (run_date < (self.last_reset + datetime.timedelta(days=6))):
+                run_date += datetime.timedelta(days=7)
+
+            dt = calendar.timegm(
+                datetime.datetime(run_date.year, run_date.month, run_date.day, self.reset_hour, 0, 0).utctimetuple())
+
+            return dt
+        else:
+            return None
+
+    def get_last_reset(self):
+        return calendar.timegm(self.last_reset.utctimetuple())
+
 
 class Adventure(object):
     name: str
@@ -101,6 +125,7 @@ class DBLog(object):
     notes: str
     shop_id: int | None
     adventure_id: int | None
+    invalid: bool
 
     def __init__(self, **kwargs):
         for key, value in kwargs.items():

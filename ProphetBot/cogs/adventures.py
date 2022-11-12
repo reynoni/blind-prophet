@@ -8,7 +8,7 @@ from discord.ext import commands
 from ProphetBot.bot import BpBot
 from ProphetBot.helpers import update_dm, get_adventure, get_character, get_adventure_from_role
 from ProphetBot.models.db_objects import Adventure
-from ProphetBot.models.embeds import AdventureCloseEmbed
+from ProphetBot.models.embeds import AdventureCloseEmbed, ErrorEmbed
 from ProphetBot.queries import insert_new_adventure, update_adventure
 
 log = logging.getLogger(__name__)
@@ -20,8 +20,7 @@ def setup(bot: commands.Bot):
 
  # TODO: Add @Spectator role option for view only into all IC channels; @Quester for sign-ups and spectator for viewing
  # TODO: Script for modifing/integrating @Spectator role
- # TODO: Error embeds
- # TODO: Set tier
+ # TODO: Set tier command
 
 class Adventures(commands.Cog):
     bot: BpBot  # Typing annotation for my IDE's sake
@@ -64,7 +63,7 @@ class Adventures(commands.Cog):
             adventure_role = await ctx.guild.create_role(name=role_name, mentionable=True,
                                                          reason=f"Created by {ctx.author.nick} for adventure"
                                                                 f"{adventure_name}")
-            log.info(f"Role {adventure_role} created")
+            log.info(f"ADVENTURE: Role {adventure_role} created")
 
             # Setup role permissions
             category_permissions = dict()
@@ -98,7 +97,7 @@ class Adventures(commands.Cog):
                     send_messages=True
                 )
 
-            log.info('Done creating category permissions and OOC overwrites')
+            log.info('ADVENTURE: Done creating category permissions and OOC overwrites')
 
             new_adventure_category = await ctx.guild.create_category_channel(
                 name=adventure_name,
@@ -143,12 +142,12 @@ class Adventures(commands.Cog):
     @adventure_create.error
     async def create_error(self, ctx, error):
         if isinstance(error, discord.Forbidden):
-            await ctx.send('Error: Bot isn\'t allowed to do that (for some reason)')
+            await ctx.send(embed=ErrorEmbed(description='Error: Bot isn\'t allowed to do that (for some reason)'))
         elif isinstance(error, discord.HTTPException):
-            await ctx.send('Error: Creating new role failed, please try again. If the problem persists, contact '
-                           'the Council')
+            await ctx.send(embed=ErrorEmbed(description='Error: Creating new role failed, please try again. '
+                                                        'If the problem persists, contact the Council'))
         elif isinstance(error, discord.InvalidArgument):
-            await ctx.send(f'Error: Invalid Argument {error}')
+            await ctx.send(embed=ErrorEmbed(description=f'Error: Invalid Argument {error}'))
 
     @adventure_commands.command(
         name="dm_add",
@@ -168,9 +167,10 @@ class Adventures(commands.Cog):
         adventure: Adventure = await get_adventure(ctx.bot, ctx.channel.category_id)
 
         if adventure is None:
-            return await ctx.respond(f"Error: No adventure associated with this channel")
+            return await ctx.respond(embed=ErrorEmbed(description="No adventure associated with this channel"))
         elif dm.id in adventure.dms:
-            return await ctx.respond(f"Error: Player already listed as a DM for this adventure")
+            return await ctx.respond(embed=ErrorEmbed(description="Error: Player already listed as a "
+                                                                  "DM for this adventure"))
         else:
             adventure.dms.append(dm.id)
             adventure_role = adventure.get_adventure_role(ctx)
@@ -248,6 +248,9 @@ class Adventures(commands.Cog):
                             player_3: Option(discord.Member, description="Player to be added", required=False),
                             player_4: Option(discord.Member, description="Player to be added", required=False),
                             player_5: Option(discord.Member, description="Player to be added", required=False),
+                            player_6: Option(discord.Member, description="Player to be added", required=False),
+                            player_7: Option(discord.Member, description="Player to be added", required=False),
+                            player_8: Option(discord.Member, description="Player to be added", required=False),
                             calc_tier: Option(bool, description="Whether to calculate tier when this command runs",
                                               required=False, default=True)):
         """
@@ -260,6 +263,9 @@ class Adventures(commands.Cog):
         :param player_3: Player to add to an adventure
         :param player_4: Player to add to an adventure
         :param player_5: Player to add to an adventure
+        :param player_6: Player to add to an adventure
+        :param player_7: Player to add to an adventure
+        :param player_8: Player to add to an adventure
         :param calc_tier: Recalculate the tier on command run? Default=True
         """
         await ctx.defer()
@@ -267,7 +273,7 @@ class Adventures(commands.Cog):
 
         players = list(set(filter(
             lambda p: p is not None,
-            [player_1, player_2, player_3, player_4, player_5]
+            [player_1, player_2, player_3, player_4, player_5, player_6, player_7, player_8]
         )))
 
         if adventure is None:
@@ -277,9 +283,12 @@ class Adventures(commands.Cog):
         else:
             adventure_role = adventure.get_adventure_role(ctx)
             for player in players:
-                await player.add_roles(adventure_role, reason=f"{player.name} added to role {adventure_role.name} by"
-                                                              f"{ctx.author.name}")
-                await ctx.send(f"{player.mention} added to adventure '{adventure.name}'")
+                if adventure_role in player.roles:
+                    await ctx.send(f"{player.mention} already in adventure '{adventure.name}'")
+                else:
+                    await player.add_roles(adventure_role, reason=f"{player.name} added to role {adventure_role.name} by"
+                                                                  f"{ctx.author.name}")
+                    await ctx.send(f"{player.mention} added to adventure '{adventure.name}'")
 
             # Tier Calculation
         if calc_tier:
@@ -288,6 +297,9 @@ class Adventures(commands.Cog):
             characters = []
             for player in players:
                 characters.append(await get_character(ctx.bot, player.id, ctx.guild_id))
+
+            if len(characters) == 0:
+                return await ctx.respond(f"Error: players don't have characters")
 
             avg_level = mean([c.get_level() for c in characters])
 
@@ -450,7 +462,8 @@ class Adventures(commands.Cog):
             if quester_role := discord.utils.get(ctx.guild.roles, name="Quester"):
                 overwrites[quester_role] = discord.PermissionOverwrite(view_channel=room_view)
                 await ctx.channel.edit(overwrites=overwrites)
-                await ctx.respond(f"{ctx.channel.mention} is now {view} to the {quester_role.mention} role")
+                val = "closed" if view == "close" else "open"
+                await ctx.respond(f"{ctx.channel.mention} is now {val} to the {quester_role.mention} role")
             else:
                 await ctx.respond("Couldn't find the @Quester role")
 

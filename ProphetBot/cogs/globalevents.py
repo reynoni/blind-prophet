@@ -411,6 +411,50 @@ class GlobalEvents(commands.Cog):
         await ctx.respond(embed=embed)
 
     @global_event_commands.command(
+        name="mass_adjust",
+        description="Given a threshold and operator, adjust player modifiers"
+    )
+    async def gb_adjust(self, ctx: ApplicationContext,
+                        threshold: Option(int, description="The threshold of # of messages to meet", required=True),
+                        operator: Option(str,
+                                         description="Above or below the threshold (Threshold is always included <= or >=",
+                                         required=True, choices=["Above", "Below"]),
+                        mod: Option(str, description="Modifier to adjust players to",
+                                    autocomplete=global_mod_autocomplete)):
+        await ctx.defer()
+
+        g_event: GlobalEvent = await get_global(ctx.bot, ctx.guild_id)
+
+        if g_event is None:
+            return await ctx.respond(f'Error: No active global event on this server', ephemeral=True)
+
+        players = await get_all_players(ctx.bot, ctx.guild_id)
+        adj_mod = ctx.bot.compendium.get_object("c_global_modifier", mod)
+
+        for p in players.values():
+            if not p.update:
+                return
+            elif p.host is not None and p.host.value.upper() == "HOSTING ONLY":
+                return
+            else:
+                if operator == "Above":
+                    if p.num_messages >= threshold:
+                        p.modifier = adj_mod
+                elif operator == "Below":
+                    if p.num_messages <= threshold:
+                        p.modifier = adj_mod
+                else:
+                    return
+
+                p.gold = calc_amt(ctx.bot.compendium, g_event.base_gold, p.modifier, p.host)
+                p.xp = calc_amt(ctx.bot.compendium, g_event.base_xp, p.modifier, p.host)
+
+                async with self.bot.db.acquire() as conn:
+                    await conn.execute(update_global_player(p))
+
+        await ctx.respond(embed=GlobalEmbed(ctx, g_event, list(players.values())))
+
+    @global_event_commands.command(
         name="help",
         description="Summary of the global event command group"
     )

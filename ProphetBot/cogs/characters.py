@@ -23,7 +23,6 @@ def setup(bot: commands.Bot):
 class Character(commands.Cog):
     bot: BpBot
     character_admin_commands = SlashCommandGroup("character_admin", "Character administration commands")
-    character_commands = SlashCommandGroup("character", "Character commands for players")
     faction_commands = SlashCommandGroup("faction", "Faction commands")
 
     def __init__(self, bot):
@@ -114,7 +113,7 @@ class Character(commands.Cog):
         await ctx.respond(embed=NewCharacterEmbed(character, player, player_class, log_entry, ctx))
         log.info(f"Time to create character: [ {end - start:.2f} ]s")
 
-    @character_commands.command(
+    @commands.slash_command(
         name="get",
         description="Displays character information for a player's character"
     )
@@ -240,7 +239,7 @@ class Character(commands.Cog):
             await conn.execute(update_character(character))
 
         embed = Embed(title="Update successful!",
-                      description=f"{character.name} now is {character.get_formatted_race()}",
+                      description=f"{character.name}'s race/subrace updated to {character.get_formatted_race()}",
                       color=Color.random())
         embed.set_thumbnail(url=player.display_avatar.url)
 
@@ -289,7 +288,7 @@ class Character(commands.Cog):
                     await conn.execute(update_class(c))
 
                 embed = Embed(title="Update successful!",
-                              description=f"{character.name} now is",
+                              description=f"{character.name} is class(es) updated to",
                               color=Color.random())
                 embed.description += f"\n".join([f" {c.get_formatted_class()}" for c in class_ary])
                 embed.set_thumbnail(url=player.display_avatar.url)
@@ -351,7 +350,7 @@ class Character(commands.Cog):
             class_ary.append(new_class)
 
             embed = Embed(title="Update successful!",
-                          description=f"{character.name} now is",
+                          description=f"{character.name} classes updated to",
                           color=Color.random())
             embed.description += f"\n".join([f" {c.get_formatted_class()}" for c in class_ary])
             embed.set_thumbnail(url=player.display_avatar.url)
@@ -412,7 +411,7 @@ class Character(commands.Cog):
                         await conn.execute(update_class(char_class))
 
             embed = Embed(title="Update successful!",
-                          description=f"{character.name} now is",
+                          description=f"{character.name} classes updated to",
                           color=Color.random())
             embed.description += f"\n".join([f" {c.get_formatted_class()}" for c in class_ary])
             embed.set_thumbnail(url=player.display_avatar.url)
@@ -474,6 +473,16 @@ class Character(commands.Cog):
         if character is None:
             return await ctx.respond(embed=ErrorEmbed(f"No character information found for {player.mention}"),
                                      ephemeral=True)
+        elif faction is None:
+            if current_faction_roles is None:
+                return await ctx.respond(embed=ErrorEmbed(description=f"Player already doesn't belong to a faction."))
+
+            await player.remove_roles(*current_faction_roles, reason=f"Leaving faction")
+            embed = Embed(title="Success!",
+                          description=f"{player.mention} has left their faction!",
+                          color=Color.random())
+            embed.set_thumbnail(url=player.display_avatar.url)
+            return await ctx.respond(embed=embed, ephemeral=True)
         elif not (new_faction_role := discord.utils.get(ctx.guild.roles, name=faction.value)):
             return await ctx.respond(embed=ErrorEmbed(description=f"Faction role with name {faction.value}"
                                                                   f" could not be found"),
