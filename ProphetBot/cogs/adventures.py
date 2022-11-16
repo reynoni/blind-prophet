@@ -1,456 +1,523 @@
+import bisect
+import logging
+from datetime import datetime
+from statistics import mean
 import discord
+from discord import ApplicationContext, Option, SlashCommandGroup, Role
 from discord.ext import commands
-from discord.ext.commands import Greedy
-
 from ProphetBot.bot import BpBot
-from ProphetBot.helpers import *
+from ProphetBot.helpers import update_dm, get_adventure, get_character, get_adventure_from_role
+from ProphetBot.models.db_objects import Adventure
+from ProphetBot.models.embeds import AdventureCloseEmbed, ErrorEmbed
+from ProphetBot.queries import insert_new_adventure, update_adventure
+
+log = logging.getLogger(__name__)
 
 
-def setup(bot):
-    # print('loading_cog')
+def setup(bot: commands.Bot):
     bot.add_cog(Adventures(bot))
 
 
-def clean_room_name(room_name: str):
-    return room_name.strip().replace(' ', '-')
-
-
-def get_dms(adventure_dict):
-    dms = adventure_dict.get('DMs', None)
-    if dms:
-        return str(dms).split(', ')
-    else:
-        return None
-
+ # TODO: Add @Spectator role option for view only into all IC channels; @Quester for sign-ups and spectator for viewing
+ # TODO: Script for modifing/integrating @Spectator role
+ # TODO: Set tier command
 
 class Adventures(commands.Cog):
     bot: BpBot  # Typing annotation for my IDE's sake
+    adventure_commands = SlashCommandGroup("adventure", "Adventure commands")
+    room_commands = SlashCommandGroup("room", "Room commands")
 
     def __init__(self, bot):
         # Setting up some objects
         self.bot = bot
 
-        print(f'Cog \'Adventures\' loaded')
+        log.info(f'Cog \'Adventures\' loaded')
 
-    @commands.command()
-    async def getoverwrites(self, ctx):
-        print(ctx.channel.overwrites)
-
-    @commands.group(
-        name='adventure',
-        aliases=['ad']
+    @adventure_commands.command(
+        name="create",
+        description="Creates a new adventure"
     )
-    async def adventure(self, ctx):
-        if ctx.invoked_subcommand is None:
-            await ctx.send(f'Missing subcommand for `{ctx.prefix}adventure`')
-        # Todo: Maybe make this a way to check active adventures?
+    async def adventure_create(self, ctx: ApplicationContext,
+                               adventure_name: Option(str, description="The name of the adventure as it should show up"
+                                                                       "in the category and channel names",
+                                                      required=True),
+                               role_name: Option(str, description="The name of the Role to be created for adventure"
+                                                                  "participants", required=True),
+                               dm: Option(discord.Member, description="The DM of the adventure. "
+                                                                      "Multiple DM's can be added via the add_dm "
+                                                                      "command", required=True)):
+        """
+        Creates a channel category and role for the adventure, as well as two private channels.
 
-    @adventure.command(
-        name='create',
-        aliases=['c'],
-        brief="Creates a new adventure",
-        help='**@Council/Loremaster only**\n\n'
-             'Creates a channel category and role for the adventure, as well as two private channels.'
-             'Any number of DMs may be specified. These players will be rewarded as (co-)DMs by `a command to be '
-             'added later` and will have access to administrative bot commands.\n\n'
-             '*Args:*\n'
-             '---`adventure_name`: The name of the adventure as it should show up in the category and channel names\n'
-             '---`role_name`: The name of the Role to be created for adventure participants\n'
-             '---`dms`: The DM(s) of the adventure, formatted as an @mention or as a Discord ID. '
-             'Multiple DMs should each be separated by a space.\n'
-             '\n'
-             'Example usage: `>adventure create \"1 Beginner Adventure\" \"Beginners\" @DM1 @DM2`'
-    )
-    @commands.has_any_role('Council', 'Loremaster')
-    async def create(self, ctx, adventure_name: str, role_name: str, dms: Greedy[discord.Member]):
+        :param ctx: Context
+        :param adventure_name: The name of the adventure as it should show up in the category channel
+        :param role_name: The name of the Role to be created for adventure participants
+        :param dm: The DM of the adventure
+        """
+        await ctx.defer()
 
+        # Create the role
         if discord.utils.get(ctx.guild.roles, name=role_name):
-            await ctx.send(f'Error: role `@{role_name}` already exists')
-            return
-        elif len(dms) == 0:
-            await ctx.send(f'Error: one or more DMs must be specified, either by @user mention or Discord ID')
-            return
+            return await ctx.respond(f"Error: role '@{role_name}' already exists")
         else:
             adventure_role = await ctx.guild.create_role(name=role_name, mentionable=True,
-                                                         reason=f'Created by {ctx.author.nick} for adventure '
-                                                                f'{adventure_name}')
-            print(f'Role {adventure_role} created')
+                                                         reason=f"Created by {ctx.author.nick} for adventure"
+                                                                f"{adventure_name}")
+            log.info(f"ADVENTURE: Role {adventure_role} created")
 
-            # Create overwrites for the new category. All channels will be synced to these overwrites
-            category_perms = dict()
-            category_perms[adventure_role] = discord.PermissionOverwrite(view_channel=True, send_messages=True)
+            # Setup role permissions
+            category_permissions = dict()
+            category_permissions[adventure_role] = discord.PermissionOverwrite(view_channel=True, send_messages=True)
             if loremaster_role := discord.utils.get(ctx.guild.roles, name="Loremaster"):
-                category_perms[loremaster_role] = discord.PermissionOverwrite(
-                    view_channel=True,
-                    send_messages=True,
-                )
+                category_permissions[loremaster_role] = discord.PermissionOverwrite(view_channel=True,
+                                                                                    send_messages=True)
             if lead_dm_role := discord.utils.get(ctx.guild.roles, name="Lead DM"):
-                category_perms[lead_dm_role] = discord.PermissionOverwrite(
-                    view_channel=True,
-                    send_messages=True,
-                )
+                category_permissions[lead_dm_role] = discord.PermissionOverwrite(view_channel=True,
+                                                                                 send_messages=True)
             if bots_role := discord.utils.get(ctx.guild.roles, name="Bots"):
-                category_perms[bots_role] = discord.PermissionOverwrite(
-                    view_channel=True,
-                    send_messages=True,
-                )
-            category_perms[ctx.guild.default_role] = discord.PermissionOverwrite(
+                category_permissions[bots_role] = discord.PermissionOverwrite(view_channel=True,
+                                                                              send_messages=True)
+            category_permissions[ctx.guild.default_role] = discord.PermissionOverwrite(
                 view_channel=False,
                 send_messages=False
             )
 
-            # Add DMs to the role & let them manage messages in their channels
-            for dm in dms:
-                await dm.add_roles(adventure_role, reason=f'Creating adventure {adventure_name}')
-                category_perms[dm] = discord.PermissionOverwrite(manage_messages=True)
+            # Add DM to the role and let them manage messages in their channels
+            category_permissions = await update_dm(dm, category_permissions, adventure_role, adventure_name)
+            ic_overwrites = category_permissions.copy()
+            ooc_overwrites = category_permissions.copy()
 
-            quester_role = discord.utils.get(ctx.guild.roles, name='Quester')
-            ic_overwrites = category_perms.copy()
-            ic_overwrites[quester_role] = discord.PermissionOverwrite(
-                view_channel=True
-            )
-            ooc_overwrites = category_perms.copy()
-            ooc_overwrites[quester_role] = discord.PermissionOverwrite(
-                view_channel=True,
-                send_messages=True,
-            )
-            print('Done creating category permissions and OoC overwrites')
+            # Setup the questers
+            if quester_role := discord.utils.get(ctx.guild.roles, name="Quester"):
+                ic_overwrites[quester_role] = discord.PermissionOverwrite(
+                    view_channel=True
+                )
+                ooc_overwrites[quester_role] = discord.PermissionOverwrite(
+                    view_channel=True,
+                    send_messages=True
+                )
 
-            # Create category for the adventure
+            log.info('ADVENTURE: Done creating category permissions and OOC overwrites')
+
             new_adventure_category = await ctx.guild.create_category_channel(
                 name=adventure_name,
-                overwrites=category_perms,
-                reason=f'Creating category for {adventure_name}'
+                overwrites=category_permissions,
+                reason=f"Creating category for {adventure_name}"
             )
 
-            # Create default channels (1 IC, 1 OOC)
             ic_channel = await ctx.guild.create_text_channel(
                 name=adventure_name,
                 category=new_adventure_category,
                 overwrites=ic_overwrites,
                 position=0,
-                reason=f'Creating adventure {adventure_name} IC Room'
+                reason=f"Creating adventure {adventure_name} IC Room"
             )
+
             ooc_channel = await ctx.guild.create_text_channel(
-                name=f'{adventure_name}-ooc',
+                name=f"{adventure_name}-ooc",
                 category=new_adventure_category,
                 overwrites=ooc_overwrites,
                 position=1,
-                reason=f'Creating adventure {adventure_name} OOC Room'
+                reason=f"Creating adventure {adventure_name} OOC Room"
             )
 
-            # Join up the DMs' ids into a Sheets-friendly format & write the row
-            dm_ids = ', '.join([str(dm.id) for dm in dms])
-            self.bot.sheets.adventures_sheet.append_row(
-                [str(adventure_role.id), str(new_adventure_category.id), adventure_name, dm_ids],
-                value_input_option='RAW', insert_data_option='INSERT_ROWS', table_range='A1'
-            )
+            tier = ctx.bot.compendium.get_object("c_adventure_tier", 1)
 
-            dm_mentions = ' '.join([dm.mention for dm in dms])
-            await ooc_channel.send(f'Adventure {adventure_role.mention} successfully created!\n'
-                                   f'**IC Room:** {ic_channel.mention}\n'
-                                   f'**OOC Room:** {ooc_channel.mention}\n\n'
-                                   f'{dm_mentions} - Please ensure that your permissions are correct in these rooms! If'
-                                   f' so, you can start adding players with `{ctx.prefix}adventure add @player(s)`. '
-                                   f'See `{ctx.prefix}help adventure add` for more details.')
-            await ctx.message.delete()
+            adventure = Adventure(name=adventure_name, role_id=adventure_role.id, dms=[dm.id], tier=tier,
+                                  category_channel_id=new_adventure_category.id, ep=0)
 
-    @create.error
+            async with ctx.bot.db.acquire() as conn:
+                await conn.execute(insert_new_adventure(adventure))
+
+            await ooc_channel.send(f"Adventure {adventure.name} successfully created!\n"
+                                   f"Role: {adventure_role.mention}\n"
+                                   f"IC Room: {ic_channel.mention}\n"
+                                   f"OOC Room: {ooc_channel.mention}\n\n"
+                                   f"{dm.mention} - Please ensure your permissions are correct in these rooms! "
+                                   f"If so, you can start adding players with /adventure add\n"
+                                   f"See /adventure help for more details.")
+
+            await ctx.delete()
+
+    @adventure_create.error
     async def create_error(self, ctx, error):
         if isinstance(error, discord.Forbidden):
-            await ctx.send('Error: Bot isn\'t allowed to do that (for some reason)')
+            await ctx.send(embed=ErrorEmbed(description='Error: Bot isn\'t allowed to do that (for some reason)'))
         elif isinstance(error, discord.HTTPException):
-            await ctx.send('Error: Creating new role failed, please try again. If the problem persists, contact '
-                           'the Council')
+            await ctx.send(embed=ErrorEmbed(description='Error: Creating new role failed, please try again. '
+                                                        'If the problem persists, contact the Council'))
         elif isinstance(error, discord.InvalidArgument):
-            await ctx.send(f'Error: Invalid Argument {error}')
-        # else:
-        #     print(error)
-        #     await ctx.send('Something else went wrong?')
+            await ctx.send(embed=ErrorEmbed(description=f'Error: Invalid Argument {error}'))
 
-    @adventure.command(
-        name='add',
-        aliases=['a'],
-        brief="Adds a player to an adventure",
-        help='**Dungeon Master only**\n\n'
-             'Adds a player to an adventure. This command must be run in a channel of the adventure they are being '
-             'added to. Any number of Players may be specified.\n\n'
-             '*Args:*\n'
-             '---`players`: The player(s) to be added, formatted as an @mention or as a Discord ID. '
-             'Multiple players should each be separated by a space.\n'
-             '\n'
-             'Example usage: `>adventure add @Player1 @Player2`'
+    @adventure_commands.command(
+        name="dm_add",
+        description="Add a DM to an adventure. This command must be run in a channel of the adventure."
     )
-    async def add(self, ctx, players: Greedy[discord.Member]):
+    async def adventure_dm_add(self, ctx: ApplicationContext,
+                               dm: Option(discord.Member, description="Player to add as a DM", required=True)):
+        """
+        Adds additional DM's to an existing adventure. This command must be run in a channel of the adventure
+        they are being added to.
 
-        adventure = self._get_adventure_by_channel(ctx)
+        :param ctx: Context
+        :param dm: The DM to add to the adventure
+        """
+        await ctx.defer()
 
-        if str(ctx.author.id) not in get_dms(adventure):
-            await ctx.send('Error: You are not a DM of this adventure, '
-                           'or there is no adventure associated with this channel')
+        adventure: Adventure = await get_adventure(ctx.bot, ctx.channel.category_id)
+
+        if adventure is None:
+            return await ctx.respond(embed=ErrorEmbed(description="No adventure associated with this channel"))
+        elif dm.id in adventure.dms:
+            return await ctx.respond(embed=ErrorEmbed(description="Error: Player already listed as a "
+                                                                  "DM for this adventure"))
         else:
-            adventure_role = discord.utils.get(ctx.guild.roles, id=adventure['Adventure Role ID'])
-            for member in players:
-                await member.add_roles(adventure_role, reason=f'{member.name} added to role {adventure_role.name} '
-                                                              f'by {ctx.author.name}')
-                await ctx.send(f'{member.mention} added to adventure `{adventure_role.name}`')
-            await ctx.message.delete()
+            adventure.dms.append(dm.id)
+            adventure_role = adventure.get_adventure_role(ctx)
+            if adventure_role not in dm.roles:
+                await dm.add_roles(adventure_role, reason=f"Creating adventure {adventure.name}")
 
-    @adventure.command(
-        name='remove',
-        aliases=['r'],
-        brief="Removes a player from an adventure",
-        help='**Dungeon Master only**\n\n'
-             'Removes a player from an adventure. This command must be run in a channel of the adventure they are '
-             'being removed from. Any number of Players may be specified.\n\n'
-             '*Args:*\n'
-             '---`players`: The player(s) to be removed, formatted as an @mention or as a Discord ID. '
-             'Multiple players should each be separated by a space.\n'
-             '\n'
-             'Example usage: `>adventure remove @Player1 @Player2`'
+            category = ctx.channel.category
+            category_permissions = category.overwrites
+            category_permissions[dm] = discord.PermissionOverwrite(manage_messages=True)
+
+            await category.edit(overwrites=category_permissions)
+
+            for c in category.channels:
+                c_permissions = c.overwrites
+                c_permissions[dm] = discord.PermissionOverwrite(manage_messages=True)
+                await c.edit(overwrites=c_permissions)
+
+            async with ctx.bot.db.acquire() as conn:
+                await conn.execute(update_adventure(adventure))
+
+        await ctx.respond(f"Welcome {dm.mention} to the {adventure.name} DM's")
+
+    @adventure_commands.command(
+        name="dm_remove",
+        description="Removes a DM from an adventure. This command must be run in a channel of the adventure."
     )
-    async def remove(self, ctx, players: Greedy[discord.Member]):
-        adventure = self._get_adventure_by_channel(ctx)
+    async def adventure_dm_remove(self, ctx: ApplicationContext,
+                                  dm: Option(discord.Member, description="Player to remove as a DM", required=True)):
+        """
+        Removes a DM from an adventure. This command must be run in a channel of the adventure they are being
+        removed from.
 
-        if str(ctx.author.id) not in get_dms(adventure):
-            await ctx.send('Error: You are not a DM of this adventure, '
-                           'or there is no adventure associated with this channel')
+        :param ctx: Context
+        :param dm: The DM to remove from the adventure
+        """
+        await ctx.defer()
+
+        adventure: Adventure = await get_adventure(ctx.bot, ctx.channel.category_id)
+
+        if adventure is None:
+            return await ctx.respond(f"Error: No adventure associated with this channel")
+        elif dm.id not in adventure.dms:
+            return await ctx.respond(f"Error: Player not listed as a DM")
+        elif len(adventure.dms) == 1:
+            return await ctx.respond(f"Error: Adventure has only 1 DM, please add another before removing")
         else:
-            adventure_role = discord.utils.get(ctx.guild.roles, id=adventure['Adventure Role ID'])
-            for member in players:
-                if adventure_role in member.roles:
-                    await member.remove_roles(adventure_role,
-                                              reason=f'{member.name} removed from role {adventure_role.name}'
-                                                     f' by {ctx.author.name}')
-                    await ctx.send(f'{member.mention} removed from adventure `{adventure_role.name}`')
+            adventure.dms.remove(dm.id)
+            adventure_role = adventure.get_adventure_role(ctx)
+
+            if adventure_role in dm.roles:
+                await dm.remove_roles(adventure_role, reason=f"Removing player as DM from {adventure.name}")
+
+            category = ctx.channel.category
+            category_permissions = category.overwrites
+            del category_permissions[dm]
+            await category.edit(overwrites=category_permissions)
+
+            for c in category.channels:
+                c_permissions = c.overwrites
+                del c_permissions[dm]
+                await c.edit(overwrites=c_permissions)
+
+            async with ctx.bot.db.acquire() as conn:
+                await conn.execute(update_adventure(adventure))
+
+        await ctx.respond(f"Removed {dm.mention} from {adventure.name} DM's")
+
+    @adventure_commands.command(
+        name="add",
+        description="Adds a player to an adventure. This command must be run in a channel of the adventure."
+    )
+    async def adventure_add(self, ctx: ApplicationContext,
+                            player_1: Option(discord.Member, description="Player to be added", required=True),
+                            player_2: Option(discord.Member, description="Player to be added", required=False),
+                            player_3: Option(discord.Member, description="Player to be added", required=False),
+                            player_4: Option(discord.Member, description="Player to be added", required=False),
+                            player_5: Option(discord.Member, description="Player to be added", required=False),
+                            player_6: Option(discord.Member, description="Player to be added", required=False),
+                            player_7: Option(discord.Member, description="Player to be added", required=False),
+                            player_8: Option(discord.Member, description="Player to be added", required=False),
+                            calc_tier: Option(bool, description="Whether to calculate tier when this command runs",
+                                              required=False, default=True)):
+        """
+        Add a player or players to an adventure. This command must be run in a channel of the adventure they are being
+        added to.
+
+        :param ctx: Context
+        :param player_1: Player to add to an adventure
+        :param player_2: Player to add to an adventure
+        :param player_3: Player to add to an adventure
+        :param player_4: Player to add to an adventure
+        :param player_5: Player to add to an adventure
+        :param player_6: Player to add to an adventure
+        :param player_7: Player to add to an adventure
+        :param player_8: Player to add to an adventure
+        :param calc_tier: Recalculate the tier on command run? Default=True
+        """
+        await ctx.defer()
+        adventure: Adventure = await get_adventure(ctx.bot, ctx.channel.category_id)
+
+        players = list(set(filter(
+            lambda p: p is not None,
+            [player_1, player_2, player_3, player_4, player_5, player_6, player_7, player_8]
+        )))
+
+        if adventure is None:
+            return await ctx.respond(f"Error: No adventure associated with this channel")
+        elif ctx.author.id not in adventure.dms:
+            return await ctx.respond(f"Error: You are not a DM of this adventure")
+        else:
+            adventure_role = adventure.get_adventure_role(ctx)
+            for player in players:
+                if adventure_role in player.roles:
+                    await ctx.send(f"{player.mention} already in adventure '{adventure.name}'")
                 else:
-                    await ctx.send(f'Error: {member.mention} not found in role `{adventure_role.name}`')
-            await ctx.message.delete()
+                    await player.add_roles(adventure_role, reason=f"{player.name} added to role {adventure_role.name} by"
+                                                                  f"{ctx.author.name}")
+                    await ctx.send(f"{player.mention} added to adventure '{adventure.name}'")
 
-    # @adventure.guild_only()
-    @adventure.command(
-        name='addroom',
-        aliases=['ar'],
-        brief="Adds a channel to an adventure",
-        help='**Dungeon Master only**\n\n'
-             'Adds a channel to this adventure category. The room name will be automatically formatted to Discord '
-             'channel specifications.\n\n'
-             '*Args:*\n'
-             '---`room_name`: The name of the new room. Spaces will become dashes, and everything will be lowercase.\n'
-             '\n'
-             'Example usage: `>adventure addroom "99 Best Adventure Ever"`'
+            # Tier Calculation
+        if calc_tier:
+            players = list(set(filter(lambda p: p.id not in adventure.dms,
+                                      adventure_role.members)))
+            characters = []
+            for player in players:
+                characters.append(await get_character(ctx.bot, player.id, ctx.guild_id))
+
+            if len(characters) == 0:
+                return await ctx.respond(f"Error: players don't have characters")
+
+            avg_level = mean([c.get_level() for c in characters])
+
+            tier = bisect.bisect([t.avg_level for t in list(ctx.bot.compendium.c_adventure_tier[0].values())],
+                                 avg_level)
+
+            adventure.tier = ctx.bot.compendium.get_object("c_adventure_tier", tier)
+
+            async with ctx.bot.db.acquire() as conn:
+                await conn.execute(update_adventure(adventure))
+
+        await ctx.delete()
+
+    @adventure_commands.command(
+        name="remove",
+        description="Removes a player from an adventure. This command must be run in a channel of the adventure."
     )
-    async def addroom(self, ctx, room_name: str):
-        adventure = self._get_adventure_by_channel(ctx)
+    async def adventure_remove(self, ctx: ApplicationContext,
+                               player: Option(discord.Member, description="Player to be removed", required=True)):
+        """
+        Removes a player from an adventure. This command must be run in a channel of the adventure they are being
+        removed from.
 
-        if str(ctx.author.id) not in get_dms(adventure):
-            await ctx.send('Error: You are not a DM of this adventure, '
-                           'or there is no adventure associated with this channel')
+        :param ctx: Context
+        :param player: Player to remove from the adventure
+        """
+        await ctx.defer()
+
+        adventure: Adventure = await get_adventure(ctx.bot, ctx.channel.category_id)
+
+        if adventure is None:
+            return await ctx.respond(f"Error: No adventure associated with this channel")
+        elif ctx.author.id not in adventure.dms:
+            return await ctx.respond(f"Error: You are not a DM of this adventure")
         else:
-            category = discord.utils.get(ctx.guild.categories, id=adventure['CategoryChannel ID'])
-            new_room = await category.create_text_channel(room_name, reason=f'Additional adventure room created by '
-                                                                            f'{ctx.author.name}')
-            await ctx.send(f'Room {new_room.mention} successfully created by {ctx.author.mention}')
-            await ctx.message.delete()
+            adventure_role = adventure.get_adventure_role(ctx)
+            if adventure_role not in player.roles:
+                return await ctx.respond(f"Error: {player.mention} does not have role '{adventure_role.mention}'")
+            else:
+                await player.remove_roles(adventure_role,
+                                          reason=f"{player.name} removed from role {adventure_role.name}"
+                                                 f" by {ctx.author.name}")
+        await ctx.delete()
 
-    @addroom.error
+    @adventure_commands.command(
+        name="close",
+        descripion="Close out an adventure"
+    )
+    async def adventure_close(self, ctx: ApplicationContext,
+                              role: Option(Role, description="Role of the adventure to close", required=False,
+                                           default=None)):
+        """
+        Marks an adventure as closed, and removes the Role from players
+
+        :param ctx:  Context
+        :param role: Role of the adventure
+        """
+
+        if role is None:
+            adventure: Adventure = await get_adventure(ctx.bot, ctx.channel.category_id)
+        else:
+            adventure: Adventure = await get_adventure_from_role(ctx.bot, role.id)
+
+        if adventure is None and role is None:
+            return await ctx.respond(f"Error: No adventure associated with this channel")
+        elif adventure is None:
+            return await ctx.respond(f"Error: No adventure found for {role.mention}.")
+        elif ctx.author.id not in adventure.dms:
+            return await ctx.respond(f"Error: You are not a DM of this adventure")
+        else:
+            adventure_role = adventure.get_adventure_role(ctx)
+            adventure.end_ts = datetime.utcnow()
+
+            await ctx.respond(embed=AdventureCloseEmbed(ctx, adventure))
+
+            for member in adventure_role.members:
+                await member.remove_roles(adventure_role, reason=f"Adventure completed")
+
+            async with ctx.bot.db.acquire() as conn:
+                await conn.execute(update_adventure(adventure))
+
+    @room_commands.command(
+        name="add_room",
+        description="Adds a channel to this adventure category."
+    )
+    async def room_add(self, ctx: ApplicationContext,
+                       room_name: Option(str, description="The name of the new room. "
+                                                          "Spaces will become dashes and forced lowercase",
+                                         required=True)):
+        """
+        Adds a TextChannel to the adventure Category. This command must be run in the Category the channel is to be
+        added to.
+
+        :param ctx: Context
+        :param room_name: Name of the room to add. This will automatically be formatted to Discord standards
+        """
+        await ctx.defer()
+
+        adventure: Adventure = await get_adventure(ctx.bot, ctx.channel.category_id)
+
+        if adventure is None:
+            return await ctx.respond(f"Error: No adventure associated with this channel")
+        elif ctx.author.id not in adventure.dms:
+            return await ctx.respond(f"Error: You are not a DM of this adventure")
+        else:
+            category = ctx.channel.category
+            new_room = await category.create_text_channel(room_name, reason=f"Additional adventure room created by "
+                                                                            f"{ctx.author.name}")
+            await ctx.respond(f"Room {new_room.mention} successfully created by {ctx.author.mention}")
+
+    @room_add.error
     async def addroom_errors(self, ctx, error):
         if isinstance(error, commands.NoPrivateMessage):
             await ctx.send('Error: Command cannot be used via private messages')
-        print(error)
+        log.error(error)
 
-    @adventure.group(
-        name='room',
-        brief="Command group for editing adventure channels",
-        help='**Dungeon Master only**\n\n'
-             'Command group for editing adventure channels.\n\n'
+    @room_commands.command(
+        name="rename",
+        description="Changes the name of a room"
     )
-    @commands.has_role("Dungeon Master")
-    async def room(self, ctx):
-        if ctx.invoked_subcommand is None:
-            await ctx.send(f'Missing or unrecognized subcommand for `{ctx.prefix}adventure room`')
+    async def room_rename(self, ctx: ApplicationContext,
+                          room_name: Option(str, description="Name to change the room to")):
+        """
+        Renames a TextChannel. This must be run in the room to be renamed.
 
-    @room.command(
-        name='name',
-        aliases=['rename'],
-        brief="Changes the name of a room",
-        help='**Dungeon Master only**\n\n'
-             'Changes the name of the channel this command is run in. The channel name will be automatically '
-             'formatted to Discord channel specifications.\n\n'
-             '*Args:*\n'
-             '---`room_name`: The name of the new room. Spaces will become dashes, and everything will be lowercase.\n'
-             '\n'
-             'Example usage: `>adventure room name "99 Bestest Adventure Ever"`'
-    )
-    async def room_name(self, ctx, room_name: str):
-        adventure = self._get_adventure_by_channel(ctx)
+        :param ctx: Context
+        :param room_name: The name to change the TextChannel name to
+        """
+        await ctx.defer()
 
-        if str(ctx.author.id) not in get_dms(adventure):
-            await ctx.send('Error: You are not a DM of this adventure, '
-                           'or there is no adventure associated with this channel')
-            return
+        adventure: Adventure = await get_adventure(ctx.bot, ctx.channel.category_id)
+
+        if adventure is None:
+            return await ctx.respond(f"Error: No adventure associated with this channel")
+        elif ctx.author.id not in adventure.dms:
+            return await ctx.respond(f"Error: You are not a DM of this adventure")
         else:
             await ctx.channel.edit(name=room_name)
-            await ctx.send(f"Room name changed to {ctx.channel.mention}")
-            await ctx.message.delete()
+            await ctx.respond(f"Room name changed to {ctx.channel.mention}")
 
-    @room.command(
-        name='open',
-        aliases=['show', 'public'],
-        brief="Opens a channel for public viewing",
-        help='**Dungeon Master only**\n\n'
-             'Makes the current channel viewable by `@Quester`s.\n\n'
-             '*Args:*\n'
-             '**None**\n'
-             '\n'
-             'Example usage: `>adventure room show`'
+    # TODO: Allow for posting options as well 'Open view', 'Close view', 'Open post', 'Close post', 'Open all', 'Close all'
+    @room_commands.command(
+        name="view",
+        description="Open or close a channel for public viewing"
     )
-    async def room_public(self, ctx):
-        adventure = self._get_adventure_by_channel(ctx)
+    async def room_open(self, ctx: ApplicationContext,
+                        view: Option(str, description="Open or close the room", choices=['open', 'close'],
+                                     required=True)):
+        await ctx.defer()
 
-        if str(ctx.author.id) not in get_dms(adventure):
-            await ctx.send('Error: You are not a DM of this adventure, '
-                           'or there is no adventure associated with this channel')
-            return
+        adventure: Adventure = await get_adventure(ctx.bot, ctx.channel.category_id)
+
+        if adventure is None:
+            return await ctx.respond(f"Error: No adventure associated with this channel")
+        elif ctx.author.id not in adventure.dms:
+            return await ctx.respond(f"Error: You are not a DM of this adventure")
         else:
             overwrites = ctx.channel.overwrites
-            quester_role = discord.utils.get(ctx.guild.roles, name='Quester')
-            if quester_role:
-                overwrites[quester_role] = discord.PermissionOverwrite(view_channel=True)
+            room_view = True if view.lower() == "open" else False
+            if quester_role := discord.utils.get(ctx.guild.roles, name="Quester"):
+                overwrites[quester_role] = discord.PermissionOverwrite(view_channel=room_view)
                 await ctx.channel.edit(overwrites=overwrites)
-                await ctx.send(f"{ctx.channel.mention} is now viewable by the @Quester role")
-                await ctx.message.delete()
+                val = "closed" if view == "close" else "open"
+                await ctx.respond(f"{ctx.channel.mention} is now {val} to the {quester_role.mention} role")
             else:
-                await ctx.send("Couldn't find @Quester role, weird")
+                await ctx.respond("Couldn't find the @Quester role")
 
-    @room.command(
-        name='close',
-        aliases=['hide', 'private'],
-        brief="Hides a channel from the public",
-        help='**Dungeon Master only**\n\n'
-             'Hides the current channel from `@Quester`s.\n\n'
-             '*Args:*\n'
-             '**None**\n'
-             '\n'
-             'Example usage: `>adventure room close`'
+    @room_commands.command(
+        name="move",
+        description="Moves the current channel within the adventure category."
     )
-    async def room_private(self, ctx):
-        adventure = self._get_adventure_by_channel(ctx)
+    async def room_move(self, ctx: ApplicationContext,
+                        position: Option(str, description="Where to move the room", required=True,
+                                         choices=['top', 'up', 'down', 'bottom'])):
+        """
+        Moves the current TextChannel within the current Category
+        :param ctx: Context
+        :param position: Where to move the Textchannel
+        """
+        await ctx.defer()
 
-        if str(ctx.author.id) not in get_dms(adventure):
-            await ctx.send('Error: You are not a DM of this adventure, '
-                           'or there is no adventure associated with this channel')
-            return
+        adventure: Adventure = await get_adventure(ctx.bot, ctx.channel.category_id)
+
+        if adventure is None:
+            return await ctx.respond(f"Error: No adventure associated with this channel")
+        elif ctx.author.id not in adventure.dms:
+            return await ctx.respond(f"Error: You are not a DM of this adventure")
         else:
-            await ctx.channel.edit(sync_permissions=True)
-            await ctx.send(f"{ctx.channel.mention} is now hidden to @Questers")
-            await ctx.message.delete()
+            category = ctx.channel.category
+            channels = category.channels
+            old_position = channels.index(ctx.channel)
 
-    @room.command(
-        name='move',
-        aliases=['pos'],
-        brief="Changes the position of a channel",
-        help='**Dungeon Master only**\n\n'
-             'Moves the current channel within the adventure category. This may make the channel list jittery for '
-             'a moment, so please use this command sparingly.\n\n'
-             '*Args:*\n'
-             '---`position`: The operation you would like to perform on this room.\n'
-             '------`top` or `t`: Makes this the top channel of the category.\n'
-             '------`up` or `u`: Moves the channel up by one step.\n'
-             '------`down` or `d`: Moves the channel down by one step.\n'
-             '------`bot` or `b`: Makes this the bottom channel of the category.\n'
-             '\n'
-             'Example usage: `>adventure room move top`, `>adventure room move down`, etc'
-    )
-    async def room_move(self, ctx, position: str):
-        adventure = self._get_adventure_by_channel(ctx)
+            match position.lower():
+                case 'top':
+                    if old_position == 0:
+                        return await ctx.respond(f"Error: Channel position is already at top.")
+                    else:
+                        new_position = 0
 
-        if str(ctx.author.id) not in get_dms(adventure):
-            await ctx.send('Error: You are not a DM of this adventure, '
-                           'or there is no adventure associated with this channel')
-            return
-        else:
-            adventure_category = discord.utils.get(ctx.guild.categories, id=adventure['CategoryChannel ID'])
-            channels = adventure_category.text_channels
-            old_pos = channels.index(ctx.channel)
-            '''Set up the channel's new position'''
-            if position.lower() in ['top', 't']:
-                if old_pos == 0:
-                    await ctx.send('Error: Channel position already at top.')
-                    return
-                else:
-                    new_pos = 0
-            elif position.lower() in ['up', 'u']:
-                if old_pos == 0:
-                    await ctx.send('Error: Channel position already at top.')
-                    return
-                else:
-                    new_pos = old_pos - 1
-            elif position.lower() in ['down', 'd']:
-                if old_pos == len(channels) - 1:
-                    await ctx.send('Error: Channel already at the lowest position.')
-                    return
-                else:
-                    new_pos = old_pos + 1
-            elif position.lower() in ['bottom', 'bot', 'b']:
-                if old_pos == len(channels) - 1:
-                    await ctx.send('Error: Channel already at the lowest position.')
-                    return
-                else:
-                    new_pos = len(channels) - 1
-            else:
-                await ctx.send(f"Error: `{position}` is not a valid value for option `{ctx.invoked_with}`.")
-                return
+                case 'up':
+                    if old_position == 0:
+                        return await ctx.respond(f"Error: Channel position is already at top.")
+                    else:
+                        new_position = old_position - 1
+                case 'down':
+                    if old_position == len(channels) - 1:
+                        return await ctx.respond(f"Error: Channel already at the lowest position.")
+                    else:
+                        new_position = old_position + 1
+                case 'bottom':
+                    if old_position == len(channels) - 1:
+                        return await ctx.respond(f"Error: Channel already at the lowest position.")
+                    else:
+                        new_position = len(channels) - 1
 
-            channels.insert(new_pos, channels.pop(old_pos))
+            channels.insert(new_position, channels.pop(old_position))
 
-            for index, channel in enumerate(channels):
-                await channel.edit(position=index)
+            for i, c in enumerate(channels):
+                await c.edit(position=i)
 
-            await ctx.send(f"Channel {ctx.channel.mention} moved to position {new_pos + 1} of {len(channels)}")
-            await ctx.message.delete()
-
-    @adventure.command(
-        name='get_order',
-        hidden=True  # dev command
-    )
-    @commands.has_role('Council')
-    async def get_order(self, ctx):
-        self._get_channel_order(ctx.channel.category)
-
-    @adventure.command(
-        name='status',
-        hidden=True  # Still in dev
-    )
-    async def adventure_status(self, ctx, members: Greedy[discord.Member] = None):
-        adventure = self._get_adventure_by_channel(ctx)
-        adventure_role = discord.utils.get(ctx.guild.roles, id=adventure['Adventure Role ID'])
-        if members:
-            for member in members:
-                if member not in adventure_role.members:
-                    await ctx.send(f'Error: <{member.mention}> not found in <{adventure_role.name}>')
-                    return
-        else:
-            members = adventure_role.members
-
-    # /-------------------------------------\
-    # /--------------Helpers----------------\
-    # /-------------------------------------\
-
-    def _is_dm(self, adventure_role: discord.Role, author: discord.Member):
-        list_of_dicts = self.bot.sheets.adventures_sheet.get_all_records(value_render_option='UNFORMATTED_VALUE')
-        adventure = next(item for item in list_of_dicts if item['Adventure Role ID'] == adventure_role.id)
-        if str(author.id) in str(adventure['DMs']).split(', '):
-            return True
-        return False
-
-    def _get_adventure_by_channel(self, ctx):
-        list_of_dicts = self.bot.sheets.adventures_sheet.get_all_records(value_render_option='UNFORMATTED_VALUE')
-        adventure = next((item for item in list_of_dicts if item['CategoryChannel ID'] == ctx.channel.category_id),
-                         None)
-        return adventure
-
-    def _get_channel_order(self, adventure_category: discord.CategoryChannel):
-        channels = adventure_category.text_channels
-        order = [(channel.name, channel.position) for channel in channels]
-        print(order)
+            await ctx.respond(f"Channel {ctx.channel.mention} moved to position {new_position + 1} of {len(channels)}")
