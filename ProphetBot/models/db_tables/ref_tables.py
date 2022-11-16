@@ -5,9 +5,9 @@ from ProphetBot.models.db_tables.base import metadata
 ref_category_dashboard_table = sa.Table(
     "ref_category_dashboard",
     metadata,
-    Column("category_channel_id", BigInteger, primary_key=True, nullable=False),
+    Column("dashboard_post_id", BigInteger, primary_key=True, nullable=False),
+    Column("category_channel_id", BigInteger, nullable=True),
     Column("dashboard_post_channel_id", BigInteger, nullable=False),
-    Column("dashboard_post_id", BigInteger, nullable=False),
     Column("excluded_channel_ids", sa.ARRAY(BigInteger), nullable=True, default=[]),
     Column("dashboard_type", Integer, nullable=False)  # ref: > c_dashboard_type.id
 )

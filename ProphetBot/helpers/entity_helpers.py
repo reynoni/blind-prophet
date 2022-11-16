@@ -9,12 +9,13 @@ from discord import ApplicationContext, Member, Role, Bot, Client
 from texttable import Texttable
 
 from ProphetBot.compendium import Compendium
-from ProphetBot.models.db_objects import PlayerGuild, PlayerCharacter, Adventure, Arena
+from ProphetBot.models.db_objects import PlayerGuild, PlayerCharacter, Adventure, Arena, PlayerCharacterClass
 from ProphetBot.models.embeds import ArenaStatusEmbed
-from ProphetBot.models.schemas import GuildSchema, CharacterSchema, AdventureSchema, ArenaSchema
+from ProphetBot.models.schemas import GuildSchema, CharacterSchema, AdventureSchema, ArenaSchema, \
+    PlayerCharacterClassSchema
 from ProphetBot.queries import get_guild, insert_new_guild, get_adventure_by_category_channel_id, \
     get_arena_by_channel, get_multiple_characters, update_arena, get_adventure_by_role_id, get_characters, \
-    get_two_weeks_logs
+    get_logs_in_past, get_character_class
 
 
 async def get_or_create_guild(db: aiopg.sa.Engine, guild_id: int) -> PlayerGuild:
@@ -228,7 +229,7 @@ async def end_arena(ctx: ApplicationContext, arena: Arena):
     await ctx.respond("Arena closed. This channel is now free for use")
 
 
-async def get_guild_character_stats(bot: Bot, guild_id: int):
+async def get_guild_character_summary_stats(bot: Bot, guild_id: int):
     inactive = []
     chars = []
     total = 0
@@ -243,7 +244,7 @@ async def get_guild_character_stats(bot: Bot, guild_id: int):
     if len(chars) > 0:
         for c in chars:
             async with bot.db.acquire() as conn:
-                results = await conn.execute(get_two_weeks_logs(c.id))
+                results = await conn.execute(get_logs_in_past(c.id))
                 row = await results.first()
 
             if row is None:
@@ -253,6 +254,65 @@ async def get_guild_character_stats(bot: Bot, guild_id: int):
         inactive = None
 
     return total, inactive
+
+
+async def get_guild_character_census_stats(bot: Bot, guild_id: int):
+    races = dict()
+    classes = dict()
+    race_data = []
+    class_data = []
+
+    # Setup our census dicts
+    for race in bot.compendium.c_character_race[0].values():
+        subraces = dict()
+        subraces['None'] = 0
+        subraces["Total"] = 0
+
+        for subrace in list(filter(lambda s: s.parent == race.id, bot.compendium.c_character_subrace[0].values())):
+            subraces[subrace.value] = 0
+        races[race.value] = subraces
+
+    for cl in bot.compendium.c_character_class[0].values():
+        subclasses = dict()
+        subclasses['None'] = 0
+        subclasses["Total"] = 0
+
+        for subclass in list(filter(lambda s: s.parent == cl.id, bot.compendium.c_character_subclass[0].values())):
+            subclasses[subclass.value] = 0
+        classes[cl.value] = subclasses
+
+    async with bot.db.acquire() as conn:
+        async for row in await conn.execute(get_characters(guild_id)):
+            if row is not None:
+                character: PlayerCharacter = CharacterSchema(bot.compendium).load(row)
+                races[character.race.value]["Total"] += 1
+
+                if character.subrace is None:
+                    races[character.race.value]["None"] += 1
+                else:
+                    races[character.race.value][character.subrace.value] += 1
+
+                async for line in await conn.execute(get_character_class(character.id)):
+                    if line is not None:
+                        char_class: PlayerCharacterClass = PlayerCharacterClassSchema(bot.compendium).load(line)
+                        classes[char_class.primary_class.value]["Total"] += 1
+
+                        if char_class.subclass is None:
+                            classes[char_class.primary_class.value]["None"] += 1
+                        else:
+                            classes[char_class.primary_class.value][char_class.subclass.value] += 1
+
+    for k, v in races.items():
+        race_data.append([f"**{k}**", str(races[k]['Total'])])
+        for sr in v:
+            race_data.append([f"\u200b{sr}", str(races[k][sr])])
+
+    for k, v in classes.items():
+        class_data.append([f"**{k}**", str(classes[k]['Total'])])
+        for sc in v:
+            class_data.append([f"\u200b{sc}", str(classes[k][sc])])
+
+    return race_data, class_data
 
 
 def build_table(matches, result_map, headers):

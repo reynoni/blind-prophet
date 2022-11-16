@@ -3,13 +3,12 @@ import os
 from typing import Dict
 
 # Bot Configuration Stuff
-BOT_OWNERS = [286360249659817984, 208388527401074688, 225752877316964352]
+BOT_OWNERS = json.loads(os.environ["BOT_OWNERS"]) if "BOT_OWNERS" in os.environ else None
+ADMIN_GUILDS = json.loads(os.environ["ADMIN_GUILDS"]) if "ADMIN_GUILDS" in os.environ else None
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
 DEFAULT_PREFIX = os.environ.get("COMMAND_PREFIX", ">")
 DEBUG_GUILDS = json.loads(os.environ["GUILD"]) if "GUILD" in os.environ else None
 DASHBOARD_REFRESH_INTERVAL = float(os.environ.get("DASHBOARD_REFRESH_INTERVAL", 15))
-
-
 
 # Database Stuff
 DB_URL = os.environ.get("DATABASE_URL", "")

@@ -6,7 +6,7 @@ from ProphetBot.bot import BpBot
 from discord.ext import commands, tasks
 from timeit import default_timer as timer
 from ProphetBot.helpers import get_or_create_guild, get_weekly_stipend, create_logs, \
-    get_guild_character_stats, get_level_cap
+    get_guild_character_summary_stats, get_level_cap
 from ProphetBot.models.embeds import GuildEmbed, GuildStatus
 from ProphetBot.models.schemas import CharacterSchema, RefWeeklyStipendSchema, GuildSchema
 from ProphetBot.queries import update_guild, get_characters, update_character, insert_weekly_stipend, \
@@ -59,6 +59,29 @@ class Guilds(commands.Cog):
         await ctx.respond(embed=GuildEmbed(ctx, g))
 
     @guilds_commands.command(
+        name="set_xp",
+        description="Override the server's current XP"
+    )
+    async def set_guild_xpl(self, ctx: ApplicationContext,
+                            amount: Option(int, description="XP Amount to set", required=True)):
+        """
+        Sets the current server XP
+
+        :param ctx: Context
+        :param amount: XP amount to set
+        """
+
+        await ctx.defer()
+
+        g: PlayerGuild = await get_or_create_guild(ctx.bot.db, ctx.guild_id)
+
+        g.server_xp = amount
+        async with self.bot.db.acquire() as conn:
+            await conn.execute(update_guild(g))
+
+        await ctx.respond(embed=GuildEmbed(ctx, g))
+
+    @guilds_commands.command(
         name="max_level",
         description="Set the maximum character level for the server. Default is 3"
     )
@@ -99,7 +122,7 @@ class Guilds(commands.Cog):
 
         g: PlayerGuild = await get_or_create_guild(ctx.bot.db, ctx.guild_id)
 
-        total, inactive = await get_guild_character_stats(ctx.bot, ctx.guild_id)
+        total, inactive = await get_guild_character_summary_stats(ctx.bot, ctx.guild_id)
 
         await ctx.respond(embed=GuildStatus(ctx, g, total, inactive, display_inactive))
 

@@ -113,4 +113,5 @@ class GlobalEmbed(Embed):
 
         if gblist:
             self.add_field(name="**All active players (gold, xp, # posts)**",
-                           value="\n".join(f"\u200b {p.get_name(ctx)} ({p.gold}, {p.xp}, {p.num_messages})" for p in active_players))
+                           value="\n".join(f"\u200b {p.get_name(ctx)} ({p.gold}, {p.xp}, {p.num_messages})" for p in
+                                           active_players))

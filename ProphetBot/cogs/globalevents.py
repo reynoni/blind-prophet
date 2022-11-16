@@ -289,7 +289,7 @@ class GlobalEvents(commands.Cog):
             bHost = None if host is None else ctx.bot.compendium.get_object("c_host_status", host)
 
             g_player.gold = calc_amt(ctx.bot.compendium, bGold, bMod, bHost) if update and not g_event.combat else bGold
-            g_player.exp = calc_amt(ctx.bot.compendium, bExp, bMod, bHost) if update and not g_event.combat else bExp
+            g_player.xp = calc_amt(ctx.bot.compendium, bExp, bMod, bHost) if update and not g_event.combat else bExp
             g_player.modifier = bMod
             g_player.host = bHost
             g_player.update = update
@@ -432,19 +432,13 @@ class GlobalEvents(commands.Cog):
         adj_mod = ctx.bot.compendium.get_object("c_global_modifier", mod)
 
         for p in players.values():
-            if not p.update:
-                return
-            elif p.host is not None and p.host.value.upper() == "HOSTING ONLY":
-                return
-            else:
+            if p.update and ((p.host is not None and p.host.value.upper() != "HOSTING ONLY") or p.host is None):
                 if operator == "Above":
                     if p.num_messages >= threshold:
                         p.modifier = adj_mod
                 elif operator == "Below":
                     if p.num_messages <= threshold:
                         p.modifier = adj_mod
-                else:
-                    return
 
                 p.gold = calc_amt(ctx.bot.compendium, g_event.base_gold, p.modifier, p.host)
                 p.xp = calc_amt(ctx.bot.compendium, g_event.base_xp, p.modifier, p.host)

@@ -6,6 +6,8 @@ from discord import SlashCommandGroup, Option, ExtensionAlreadyLoaded, Extension
 from discord.ext import commands, tasks
 from gspread.exceptions import APIError
 from os import listdir
+
+from ProphetBot.constants import ADMIN_GUILDS
 from ProphetBot.helpers import is_owner
 from ProphetBot.bot import BpBot
 
@@ -22,7 +24,7 @@ def setup(bot: commands.Bot):
 
 class Admin(commands.Cog):
     bot: BpBot  # Typing annotation for my IDE's sake
-    admin_commands = SlashCommandGroup("admin", "Bot administrative commands")
+    admin_commands = SlashCommandGroup("admin", "Bot administrative commands", guild_ids=ADMIN_GUILDS)
 
     def __init__(self, bot):
         self.bot = bot

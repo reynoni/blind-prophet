@@ -28,10 +28,10 @@ def get_n_player_logs(char_id: int, n: int) -> FromClause:
         .order_by(log_table.c.id.desc()).limit(n)
 
 
-def get_two_weeks_logs(char_id: int) -> FromClause:
-    two_weeks_ago = datetime.today() - timedelta(days=14)
+def get_logs_in_past(char_id: int) -> FromClause:
+    lookback = datetime.today() - timedelta(days=30)
     return log_table.select().where(
-        and_(log_table.c.character_id == char_id, log_table.c.created_ts > two_weeks_ago,
+        and_(log_table.c.character_id == char_id, log_table.c.created_ts > lookback,
              log_table.c.invalid == False)
     ).order_by(log_table.c.id.desc())
 

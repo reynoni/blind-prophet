@@ -3,7 +3,8 @@ from discord.ext import commands
 
 from ProphetBot.bot import BpBot
 from ProphetBot.helpers import item_autocomplete
-from ProphetBot.models.embeds import BlacksmithItemEmbed, MagicItemEmbed, ConsumableItemEmbed, ScrollItemEmbed
+from ProphetBot.models.embeds import BlacksmithItemEmbed, MagicItemEmbed, ConsumableItemEmbed, ScrollItemEmbed, \
+    ErrorEmbed
 
 
 def setup(bot: commands.Bot):
@@ -43,6 +44,6 @@ class Items(commands.Cog):
         elif item_record := ctx.bot.compendium.get_object("scroll", item):
             embed = ScrollItemEmbed(item_record)
         else:
-            await ctx.respond(f"Item not found")
+            return await ctx.respond(embed=ErrorEmbed(description=f"Item not found"))
 
         await ctx.respond(embed=embed)

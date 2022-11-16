@@ -131,7 +131,7 @@ class DBLog(object):
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-    def get_author(self, ctx: ApplicationContext) -> discord.Member:
+    def get_author(self, ctx: ApplicationContext) -> discord.Member | None:
         return discord.utils.get(ctx.guild.members, id=self.author)
 
 

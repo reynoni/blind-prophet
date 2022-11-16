@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import os
 
 import discord.utils
 from discord import SlashCommandGroup, ApplicationContext, TextChannel, Option, Message
@@ -92,7 +91,6 @@ class Dashboards(commands.Cog):
         async with ctx.bot.db.acquire() as conn:
             await conn.execute(insert_new_dashboard(dashboard))
 
-        print("RP dashboard created")
         await self.update_dashboard(dashboard)
 
     @dashboard_commands.command(
@@ -133,7 +131,7 @@ class Dashboards(commands.Cog):
 
         original_message = await dashboard.get_pinned_post(self.bot)
 
-        if original_message is None:
+        if original_message is None or not original_message.pinned:
             async with self.bot.db.acquire() as conn:
                 return await conn.execute(delete_dashboard(dashboard))
 

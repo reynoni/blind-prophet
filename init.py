@@ -83,7 +83,7 @@ async def on_application_command(ctx):
         params = "".join([f" [{p['name']}: {p['value']}]" for p in ctx.selected_options])
         log.info(
             "cmd: chan {0.channel} [{0.channel.id}], serv: {0.guild} [{0.guild.id}],"
-            "auth: {0.user} [{0.user.id}]: {0.command} ".format(ctx) + params
+            " auth: {0.user} [{0.user.id}]: {0.command} ".format(ctx) + params
         )
     except AttributeError:
         log.info("Command in PM with {0.message.author} ({0.message.author.id}): {0.message.content}.".format(ctx))

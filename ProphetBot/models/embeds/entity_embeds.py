@@ -1,5 +1,4 @@
 import calendar
-import datetime
 from typing import List
 
 import discord
@@ -68,8 +67,9 @@ class HxLogEmbed(Embed):
         for log in log_ary:
             log_time = log.created_ts
             unix_timestamp = calendar.timegm(log_time.utctimetuple())
+            author = log.get_author(ctx).mention if log.get_author(ctx) is not None else "`Not found`"
 
-            value = f"**Author:** {log.get_author(ctx).mention}\n" \
+            value = f"**Author:** {author}\n" \
                     f"**Activity:** {log.activity.value}\n" \
                     f"**Gold:** {log.gold}\n" \
                     f"**XP:** {log.xp}\n" \
@@ -247,7 +247,7 @@ class GuildStatus(Embed):
 
         self.description += f"\n**Total Characters:** {total}\n" \
                             f"**Inactive Characters:** {in_count}\n" \
-                            f"*Inactive defined by no logs in past two calendar weeks*"
+                            f"*Inactive defined by no logs in past 30 days*"
 
         if g.reset_hour is not None:
             self.add_field(name="**Reset Schedule**",
@@ -261,11 +261,12 @@ class GuildStatus(Embed):
 
 class BlacksmithItemEmbed(Embed):
     def __init__(self, item: ItemBlacksmith):
-        super().__init__(title=f"Blacksmith Shop Item - {item.name}",
+        super().__init__(title=f"{item.name}",
                          color=Color.random(),
                          description=f"**Type:** {item.sub_type.value}\n"
                                      f"**Rarity:** {item.rarity.value}\n"
-                                     f"**Cost:** {item.display_cost()}gp\n")
+                                     f"**Cost:** {item.display_cost()} gp\n"
+                                     f"**Shop:** Blacksmith\n")
 
         if item.attunement:
             self.description += f"**Attunement Required:** Yes\n"
@@ -285,10 +286,11 @@ class BlacksmithItemEmbed(Embed):
 
 class MagicItemEmbed(Embed):
     def __init__(self, item: ItemWondrous):
-        super().__init__(title=f"Magic Shop Item - {item.name}",
+        super().__init__(title=f"{item.name}",
                          color=Color.random(),
                          description=f"**Rarity:** {item.rarity.value}\n"
-                                     f"**Cost:** {item.cost}gp\n")
+                                     f"**Cost:** {item.cost} gp\n"
+                                     f"**Shop:** Magic Items\n")
 
         if item.attunement:
             self.description += f"**Attunement Required:** Yes\n"
@@ -308,11 +310,12 @@ class MagicItemEmbed(Embed):
 
 class ConsumableItemEmbed(Embed):
     def __init__(self, item: ItemConsumable):
-        super().__init__(title=f"Consumable Shop Item - {item.name}",
+        super().__init__(title=f"{item.name}",
                          color=Color.random(),
                          description=f"**Type:** {item.sub_type.value}\n"
                                      f"**Rarity:** {item.rarity.value}\n"
-                                     f"**Cost:** {item.cost}gp\n")
+                                     f"**Cost:** {item.cost} gp\n"
+                                     f"**Shop:** Consumables\n")
 
         if item.attunement:
             self.description += f"**Attunement Required:** Yes\n"
@@ -332,14 +335,16 @@ class ConsumableItemEmbed(Embed):
 
 class ScrollItemEmbed(Embed):
     def __init__(self, item: ItemScroll):
-        super().__init__(title=f"Consumable Shop Item - {item.display_name()}",
+        super().__init__(title=f"{item.display_name()}",
                          color=Color.random(),
-                         description=f"**Rarity:** {item.rarity.value}\n"
-                                     f"**Cost:** {item.cost}gp\n"
-                                     f"**Schools:** {item.school.value}\n")
+                         description=f"**Type:** Scroll\n"
+                                     f"**Rarity:** {item.rarity.value}\n"
+                                     f"**Cost:** {item.cost} gp\n"
+                                     f"**School:** {item.school.value}\n"
+                                     f"**Shop:** Consumables\n")
 
         if len(item.classes) > 0:
-            self.description = f"**Classes:** "
+            self.description += f"**Classes:** "
             self.description += ", ".join([f"{c.value}" for c in item.classes])
 
         if item.notes is not None:

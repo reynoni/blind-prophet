@@ -1,5 +1,4 @@
 import logging
-import os
 import aiopg.sa
 from aiopg.sa import create_engine
 from discord.ext import commands
@@ -41,4 +40,3 @@ class BpBot(commands.Bot):
 
         log.info(f"Logged in as {self.user} (ID: {self.user.id})")
         log.info("------")
-
