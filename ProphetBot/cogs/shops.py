@@ -27,58 +27,6 @@ class Shops(commands.Cog):
         log.info(f'Cog \'Shops\' loaded')
 
     @shop_commands.command(
-        name="buy",
-        description="Logs the sale of an item to a player"
-    )
-    async def buy_log(self, ctx: ApplicationContext,
-                      player: Option(Member, description="Player who bought the item", required=True),
-                      item: Option(str, description="The item being bought", required=True),
-                      cost: Option(int, description="The cost of the item", min_value=0, max_value=999999,
-                                   required=True)):
-
-        await ctx.defer()
-
-        character: PlayerCharacter = await get_character(ctx.bot, player.id, ctx.guild_id)
-
-        if character is None:
-            return await ctx.respond(
-                embed=ErrorEmbed(description=f"No character information found for {player.mention}"),
-                ephemeral=True)
-
-        if character.gold < cost:
-            return await ctx.respond(embed=ErrorEmbed(description=f"{player.mention} cannot afford the {cost}gp cost"))
-
-        act = ctx.bot.compendium.get_object("c_activity", "BUY")
-
-        log_entry: DBLog = await create_logs(ctx, character, act, item, -cost)
-
-        await ctx.respond(embed=DBLogEmbed(ctx, log_entry, character))
-
-    @shop_commands.command(
-        name="sell",
-        descrption="Logs the sale of an item from a player. Not for player establishment sales"
-    )
-    async def sell_log(self, ctx: ApplicationContext,
-                       player: Option(Member, description="Player who bought the item", required=True),
-                       item: Option(str, description="The item being sold", required=True),
-                       cost: Option(int, description="The cost of the item", min_value=0, max_value=999999,
-                                    required=True)):
-        await ctx.defer()
-
-        character: PlayerCharacter = await get_character(ctx.bot, player.id, ctx.guild_id)
-
-        if character is None:
-            return await ctx.respond(
-                embed=ErrorEmbed(description=f"No character information found for {player.mention}"),
-                ephemeral=True)
-
-        act = ctx.bot.compendium.get_object("c_activity", "SELL")
-
-        log_entry: DBLog = await create_logs(ctx, character, act, item, cost)
-
-        await ctx.respond(embed=DBLogEmbed(ctx, log_entry, character))
-
-    @shop_commands.command(
         name="inventory",
         description="Roll inventory"
     )
@@ -182,8 +130,6 @@ class Shops(commands.Cog):
             table.header(['Item', 'Qty', 'Cost'])
 
             if quantity > 1:
-                # healing_pots = list(filter(lambda i: 'healing' in i.name.lower(), self.consumable))
-                # potion_stock = roll_stock(healing_pots, 4, 1)
                 potion_stock = {'Potion of Healing': random.randint(1, 4)}
                 potion_stock.update(roll_stock(list(ctx.bot.compendium.consumable[0].values()), 4, 1))
             else:

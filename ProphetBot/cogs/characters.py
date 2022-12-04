@@ -6,7 +6,7 @@ from discord import SlashCommandGroup, Option, ApplicationContext, Member, Embed
 from discord.ext import commands
 from ProphetBot.bot import BpBot
 from ProphetBot.helpers import remove_fledgling_role, get_character_quests, get_character, get_player_character_class, \
-    create_logs, get_faction_roles, get_level_cap, get_or_create_guild, confirm
+    create_logs, get_faction_roles, get_level_cap, get_or_create_guild, confirm, is_admin
 from ProphetBot.helpers.autocomplete_helpers import *
 from ProphetBot.models.db_objects import PlayerCharacter, PlayerCharacterClass, DBLog, Faction, LevelCaps, PlayerGuild
 from ProphetBot.models.embeds import ErrorEmbed, NewCharacterEmbed, CharacterGetEmbed
@@ -110,8 +110,8 @@ class Character(commands.Cog):
 
         await remove_fledgling_role(ctx, player, "Character created")
         end = timer()
-        await ctx.respond(embed=NewCharacterEmbed(character, player, player_class, log_entry, ctx))
         log.info(f"Time to create character: [ {end - start:.2f} ]s")
+        return await ctx.respond(embed=NewCharacterEmbed(character, player, player_class, log_entry, ctx))
 
     @commands.slash_command(
         name="get",
@@ -422,6 +422,7 @@ class Character(commands.Cog):
         name="inactivate",
         description="Marks a character as inactive on the server."
     )
+    @commands.check(is_admin)
     async def character_inactivate(self, ctx: ApplicationContext,
                                    player: Option(Member, description="Player to inactivate character for.",
                                                   required=True)):

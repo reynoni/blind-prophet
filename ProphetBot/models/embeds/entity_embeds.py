@@ -83,7 +83,8 @@ class HxLogEmbed(Embed):
 
 
 class DBLogEmbed(Embed):
-    def __init__(self, ctx: ApplicationContext, log_entry: DBLog, character: PlayerCharacter, show_amounts: bool = True):
+    def __init__(self, ctx: ApplicationContext, log_entry: DBLog, character: PlayerCharacter,
+                 show_amounts: bool = True):
         super().__init__(title=f"{log_entry.activity.value} Logged - {character.name}",
                          color=Color.random())
 
@@ -183,6 +184,34 @@ class AdventureEPEmbed(Embed):
         self.set_thumbnail(url=THUMBNAIL)
         self.set_footer(text=f"Logged by {ctx.author.name}#{ctx.author.discriminator}",
                         icon_url=ctx.author.display_avatar.url)
+
+
+class AdventureStatusEmbed(Embed):
+    def __init__(self, ctx: ApplicationContext, adventure: Adventure):
+        super().__init__(
+            title=f"Adventure Status - {adventure.name}",
+            description=f"**Adventure Role:** {adventure.get_adventure_role(ctx).mention}\n"
+                        f"**EP Earned to date:** {adventure.ep}\n",
+            color=Color.random()
+        )
+
+        dms = list(set(filter(lambda p: p.id in adventure.dms, adventure.get_adventure_role(ctx).members)))
+        players = list(set(filter(lambda p: p.id not in adventure.dms, adventure.get_adventure_role(ctx).members)))
+
+        if len(dms) > 0:
+            self.add_field(
+                name="DM(s)",
+                value="\n".join([f"\u200b - {p.mention}" for p in dms]),
+                inline=False
+            )
+        if len(players) > 0:
+            self.add_field(
+                name="Players",
+                value="\n".join([f"\u200b - {p.mention}" for p in players]),
+                inline=False
+            )
+
+        self.set_thumbnail(url=THUMBNAIL)
 
 
 class AdventureCloseEmbed(Embed):

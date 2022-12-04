@@ -6,9 +6,9 @@ import discord
 from discord import ApplicationContext, Option, SlashCommandGroup, Role
 from discord.ext import commands
 from ProphetBot.bot import BpBot
-from ProphetBot.helpers import update_dm, get_adventure, get_character, get_adventure_from_role
+from ProphetBot.helpers import update_dm, get_adventure, get_character, get_adventure_from_role, is_admin
 from ProphetBot.models.db_objects import Adventure
-from ProphetBot.models.embeds import AdventureCloseEmbed, ErrorEmbed
+from ProphetBot.models.embeds import AdventureCloseEmbed, ErrorEmbed, AdventureStatusEmbed
 from ProphetBot.queries import insert_new_adventure, update_adventure
 
 log = logging.getLogger(__name__)
@@ -171,6 +171,9 @@ class Adventures(commands.Cog):
         elif dm.id in adventure.dms:
             return await ctx.respond(embed=ErrorEmbed(description="Error: Player already listed as a "
                                                                   "DM for this adventure"))
+        elif ctx.author.id not in adventure.dms and not is_admin(ctx):
+            return await ctx.respond(embed=ErrorEmbed(description="Error: You either need to be the DM for this "
+                                                                  "adventure or Council to do this."))
         else:
             adventure.dms.append(dm.id)
             adventure_role = adventure.get_adventure_role(ctx)
@@ -216,6 +219,9 @@ class Adventures(commands.Cog):
             return await ctx.respond(f"Error: Player not listed as a DM")
         elif len(adventure.dms) == 1:
             return await ctx.respond(f"Error: Adventure has only 1 DM, please add another before removing")
+        elif ctx.author.id not in adventure.dms and not is_admin(ctx):
+            return await ctx.respond(embed=ErrorEmbed(f"Error: You need to be the DM for this advernture or "
+                                                      f"Council to do this."))
         else:
             adventure.dms.remove(dm.id)
             adventure_role = adventure.get_adventure_role(ctx)
@@ -381,6 +387,26 @@ class Adventures(commands.Cog):
             async with ctx.bot.db.acquire() as conn:
                 await conn.execute(update_adventure(adventure))
 
+    @adventure_commands.command(
+        name="status",
+        description="Adventure status"
+    )
+    async def adventure_status(self, ctx: ApplicationContext,
+                               role: Option(Role, description="Role of the adventure if not ran in an Adventure Channel",
+                                            required=False, default=None)):
+
+        if role is None:
+            adventure: Adventure = await get_adventure(ctx.bot, ctx.channel.category_id)
+        else:
+            adventure: Adventure = await get_adventure_from_role(ctx.bot, role.id)
+
+        if adventure is None and role is None:
+            return await ctx.respond(f"Error: No adventure associated with this channel")
+        elif adventure is None:
+            return await ctx.respond(f"Error: No adventure found for {role.mention}.")
+
+        return await ctx.respond(embed=AdventureStatusEmbed(ctx, adventure))
+
     @room_commands.command(
         name="add_room",
         description="Adds a channel to this adventure category."
@@ -454,7 +480,7 @@ class Adventures(commands.Cog):
 
         if adventure is None:
             return await ctx.respond(f"Error: No adventure associated with this channel")
-        elif ctx.author.id not in adventure.dms:
+        elif ctx.author.id not in adventure.dms and not is_admin(ctx):
             return await ctx.respond(f"Error: You are not a DM of this adventure")
         else:
             overwrites = ctx.channel.overwrites

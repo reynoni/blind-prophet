@@ -125,6 +125,7 @@ class Log(commands.Cog):
         name="ep",
         description="Grants adventure rewards to the players of a given adventure role"
     )
+    @commands.check(is_admin)
     async def ep_log(self, ctx: ApplicationContext,
                      role: Option(Role, description="The adventure role to get rewards", required=True),
                      ep: Option(int, description="The number of EP to give rewards for")):
@@ -174,7 +175,8 @@ class Log(commands.Cog):
         if log_entry is None:
             return await ctx.respond(embed=ErrorEmbed(description=f"No log found with id [ {log_id} ]"), ephemeral=True)
         elif log_entry.invalid == True:
-            return await ctx.respond(embed=ErrorEmbed(description=f"Log [ {log_entry.id} ] already invalidated."), ephemeral=True)
+            return await ctx.respond(embed=ErrorEmbed(description=f"Log [ {log_entry.id} ] already invalidated."),
+                                     ephemeral=True)
         else:
             character: PlayerCharacter = await get_character_from_char_id(ctx.bot, log_entry.character_id)
 
@@ -263,3 +265,55 @@ class Log(commands.Cog):
         log_entry = await create_logs(ctx, character, act, global_name, gold, xp)
 
         await ctx.respond(embed=DBLogEmbed(ctx, log_entry, character, False))
+
+    @log_commands.command(
+        name="buy",
+        description="Logs the sale of an item to a player"
+    )
+    async def buy_log(self, ctx: ApplicationContext,
+                      player: Option(Member, description="Player who bought the item", required=True),
+                      item: Option(str, description="The item being bought", required=True),
+                      cost: Option(int, description="The cost of the item", min_value=0, max_value=999999,
+                                   required=True)):
+
+        await ctx.defer()
+
+        character: PlayerCharacter = await get_character(ctx.bot, player.id, ctx.guild_id)
+
+        if character is None:
+            return await ctx.respond(
+                embed=ErrorEmbed(description=f"No character information found for {player.mention}"),
+                ephemeral=True)
+
+        if character.gold < cost:
+            return await ctx.respond(embed=ErrorEmbed(description=f"{player.mention} cannot afford the {cost}gp cost"))
+
+        act = ctx.bot.compendium.get_object("c_activity", "BUY")
+
+        log_entry: DBLog = await create_logs(ctx, character, act, item, -cost)
+
+        await ctx.respond(embed=DBLogEmbed(ctx, log_entry, character))
+
+    @log_commands.command(
+        name="sell",
+        description="Logs the sale of an item from a player. Not for player establishment sales"
+    )
+    async def sell_log(self, ctx: ApplicationContext,
+                       player: Option(Member, description="Player who bought the item", required=True),
+                       item: Option(str, description="The item being sold", required=True),
+                       cost: Option(int, description="The cost of the item", min_value=0, max_value=999999,
+                                    required=True)):
+        await ctx.defer()
+
+        character: PlayerCharacter = await get_character(ctx.bot, player.id, ctx.guild_id)
+
+        if character is None:
+            return await ctx.respond(
+                embed=ErrorEmbed(description=f"No character information found for {player.mention}"),
+                ephemeral=True)
+
+        act = ctx.bot.compendium.get_object("c_activity", "SELL")
+
+        log_entry: DBLog = await create_logs(ctx, character, act, item, cost)
+
+        await ctx.respond(embed=DBLogEmbed(ctx, log_entry, character))

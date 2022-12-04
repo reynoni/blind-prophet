@@ -107,9 +107,6 @@ class Admin(commands.Cog):
                     self.bot.load_extension(f'ProphetBot.cogs.{ext}')
             await ctx.respond("All cogs reloaded")
             await self._reload_sheets(ctx)
-        elif str(cog).upper() in ['SHEETS', 'SHEET']:  # TODO: Remove this once we get rid of GSheets
-            await self._reload_sheets(ctx)
-            await ctx.respond(f'Done')
         elif str(cog).upper() in ['DB', 'COMPENDIUM']:
             await self._reload_DB(ctx)
             await ctx.respond(f'Done')
@@ -158,17 +155,6 @@ class Admin(commands.Cog):
     # --------------------------- #
     # Private Methods
     # --------------------------- #
-
-    async def _reload_sheets(self, ctx):
-        await ctx.trigger_typing()
-        try:
-            self.bot.sheets.reload()
-        except APIError as e:
-            await ctx.send(f"Error opening BPdia sheet(s)\n\n"
-                           f"**Details:**\n"
-                           f"{e}")
-            return
-        await ctx.send("Connection to BPdia reloaded")
 
     async def _reload_DB(self, ctx):
         await self.bot.compendium.reload_categories(self.bot)
