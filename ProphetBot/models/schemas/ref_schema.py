@@ -20,6 +20,7 @@ class RefWeeklyStipendSchema(Schema):
     guild_id = fields.Integer(data_key="guild_id", required=True)
     ratio = fields.Float(data_key="ratio", required=True)
     reason = fields.String(data_key="reason", required=False, allow_none=True)
+    leadership = fields.Boolean(data_key="leadership", required=True)
 
     @post_load
     def make_stipend(self, data, **kwargs):

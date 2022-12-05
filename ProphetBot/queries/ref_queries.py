@@ -58,7 +58,8 @@ def insert_weekly_stipend(stipend: RefWeeklyStipend) -> TableClause:
         role_id=stipend.role_id,
         guild_id=stipend.guild_id,
         ratio=stipend.ratio,
-        reason=stipend.reason
+        reason=stipend.reason,
+        leadership=stipend.leadership
     )
 
 
@@ -68,7 +69,8 @@ def update_weekly_stipend(stipend: RefWeeklyStipend) -> TableClause:
         role_id=stipend.role_id,
         guild_id=stipend.guild_id,
         ratio=stipend.ratio,
-        reason=stipend.reason
+        reason=stipend.reason,
+        leadership=stipend.leadership
     )
 
 

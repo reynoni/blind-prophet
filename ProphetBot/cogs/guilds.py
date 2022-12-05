@@ -133,7 +133,9 @@ class Guilds(commands.Cog):
     async def stipend_add(self, ctx: ApplicationContext,
                           role: Option(Role, description="Role to give a stipend for", required=True),
                           ratio: Option(float, description="Ratio of the stipend", required=True),
-                          reason: Option(str, description="Reason for the stipend", required=False)):
+                          reason: Option(str, description="Reason for the stipend", required=False),
+                          leadership: Option(bool, description="Note if this is a leadership stipend. "
+                                                               "These will not stack", required=False, default=False)):
         """
         Add/modify a stipend for a server
 
@@ -141,13 +143,15 @@ class Guilds(commands.Cog):
         :param role: Role for stipend
         :param ratio: Ratio of weekly cap for the stipend
         :param reason: Reason for the stipend
+        :param leadership: Whether or not this stipend is for a leadership position
         """
         await ctx.defer()
 
         stipend: RefWeeklyStipend = await get_weekly_stipend(ctx.bot.db, role)
 
         if stipend is None:
-            stipend = RefWeeklyStipend(role_id=role.id, ratio=ratio, guild_id=ctx.guild_id, reason=reason)
+            stipend = RefWeeklyStipend(role_id=role.id, ratio=ratio, guild_id=ctx.guild_id, reason=reason,
+                                       leadership=leadership)
             async with ctx.bot.db.acquire() as conn:
                 await conn.execute(insert_weekly_stipend(stipend))
         elif stipend.guild_id != ctx.guild_id:
@@ -155,6 +159,7 @@ class Guilds(commands.Cog):
         else:
             stipend.ratio = ratio
             stipend.reason = stipend.reason if reason is None else reason
+            stipend.leadership = leadership
             async with ctx.bot.db.acquire() as conn:
                 await conn.execute(update_weekly_stipend(stipend))
 
@@ -183,6 +188,8 @@ class Guilds(commands.Cog):
         else:
             async with ctx.bot.db.acquire() as conn:
                 await conn.execute(delete_weekly_stipend(stipend))
+
+        return await ctx.respond(f"Stipend for {role.mention} removed", ephemeral=True)
 
     @guilds_commands.command(
         name="schedule_reset",
@@ -296,16 +303,21 @@ class Guilds(commands.Cog):
                     stipend_list.append(stipend)
 
         if len(stipend_list) > 0:
+            stipend_list.sort(key=lambda s: s.ratio, reverse=True)
             act: Activity = self.bot.compendium.get_object("c_activity", "STIPEND")
             s_players = []
             for s in stipend_list:
                 if stipend_role := self.bot.get_guild(g.id).get_role(s.role_id):
-                    players = list(filter(lambda s: s not in s_players, [p.id for p in stipend_role.members]))
+                    if s.leadership:
+                        players = list(filter(lambda s: s not in s_players, [p.id for p in stipend_role.members]))
+                    else:
+                        players = [p.id for p in stipend_role.members]
                     async with self.bot.db.acquire() as conn:
                         async for row in await conn.execute(get_multiple_characters(players, g.id)):
                             if row is not None:
                                 character: PlayerCharacter = CharacterSchema(self.bot.compendium).load(row)
-                                s_players.append(character.player_id)
+                                if s.leadership:
+                                    s_players.append(character.player_id)
                                 cap: LevelCaps = get_level_cap(character, g, self.bot.compendium)
                                 await create_logs(self, character, act,
                                                   f"Stipend Role: {stipend_role.name} - {s.reason}",

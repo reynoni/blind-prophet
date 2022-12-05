@@ -18,7 +18,8 @@ ref_weekly_stipend_table = sa.Table(
     Column("role_id", BigInteger, primary_key=True, nullable=False),
     Column("guild_id", BigInteger, nullable=False),  # ref: > guilds.id
     Column("ratio", Numeric(precision=5, scale=2), nullable=False),
-    Column("reason", String, nullable=True)
+    Column("reason", String, nullable=True),
+    Column("leadership", BOOLEAN, nullable=False, default=False)
 )
 
 ref_gb_staging_table = sa.Table(
