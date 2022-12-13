@@ -208,5 +208,9 @@ class GlobalEmbed(Embed):
                            inline=False)
 
         if gblist:
-            self.add_field(name="**All active players (gold, exp)**",
-                           value="\n".join(f"\u200b {p.get_name(ctx)} ({p.gold}, {p.exp})" for p in aPlayers))
+            a_players = [aPlayers[i:i + 20] for i in range(0, len(aPlayers), 20)]
+
+            for p_list in a_players:
+                self.add_field(name="**All active players (gold, exp)**",
+                               value="\n".join(f"\u200b {p.get_name(ctx)} ({p.gold}, {p.exp})" for p in p_list),
+                               inline=False)
