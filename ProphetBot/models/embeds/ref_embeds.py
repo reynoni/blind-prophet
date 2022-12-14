@@ -112,6 +112,12 @@ class GlobalEmbed(Embed):
                            inline=False)
 
         if gblist:
-            self.add_field(name="**All active players (gold, xp, # posts)**",
-                           value="\n".join(f"\u200b {p.get_name(ctx)} ({p.gold}, {p.xp}, {p.num_messages})" for p in
-                                           active_players))
+            # Need to break this up to avoid field character limit
+            chunk_size = 20
+            chunk_players = [active_players[i:i+chunk_size] for i in range(0, len(active_players), chunk_size)]
+
+            for player_list in chunk_players:
+                self.add_field(name="**All active players (gold, xp, # posts)**",
+                               value="\n".join(f"\u200b {p.get_name(ctx)} ({p.gold}, {p.xp}, {p.num_messages})" for p in
+                                               player_list),
+                               inline=False)
