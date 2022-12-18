@@ -32,7 +32,8 @@ class CharacterGetEmbed(Embed):
 
         self.description = f"**Class**:" if len(char_class) == 1 else f"**Classes**"
         self.description += f"\n".join([f" {c.get_formatted_class()}" for c in char_class])
-        self.description += f"\n**Faction:** {character.faction.value}\n" \
+        self.description += f"\n**Race: ** {character.get_formatted_race()}\n" \
+                            f"**Faction:** {character.faction.value}\n" \
                             f"**Level:** {character.get_level()}\n" \
                             f"**Experience:** {character.xp}\n" \
                             f"**Wealth:** {character.gold} gp\n"
