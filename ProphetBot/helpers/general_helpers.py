@@ -23,6 +23,7 @@ def is_admin(ctx: ApplicationContext):
     :return: True if user is a bot owner, can manage the guild, or has a listed role, otherwise False
     """
     r_list = [discord.utils.get(ctx.guild.roles, name="Council")]
+
     if is_owner(ctx):
         return True
     elif any(r in r_list for r in ctx.author.roles):

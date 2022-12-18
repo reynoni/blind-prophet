@@ -2,12 +2,11 @@ from discord import *
 from discord.ext import commands
 from ProphetBot.bot import BpBot
 from ProphetBot.helpers import calc_amt, confirm, get_all_players, global_mod_autocomplete, get_global, get_player, \
-    get_character, create_logs, close_global
+    get_character, create_logs, close_global, global_host_autocomplete
 from ProphetBot.models.db_objects import GlobalEvent, GlobalPlayer, PlayerCharacter
 from ProphetBot.models.embeds import GlobalEmbed
 from discord.commands import SlashCommandGroup
 from ProphetBot.models.schemas import GlobalPlayerSchema
-from ProphetBot.models.sheets_objects import GlobalHost, GlobalModifier
 from ProphetBot.queries import insert_new_global_event, update_global_event, \
     add_global_player, update_global_player
 
@@ -79,7 +78,7 @@ class GlobalEvents(commands.Cog):
                         gold: Option(int, description="Base gold for the event", required=False),
                         xp: Option(int, description="Base experience for the event", required=False),
                         mod: Option(str, description="Base modifier for the event",
-                                    choices=GlobalModifier.optionchoice_list(), required=False),
+                                    autocomplete=global_mod_autocomplete, required=False),
                         combat: Option(bool, description="Indicated if this is a global event or not. If true then "
                                                          "ignores mod", required=False, default=False)):
         """
@@ -234,9 +233,9 @@ class GlobalEvents(commands.Cog):
     async def gb_user_update(self, ctx: ApplicationContext,
                              player: Option(Member, description="Player to add/modify", required=True),
                              mod: Option(str, description="Players effort modifier",
-                                         choices=GlobalModifier.optionchoice_list(), required=False),
+                                         autocomplete=global_mod_autocomplete, required=False),
                              host: Option(str, description="Players host status",
-                                          choices=GlobalHost.optionchoice_list(), required=False),
+                                          autocomplete=global_host_autocomplete, required=False),
                              gold: Option(int,
                                           description="Players gold reward. NOTE: This will disable auto-calculation "
                                                       "for a user",
@@ -485,6 +484,8 @@ class GlobalEvents(commands.Cog):
                               f"**player_update** - Updates a given players details, or manually add a player "
                               f"to the event\n"
                               f"**remove** - Manually removes a player from the global event\n"
+                              f"**mass_adjust** - Given a threshold and operator, will adjust all players participating"
+                              f"in the global to the designated modifier\n"
                               f"**review** - Shows the standard global embed with the option to list all the "
                               f"active players\n"
                               f"**commit** - Will log the event and clear it out (no need to purge after this\n"

@@ -80,7 +80,10 @@ async def on_application_command_error(ctx: ApplicationContext, error):
 @bot.event
 async def on_application_command(ctx):
     try:
-        params = "".join([f" [{p['name']}: {p['value']}]" for p in ctx.selected_options])
+        if ctx.selected_options is not None:
+            params = "".join([f" [{p['name']}: {p['value']}]" for p in ctx.selected_options])
+        else:
+            params = ""
         log.info(
             "cmd: chan {0.channel} [{0.channel.id}], serv: {0.guild} [{0.guild.id}],"
             " auth: {0.user} [{0.user.id}]: {0.command} ".format(ctx) + params

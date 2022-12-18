@@ -1,7 +1,7 @@
 from typing import List
 
 import discord.utils
-from discord import ApplicationContext, Role, TextChannel, CategoryChannel, Message, Bot
+from discord import ApplicationContext, TextChannel, CategoryChannel, Message, Bot
 
 from ProphetBot.models.db_objects import DashboardType, GlobalModifier, HostStatus
 
@@ -43,6 +43,7 @@ class RefWeeklyStipend(object):
     role_id: int
     ratio: float
     reason: str
+    leadership: bool
 
     def __init__(self, **kwargs):
         for key, value in kwargs.items():

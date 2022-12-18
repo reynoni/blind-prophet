@@ -19,8 +19,12 @@ async def remove_fledgling_role(ctx: ApplicationContext, member: Member, reason:
     :param reason: Reason in the audit to remove the role
     """
     fledgling_role = discord.utils.get(ctx.guild.roles, name="Fledgling")
+    initiate_role = discord.utils.get(ctx.guild.roles, name="Guild Initiate")
     if fledgling_role and (fledgling_role in member.roles):
         await member.remove_roles(fledgling_role, reason=reason)
+
+        if initiate_role and not(initiate_role in member.roles):
+            await member.add_roles(initiate_role, reason=reason)
 
 
 async def get_character_quests(bot: Bot, character: PlayerCharacter) -> PlayerCharacter:

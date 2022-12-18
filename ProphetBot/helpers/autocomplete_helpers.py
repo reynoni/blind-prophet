@@ -35,7 +35,7 @@ async def character_subrace_autocomplete(ctx: discord.AutocompleteContext):
 async def faction_autocomplete(ctx: discord.AutocompleteContext):
     slist = [c for c in list(ctx.bot.compendium.c_faction[1].keys())]
     slist.remove("Guild Initiate")
-    slist.remove("Guild Member")
+    # slist.remove("Guild Member")
     slist.append("None")
     return [c for c in slist if c.lower().startswith(ctx.value.lower())
             or ctx.value.lower() in c.lower()]
@@ -67,3 +67,6 @@ async def item_autocomplete(ctx: discord.AutocompleteContext):
 
 async def global_mod_autocomplete(ctx: discord.AutocompleteContext):
     return list(ctx.bot.compendium.c_global_modifier[1].keys())
+
+async def global_host_autocomplete(ctx: discord.AutocompleteContext):
+    return list(ctx.bot.compendium.c_host_status[1].keys())
