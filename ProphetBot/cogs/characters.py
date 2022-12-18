@@ -389,16 +389,11 @@ class Character(commands.Cog):
 
         if len(class_ary) == 1:
             return await ctx.respond(
-                embed=ErrorEmbed(description=f"Character only has one class. Create a new character if their primary"
-                                             f"class is incorrect"),
+                embed=ErrorEmbed(description=f"Character only has one class."),
                 ephemeral=True)
         elif c_class.id not in list(c.primary_class.id for c in class_ary):
             return await ctx.respond(
                 embed=ErrorEmbed(description=f"Character doesn't have class {c_class.value}"),
-                ephemeral=True)
-        elif c_class.id == class_ary[0].primary_class.id:
-            return await ctx.respond(
-                embed=ErrorEmbed(description=f"Cannot remove a characters first/primary class"),
                 ephemeral=True)
         else:
             for i in range(1, len(class_ary)):
