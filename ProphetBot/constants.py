@@ -15,7 +15,3 @@ DB_URL = os.environ.get("DATABASE_URL", "")
 
 # Misc
 THUMBNAIL = "https://cdn.discordapp.com/attachments/794989941690990602/972998353103233124/IMG_2177.jpg"
-
-# Keep around for GSheets stuff for now
-TIERS = [0, 5, 9, 13, 17]
-SHOP_TIERS = [0, 5, 8, 12, 18]
