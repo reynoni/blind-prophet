@@ -91,9 +91,9 @@ class DBLogEmbed(Embed):
         player = character.get_member(ctx)
         description = f"**Player:** {player.mention}\n"
         if show_amounts:
-            if log_entry.gold is not None and log_entry.gold > 0:
+            if log_entry.gold is not None and log_entry.gold != 0:
                 description += f"**Gold:** {log_entry.gold}\n"
-            if log_entry.xp is not None and log_entry.xp > 0:
+            if log_entry.xp is not None and log_entry.xp != 0:
                 description += f"**Experience:** {log_entry.xp}\n"
             if log_entry.server_xp is not None and log_entry.server_xp > 0:
                 description += f"**Server Experience Contributed:** {log_entry.server_xp}\n"
