@@ -396,8 +396,7 @@ class Character(commands.Cog):
                 embed=ErrorEmbed(description=f"Character doesn't have class {c_class.value}"),
                 ephemeral=True)
         else:
-            for i in range(1, len(class_ary)):
-                char_class = class_ary[i]
+            for char_class in class_ary:
 
                 if char_class.primary_class.id == c_class.id:
                     char_class.active = False
