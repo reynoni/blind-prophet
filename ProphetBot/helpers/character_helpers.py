@@ -36,8 +36,6 @@ async def get_character_quests(bot: Bot, character: PlayerCharacter) -> PlayerCh
     :return: Update PlayerCharacter
     """
 
-
-
     async with bot.db.acquire() as conn:
         rp_list = await conn.execute(
             get_log_by_player_and_activity(character.id, bot.compendium.get_object("c_activity", "RP").id))
@@ -144,7 +142,7 @@ def get_level_cap(character: PlayerCharacter, guild: PlayerGuild, compendium: Co
     return_cap = LevelCaps(cap.id, cap.max_gold, cap.max_xp)
 
     # Adjustment
-    if character.get_level() < guild.max_level:
+    if character.get_level() < guild.max_level - 2:
         return_cap.max_gold = cap.max_gold * 2
         return_cap.max_xp = cap.max_xp * 2
 
