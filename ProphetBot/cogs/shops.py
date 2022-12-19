@@ -97,7 +97,7 @@ class Shops(commands.Cog):
             if shop in ["BLACKSMITH", "WEAPON"]:
                 weapon_type = ctx.bot.compendium.get_object("c_blacksmith_type", "Weapon")
                 weapon_stock = roll_stock(
-                    list(filter(lambda i: i.sub_type == weapon_type, list(ctx.bot.compendium.blacksmith[0].values()))),
+                    list(filter(lambda i: i.sub_type.id == weapon_type.id, list(ctx.bot.compendium.blacksmith[0].values()))),
                     max_qty=1)
 
                 if weapon_stock is None:
@@ -113,7 +113,7 @@ class Shops(commands.Cog):
             if shop in ["BLACKSMITH", "ARMOR"]:
                 armor_type = ctx.bot.compendium.get_object("c_blacksmith_type", "Armor")
                 armor_stock = roll_stock(
-                    list(filter(lambda i: i.sub_type == armor_type, list(ctx.bot.compendium.blacksmith[0].values()))),
+                    list(filter(lambda i: i.sub_type.id == armor_type.id, list(ctx.bot.compendium.blacksmith[0].values()))),
                     max_qty=1)
 
                 if armor_stock is None:
