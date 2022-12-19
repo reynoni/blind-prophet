@@ -183,12 +183,13 @@ async def update_arena_tier(ctx: discord.Interaction, db: aiopg.sa.Engine, arena
                 if row is not None:
                     character: PlayerCharacter = CharacterSchema(compendium).load(row)
                     chars.append(character)
-        avg_level = mean(c.get_level() for c in chars)
-        tier = bisect.bisect([t.avg_level for t in list(compendium.c_arena_tier[0].values())], avg_level)
-        arena.tier = compendium.get_object("c_arena_tier", tier)
+        if len(chars) > 0:
+            avg_level = mean(c.get_level() for c in chars)
+            tier = bisect.bisect([t.avg_level for t in list(compendium.c_arena_tier[0].values())], avg_level)
+            arena.tier = compendium.get_object("c_arena_tier", tier)
 
-        async with db.acquire() as conn:
-            await conn.execute(update_arena(arena))
+            async with db.acquire() as conn:
+                await conn.execute(update_arena(arena))
 
 
 async def update_arena_status(ctx: ApplicationContext | discord.Interaction, arena: Arena):

@@ -94,7 +94,9 @@ def insert_new_arena(arena: Arena):
 
 
 def update_arena(arena: Arena):
-    return arenas_table.update().values(
+    return arenas_table.update()\
+        .where(arenas_table.c.id == arena.id)\
+        .values(
         channel_id=arena.channel_id,
         pin_message_id=arena.pin_message_id,
         role_id=arena.role_id,
