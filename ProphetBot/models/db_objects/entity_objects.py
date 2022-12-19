@@ -100,6 +100,7 @@ class PlayerGuild(object):
 
 
 class Adventure(object):
+    guild_id: int
     name: str
     role_id: int
     dms: List[int]

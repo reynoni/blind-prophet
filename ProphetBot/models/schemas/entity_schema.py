@@ -109,6 +109,7 @@ class LogSchema(Schema):
 
 class AdventureSchema(Schema):
     id = fields.Integer(data_key="id", required=True)
+    guild_id = fields.Integer(data_key="guild_id", required=True)
     name = fields.String(data_key="name", required=True)
     role_id = fields.Integer(data_key="role_id", required=True)
     dms = fields.List(fields.Integer, data_key="dms", required=True)

@@ -98,6 +98,7 @@ adventures_table = sa.Table(
     "adventures",
     metadata,
     Column("id", Integer, primary_key=True, autoincrement='auto'),
+    Column("guild_id", BigInteger, nullable=False),
     Column("name", String, nullable=False),
     Column("role_id", BigInteger, nullable=False),
     Column("dms", sa.ARRAY(BigInteger), nullable=False),  # ref: <> characters.player_id

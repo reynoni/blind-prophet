@@ -46,6 +46,7 @@ def update_guild(guild: PlayerGuild):
 
 def insert_new_adventure(adventure: Adventure):
     return adventures_table.insert().values(
+        guild_id=adventure.guild_id,
         name=adventure.name,
         role_id=adventure.role_id,
         dms=adventure.dms,
@@ -80,6 +81,12 @@ def get_adventure_by_role_id(role_id: int) -> FromClause:
     return adventures_table.select().where(
         and_(adventures_table.c.role_id == role_id, adventures_table.c.end_ts == null())
     )
+
+
+def get_adventure_by_guild(guild_id: int) -> FromClause:
+    return adventures_table.select().where(
+        and_(adventures_table.c.guild_id == guild_id, adventures_table.c.end_ts == null())
+    ).order_by(adventures_table.c.name)
 
 
 def insert_new_arena(arena: Arena):
