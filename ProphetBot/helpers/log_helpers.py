@@ -32,7 +32,7 @@ def get_activity_amount(character: PlayerCharacter, activity: Activity, cap: Lev
         reward_xp = xp
 
     max_xp = (g.max_level - 1) * 1000
-    server_xp, char_gold, char_xp = 0, 0, 0
+    server_xp, char_gold, char_xp, char_div_xp = 0, 0, 0, 0
 
     if activity.diversion:  # Apply diversion limits
         if character.div_gold + reward_gold > cap.max_gold:
@@ -41,21 +41,20 @@ def get_activity_amount(character: PlayerCharacter, activity: Activity, cap: Lev
             char_gold = reward_gold
 
         if character.div_xp + reward_xp > cap.max_xp:
-            xp = 0 if cap.max_xp - character.div_xp < 0 else cap.max_xp - character.div_xp
-        else:
-            xp = reward_xp
+            reward_xp = 0 if cap.max_xp - character.div_xp < 0 else cap.max_xp - character.div_xp
     else:
         char_gold = reward_gold
-        xp = reward_xp
 
     # Guild Server Stats
     if character.xp + reward_xp >= max_xp:
-        char_xp = 0 if max_xp - character.xp + xp < 0 else max_xp - character.xp
-        server_xp = 0 if xp - char_xp < 0 or not activity.diversion else reward_xp
+        char_xp = 0 if max_xp - character.xp + reward_xp < 0 else max_xp - character.xp
+        char_div_xp = 0 if cap.max_xp - character.div_xp + reward_xp < 0 and activity.diversion else reward_xp
+        server_xp = char_div_xp if activity.diversion else reward_xp
     else:
-        char_xp = xp
+        char_xp = reward_xp
+        char_div_xp = reward_xp
 
-    return char_gold, char_xp, server_xp
+    return char_gold, char_xp, char_div_xp, server_xp
 
 
 async def create_logs(ctx: ApplicationContext | Any, character: PlayerCharacter, activity: Activity, notes: str = None,
@@ -86,7 +85,7 @@ async def create_logs(ctx: ApplicationContext | Any, character: PlayerCharacter,
     cap: LevelCaps = get_level_cap(character, g, ctx.bot.compendium)
     adventure_id = None if adventure is None else adventure.id
 
-    char_gold, char_xp, server_xp = get_activity_amount(character, activity, cap, g, gold, xp)
+    char_gold, char_xp, char_div_xp, server_xp = get_activity_amount(character, activity, cap, g, gold, xp)
 
     char_log = DBLog(author=author_id, xp=char_xp, gold=char_gold, character_id=character.id, activity=activity,
                      notes=notes, adventure_id=adventure_id, server_xp=server_xp, invalid=False)
@@ -96,7 +95,7 @@ async def create_logs(ctx: ApplicationContext | Any, character: PlayerCharacter,
 
     if activity.diversion:
         character.div_gold += char_gold
-        character.div_xp += char_xp
+        character.div_xp += char_div_xp
 
     async with ctx.bot.db.acquire() as conn:
         results = await conn.execute(insert_new_log(char_log))
