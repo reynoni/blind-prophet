@@ -48,7 +48,7 @@ def get_activity_amount(character: PlayerCharacter, activity: Activity, cap: Lev
     # Guild Server Stats
     if character.xp + reward_xp >= max_xp:
         char_xp = 0 if max_xp - character.xp + reward_xp < 0 else max_xp - character.xp
-        char_div_xp = 0 if cap.max_xp - character.div_xp + reward_xp < 0 and activity.diversion else reward_xp
+        char_div_xp = 0 if cap.max_xp - character.div_xp + reward_xp < 0 or not activity.diversion else reward_xp
         server_xp = char_div_xp if activity.diversion else reward_xp
     else:
         char_xp = reward_xp
