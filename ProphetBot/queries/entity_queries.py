@@ -2,8 +2,8 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.sql.selectable import FromClause
 from sqlalchemy import and_, null
-from ProphetBot.models.db_tables import guilds_table, adventures_table, arenas_table
-from ProphetBot.models.db_objects import PlayerGuild, Adventure, Arena
+from ProphetBot.models.db_tables import guilds_table, adventures_table, arenas_table, shops_table
+from ProphetBot.models.db_objects import PlayerGuild, Adventure, Arena, Shop
 
 
 def get_guild(guild_id: int) -> FromClause:
@@ -94,8 +94,8 @@ def insert_new_arena(arena: Arena):
 
 
 def update_arena(arena: Arena):
-    return arenas_table.update()\
-        .where(arenas_table.c.id == arena.id)\
+    return arenas_table.update() \
+        .where(arenas_table.c.id == arena.id) \
         .values(
         channel_id=arena.channel_id,
         pin_message_id=arena.pin_message_id,
@@ -117,3 +117,55 @@ def select_active_arena_by_channel(channel_id: int) -> FromClause:
     return arenas_table.select().where(
         and_(arenas_table.c.channel_id == channel_id, arenas_table.c.end_ts == null())
     )
+
+
+def insert_new_shop(shop: Shop):
+    return shops_table.insert().values(
+        guild_id=shop.guild_id,
+        name=shop.name,
+        type=shop.type.id,
+        owner_id=shop.owner_id,
+        channel_id=shop.channel_id,
+        shelf=shop.shelf,
+        network=shop.network,
+        mastery=shop.mastery,
+        seeks_remaining=shop.seeks_remaining,
+        max_cost=shop.max_cost,
+        active=shop.active
+    )
+
+
+def update_shop(shop: Shop):
+    return shops_table.update() \
+        .where(shops_table.c.id == shop.id) \
+        .values(
+        guild_id=shop.guild_id,
+        name=shop.name,
+        type=shop.type.id,
+        owner_id=shop.owner_id,
+        channel_id=shop.channel_id,
+        shelf=shop.shelf,
+        network=shop.network,
+        mastery=shop.mastery,
+        seeks_remaining=shop.seeks_remaining,
+        max_cost=shop.max_cost,
+        active=shop.active
+    )
+
+
+def get_shop_by_owner(owner_id: int, guild_id: int) -> FromClause:
+    return shops_table.select().where(
+        and_(shops_table.c.owner_id == owner_id, shops_table.c.active == True, shops_table.c.guild_id == guild_id)
+    )
+
+
+def get_shop_by_channel(channel_id: int) -> FromClause:
+    return shops_table.select().where(
+        and_(shops_table.c.channel_id == channel_id, shops_table.c.active == True)
+    )
+
+
+def get_shops(guild_id: int) -> FromClause:
+    return shops_table.select().where(
+        and_(shops_table.c.guild_id == guild_id, shops_table.c.active == True)
+    ).order_by(shops_table.c.id)

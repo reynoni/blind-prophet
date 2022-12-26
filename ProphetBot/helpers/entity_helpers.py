@@ -1,5 +1,6 @@
 import bisect
 import re
+import random
 from datetime import datetime
 from statistics import mean
 
@@ -9,13 +10,13 @@ from discord import ApplicationContext, Member, Role, Bot, Client
 from texttable import Texttable
 
 from ProphetBot.compendium import Compendium
-from ProphetBot.models.db_objects import PlayerGuild, PlayerCharacter, Adventure, Arena, PlayerCharacterClass
+from ProphetBot.models.db_objects import PlayerGuild, PlayerCharacter, Adventure, Arena, Shop
 from ProphetBot.models.embeds import ArenaStatusEmbed
 from ProphetBot.models.schemas import GuildSchema, CharacterSchema, AdventureSchema, ArenaSchema, \
-    PlayerCharacterClassSchema
+    ShopSchema
 from ProphetBot.queries import get_guild, insert_new_guild, get_adventure_by_category_channel_id, \
     get_arena_by_channel, get_multiple_characters, update_arena, get_adventure_by_role_id, get_characters, \
-    get_logs_in_past, get_character_class
+    get_logs_in_past, get_shop_by_owner, get_shop_by_channel
 
 
 async def get_or_create_guild(db: aiopg.sa.Engine, guild_id: int) -> PlayerGuild:
@@ -257,94 +258,70 @@ async def get_guild_character_summary_stats(bot: Bot, guild_id: int):
     return total, inactive
 
 
-async def get_guild_character_census_stats(bot: Bot, guild_id: int):
-    races = dict()
-    classes = dict()
-    race_data = []
-    class_data = []
+def roll_stock(compendium, g: PlayerGuild, items: [], quantity: int, max_qty: int, max_cost: int = 1000000, num_offset: int = 0):
+    idx = bisect.bisect(list(compendium.c_shop_tier[0].keys()), g.max_level)
+    id = list(compendium.c_shop_tier[0].keys())[idx - 1]
+    tier = compendium.get_object("c_shop_tier", id)
 
-    # Setup our census dicts
-    for race in bot.compendium.c_character_race[0].values():
-        subraces = dict()
-        subraces['None'] = 0
-        subraces["Total"] = 0
-
-        for subrace in list(filter(lambda s: s.parent == race.id, bot.compendium.c_character_subrace[0].values())):
-            subraces[subrace.value] = 0
-        races[race.value] = subraces
-
-    for cl in bot.compendium.c_character_class[0].values():
-        subclasses = dict()
-        subclasses['None'] = 0
-        subclasses["Total"] = 0
-
-        for subclass in list(filter(lambda s: s.parent == cl.id, bot.compendium.c_character_subclass[0].values())):
-            subclasses[subclass.value] = 0
-        classes[cl.value] = subclasses
-
-    async with bot.db.acquire() as conn:
-        async for row in await conn.execute(get_characters(guild_id)):
-            if row is not None:
-                character: PlayerCharacter = CharacterSchema(bot.compendium).load(row)
-                races[character.race.value]["Total"] += 1
-
-                if character.subrace is None:
-                    races[character.race.value]["None"] += 1
-                else:
-                    races[character.race.value][character.subrace.value] += 1
-
-                async for line in await conn.execute(get_character_class(character.id)):
-                    if line is not None:
-                        char_class: PlayerCharacterClass = PlayerCharacterClassSchema(bot.compendium).load(line)
-                        classes[char_class.primary_class.value]["Total"] += 1
-
-                        if char_class.subclass is None:
-                            classes[char_class.primary_class.value]["None"] += 1
-                        else:
-                            classes[char_class.primary_class.value][char_class.subclass.value] += 1
-
-    for k, v in races.items():
-        race_data.append([f"**{k}**", str(races[k]['Total'])])
-        for sr in v:
-            race_data.append([f"\u200b{sr}", str(races[k][sr])])
-
-    for k, v in classes.items():
-        class_data.append([f"**{k}**", str(classes[k]['Total'])])
-        for sc in v:
-            class_data.append([f"\u200b{sc}", str(classes[k][sc])])
-
-    return race_data, class_data
-
-
-def build_table(matches, result_map, headers):
-    table = Texttable()
-    if len(matches) > 1:
-        table.set_deco(Texttable.HEADER | Texttable.HLINES | Texttable.VLINES)
-        table.set_cols_align(['c'] * len(headers))
-        table.set_cols_valign(['c'] * len(headers))
-        table.header(headers)
-
-        for match in matches:
-            print(f'match: {match}: {result_map[match]}')
-            data = [match]
-            data.extend(value for value in result_map[match][0:])
-            # print(f'Adding row: {data}')
-            table.add_row(data)
-
-        output = '```' + table.draw() + '```'
+    if len(items) == 0:
+        return None
+    elif hasattr(items[1], "seeking_only"):
+        filtered_items = list(
+            filter(lambda i: i.cost <= max_cost and i.seeking_only is False and i.rarity.id <= tier.rarity,
+                   items))
     else:
-        table.set_cols_align(["l", "r"])
-        table.set_cols_valign(["m", "m"])
-        table.set_cols_width([10, 20])
-        table.header([headers[0], matches[0]])
-        data = list(zip(headers[1:], (result_map[matches[0]])[0:]))
-        table.add_rows(data, header=False)
-        output = '`' + table.draw() + '`'
+        filtered_items = list(
+            filter(lambda i: i.cost <= max_cost and i.rarity.id <= tier.rarity,
+                   items))
+    if len(filtered_items) == 0:
+        return None
 
-    return output
+    stock = dict()
+
+    if quantity - num_offset <= 0:
+        return None
+
+    for i in range(quantity - num_offset):
+        rand_item = random.choice(filtered_items)
+        qty = random.randint(1, max_qty if max_qty > 1 else 1)
+
+        if rand_item.name in stock.keys():
+            stock[rand_item.name] = stock[rand_item.name] + qty
+        else:
+            stock[rand_item.name] = qty
+
+    return stock
 
 
 def sort_stock(stock):
     # reverse = None (Sorts in Ascending order)
     # key is set to sort using third element of sublist
     return sorted(stock, key=lambda x: int(re.sub(r'\D+', '', x[2])))
+
+
+async def paginate(ctx: ApplicationContext, result: str):
+    if len(result) > 1998:
+        lines = result.split('\n')
+        partial_table = '\n'.join(lines[:46])
+        await ctx.send(f'`{partial_table}`')
+        await paginate(ctx, '\n'.join(lines[46:]))
+    else:
+        await ctx.send(f'`{result}`')
+
+
+async def get_shop(bot: Bot | Client, owner_id: int | None, guild_id: int | None, channel_id: int | None = None) -> Shop | None:
+
+    if channel_id is None:
+        async with bot.db.acquire() as conn:
+            results = await conn.execute(get_shop_by_owner(owner_id, guild_id))
+            row = await results.first()
+    else:
+        async with bot.db.acquire() as conn:
+            results = await conn.execute(get_shop_by_channel(channel_id))
+            row = await results.first()
+
+    if row is None:
+        return None
+    else:
+        shop: Shop = ShopSchema(bot.compendium).load(row)
+        return shop

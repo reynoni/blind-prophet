@@ -8,11 +8,11 @@ from timeit import default_timer as timer
 from ProphetBot.helpers import get_or_create_guild, get_weekly_stipend, create_logs, \
     get_guild_character_summary_stats, get_level_cap
 from ProphetBot.models.embeds import GuildEmbed, GuildStatus
-from ProphetBot.models.schemas import CharacterSchema, RefWeeklyStipendSchema, GuildSchema
+from ProphetBot.models.schemas import CharacterSchema, RefWeeklyStipendSchema, GuildSchema, ShopSchema
 from ProphetBot.queries import update_guild, get_characters, update_character, insert_weekly_stipend, \
     update_weekly_stipend, delete_weekly_stipend, get_guild_weekly_stipends, get_multiple_characters, \
-    get_guilds_with_reset
-from ProphetBot.models.db_objects import PlayerGuild, PlayerCharacter, RefWeeklyStipend, LevelCaps
+    get_guilds_with_reset, get_shops, update_shop
+from ProphetBot.models.db_objects import PlayerGuild, PlayerCharacter, RefWeeklyStipend, LevelCaps, Shop
 
 log = logging.getLogger(__name__)
 
@@ -321,11 +321,21 @@ class Guilds(commands.Cog):
                                 cap: LevelCaps = get_level_cap(character, g, self.bot.compendium)
                                 await create_logs(self, character, act,
                                                   f"Stipend Role: {stipend_role.name} - {s.reason}",
-                                                  cap.max_gold * s.ratio)
+                                                  cap.max_gold * s.ratio,
+                                                  cap.max_xp * s.ratio)
                 else:
                     # Role doesn't exist....
                     async with self.bot.db.acquire() as conn:
                         await conn.execute(delete_weekly_stipend(s))
+
+        # Shops
+        async with self.bot.db.acquire() as conn:
+            async for row in await conn.execute(get_shops(g.id)):
+                if row is not None:
+                    shop: Shop = ShopSchema(self.bot.compendium).load(row)
+                    shop.seeks_remaining = 1 + shop.network
+                    await conn.execute(update_shop(shop))
+
         end = timer()
 
         # Announce we're all done!

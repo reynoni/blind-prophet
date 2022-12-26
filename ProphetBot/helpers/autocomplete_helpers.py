@@ -55,6 +55,17 @@ async def shop_type_autocomplete(ctx: discord.AutocompleteContext):
     return [s for s in slist if s.lower().startswith(ctx.value.lower())]
 
 
+async def shop_create_type_autocomplete(ctx: discord.AutocompleteContext):
+    slist = list(ctx.bot.compendium.c_shop_type[1].keys())
+    slist.sort()
+    return [s for s in slist if s.lower().startswith(ctx.value.lower())]
+
+async def upgrade_autocomplete(ctx: discord.AutocompleteContext):
+    slist = ['Shelf', 'Network', 'Mastery']
+
+    return slist
+
+
 async def item_autocomplete(ctx: discord.AutocompleteContext):
     slist = list(ctx.bot.compendium.blacksmith[1].keys())
     slist += list(ctx.bot.compendium.wondrous[1].keys())
@@ -67,6 +78,7 @@ async def item_autocomplete(ctx: discord.AutocompleteContext):
 
 async def global_mod_autocomplete(ctx: discord.AutocompleteContext):
     return list(ctx.bot.compendium.c_global_modifier[1].keys())
+
 
 async def global_host_autocomplete(ctx: discord.AutocompleteContext):
     return list(ctx.bot.compendium.c_host_status[1].keys())

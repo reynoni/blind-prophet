@@ -1,6 +1,7 @@
 from discord import ApplicationContext
 from marshmallow import Schema, fields, post_load
-from ProphetBot.models.db_objects import PlayerCharacter, PlayerCharacterClass, PlayerGuild, DBLog, Adventure, Arena
+from ProphetBot.models.db_objects import PlayerCharacter, PlayerCharacterClass, PlayerGuild, DBLog, Adventure, Arena, \
+    Shop
 
 
 class PlayerCharacterClassSchema(Schema):
@@ -156,3 +157,29 @@ class ArenaSchema(Schema):
 
     def load_timestamp(self, value):  # Marshmallow doesn't like loading DateTime for some reason. This is a workaround
         return value
+
+
+class ShopSchema(Schema):
+    id = fields.Integer(data_key="id", required=True)
+    guild_id = fields.Integer(data_key="guild_id", required=True)
+    name = fields.String(data_key="name", required=True)
+    type = fields.Method(None, "load_type")
+    owner_id = fields.Integer(data_key="owner_id", required=True)
+    channel_id = fields.Integer(data_key="channel_id", required=True)
+    shelf = fields.Integer(data_key="shelf", required=True)
+    network = fields.Integer(data_key="network", required=True)
+    mastery = fields.Integer(data_key="mastery", required=True)
+    seeks_remaining = fields.Integer(data_key="seeks_remaining", required=True)
+    max_cost = fields.Integer(data_key="max_cost", required=False, default=None, allow_none=True)
+    active = fields.Boolean(data_key="active", required=True)
+
+    def __init__(self, compendium, **kwargs):
+        super().__init__(**kwargs)
+        self.compendium = compendium
+
+    @post_load
+    def make_shop(self, data, **kwargs):
+        return Shop(**data)
+
+    def load_type(self, value):
+        return self.compendium.get_object("c_shop_type", value)
