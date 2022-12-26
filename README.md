@@ -12,12 +12,6 @@ For the Blind Prophet Discord ~~Gsheet~~ bot.
 | `DATABASE_URL`               | Full Postgres database URL. Example: `postgresql://<user>:<password>@<server>:<port>/<database>`                                                         | Connection to DB                   | **Yes**  |
 | `GUILD`                      | Debug guilds for the bot. Used for non-production versions only.                                                                                         | Guild IDs for debugging            | No       |
 
-## Still used but on the way out env variables
-| Name                 | Description                                                                                                                                                               | Used by/for                         |
-|----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------|
-| `GOOGLE_SA_JSON`     | Json of your Google service account (used for Google Sheets calls). More information on setting that up can be found here: https://docs.gspread.org/en/latest/oauth2.html | Connecting to GoogleSheets          |
-| `INV_SPREADSHEET_ID` | The ID *only* of the Inventory Google Sheets workbook. This can be found in the URL of the workbook when viewed in your browser.                                          | Nothing currently but still loading |
-| `SPREADSHEET_ID`     | The ID *only* of the BPdia Google Sheets workbook. This can be found in the URL of the workbook when viewed in your browser.                                              | Nothing currently but still loading |                                             
 
 ## Roles:
 All assumed roles by the bot.
