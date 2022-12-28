@@ -1,7 +1,7 @@
 from typing import Dict, List
 
 import discord
-from discord import Embed, Color, ApplicationContext
+from discord import Embed, Color, ApplicationContext, Guild
 
 from ProphetBot.constants import THUMBNAIL
 from ProphetBot.models.db_objects import GlobalEvent, GlobalPlayer
@@ -45,17 +45,52 @@ class ShopDashboardEmbed(Embed):
 
         for key in shop_dict:
             if len(shop_dict[key]) > 0:
+                value=""
+                for shop in shop_dict[key]:
+                    channel = "Channel Not Found" if g.get_channel(shop.channel_id) is None else g.get_channel(shop.channel_id).mention
+                    owner = f"{shop.owner_id} Not Found" if g.get_member(shop.owner_id) is None else g.get_member(shop.owner_id).mention
+
+                    value +=f"\u200b {channel} | {owner} (**{shop.seeks_remaining}** / {shop.network + 1}\n"
+
                 self.add_field(
                     name=f"**{key} Shops**",
-                    value="\n".join([
-                                        f"\u200b {g.get_channel(s.channel_id).mention} | {discord.utils.get(g.members, id=s.owner_id).mention} (**{s.seeks_remaining}**/{s.network + 1})"
-                                        for s in shop_dict[key]]),
+                    value=value,
                     inline=False
                 )
             else:
                 self.add_field(
                     name=f"**{key} Shops**",
                     value="None",
+                    inline=False
+                )
+
+class AdventureDashboardEmbed(Embed):
+    def __init__(self, g: Guild, adventures: dict):
+        super(AdventureDashboardEmbed, self).__init__(
+            color=Color.dark_grey(),
+            title=f'{g.name} Adventures',
+            timestamp=discord.utils.utcnow()
+        )
+
+        if len(adventures) == 0:
+            self.add_field(name="No Adventures")
+        else:
+            for a in adventures["adventures"]:
+                adventure = a["adventure"]
+                name_string = f"{adventure.name}"
+                dm_string = ", ".join([f"{p.mention}" for p in a["dms"]])
+
+                value_string = f"DMs: {dm_string}\n" \
+                               f"Role: {g.get_role(adventure.role_id).mention}\n" \
+                               f"Tier: {adventure.tier.id} " \
+                               f"EP: {adventure.ep}\n" \
+                               f"Players: \n"
+
+                value_string += "\n".join([f"\u200b {p.mention}" for p in a["players"]])
+
+                self.add_field(
+                    name=name_string,
+                    value=value_string,
                     inline=False
                 )
 
