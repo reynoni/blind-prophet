@@ -50,7 +50,7 @@ class ShopDashboardEmbed(Embed):
                     channel = "Channel Not Found" if g.get_channel(shop.channel_id) is None else g.get_channel(shop.channel_id).mention
                     owner = f"{shop.owner_id} Not Found" if g.get_member(shop.owner_id) is None else g.get_member(shop.owner_id).mention
 
-                    value +=f"\u200b {channel} | {owner} (**{shop.seeks_remaining}** / {shop.network + 1}\n"
+                    value +=f"\u200b {channel} | {owner} (**{shop.seeks_remaining}** / {shop.network + 1})\n"
 
                 self.add_field(
                     name=f"**{key} Shops**",
