@@ -6,7 +6,7 @@ from discord import Embed, Member, ApplicationContext, Color
 
 from ProphetBot.constants import THUMBNAIL
 from ProphetBot.models.db_objects import PlayerCharacter, PlayerCharacterClass, DBLog, LevelCaps, Arena, Adventure, \
-    PlayerGuild
+    PlayerGuild, Shop
 from ProphetBot.models.db_objects.item_objects import ItemBlacksmith, ItemWondrous, ItemConsumable, ItemScroll
 
 
@@ -160,6 +160,7 @@ class AdventureEPEmbed(Embed):
         super().__init__(
             title="Adventure Rewards",
             description=f"**Adventure:** {adventure.name}\n"
+                        f"**Adventure Tier:** {adventure.tier}\n"
                         f"**EP Earned:** {ep}\n"
                         f"**EP Earned to date:** {adventure.ep}\n"
                         f"*Note: Rewards are 1/2 of your diversion caps for each EP*\n",
@@ -192,6 +193,7 @@ class AdventureStatusEmbed(Embed):
         super().__init__(
             title=f"Adventure Status - {adventure.name}",
             description=f"**Adventure Role:** {adventure.get_adventure_role(ctx).mention}\n"
+                        f"**Adventure Tier:** {adventure.tier}\n"
                         f"**EP Earned to date:** {adventure.ep}\n",
             color=Color.random()
         )
@@ -381,3 +383,31 @@ class ScrollItemEmbed(Embed):
             self.add_field(name="Notes", value=item.notes, inline=False)
 
         self.set_footer(text=f"Source: {item.source} | id: {item.id}")
+
+
+class NewShopEmbed(Embed):
+    def __init__(self, ctx: ApplicationContext, shop: Shop):
+        super().__init__(title=f"New Shop - {shop.name}",
+                         color=Color.random(),
+                         description=f"**Owner:** {shop.get_owner(ctx).mention}\n"
+                                     f"**Shop Type:** {shop.type.value}")
+
+        self.set_thumbnail(url=shop.get_owner(ctx).display_avatar.url)
+        self.set_footer(text=f"Created by {ctx.author}",
+                        icon_url=ctx.author.display_avatar.url)
+
+
+class ShopEmbed(Embed):
+    def __init__(self, ctx: ApplicationContext, shop: Shop):
+        super().__init__(title=f"{shop.name}",
+                         color=Color.random(),
+                         description=f"**Owner:** {shop.get_owner(ctx).mention}\n"
+                                     f"**Shop Type:** {shop.type.value}\n"
+                                     f"**Shelf Upgrades:** {shop.shelf}\n"
+                                     f"**Network Upgrades:** {shop.network}\n"
+                                     f"**Mastery Upgrades:** {shop.mastery}\n"
+                                     f"**Max Cost:** {shop.max_cost}\n"
+                                     f"**Seeks:** {shop.seeks_remaining} / {shop.network + 1}")
+
+        self.set_thumbnail(url=shop.get_owner(ctx).display_avatar.url)
+

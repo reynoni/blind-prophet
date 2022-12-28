@@ -8,10 +8,10 @@ from discord.ext import commands, tasks
 from ProphetBot.bot import BpBot
 from ProphetBot.constants import DASHBOARD_REFRESH_INTERVAL
 from ProphetBot.helpers import get_dashboard_from_category_channel_id, get_last_message
-from ProphetBot.models.db_objects import RefCategoryDashboard, DashboardType
-from ProphetBot.models.embeds import ErrorEmbed, RpDashboardEmbed
-from ProphetBot.models.schemas import RefCategoryDashboardSchema
-from ProphetBot.queries import insert_new_dashboard, get_dashboards, delete_dashboard, update_dashboard
+from ProphetBot.models.db_objects import RefCategoryDashboard, DashboardType, Shop
+from ProphetBot.models.embeds import ErrorEmbed, RpDashboardEmbed, ShopDashboardEmbed
+from ProphetBot.models.schemas import RefCategoryDashboardSchema, ShopSchema
+from ProphetBot.queries import insert_new_dashboard, get_dashboards, delete_dashboard, update_dashboard, get_shops
 from timeit import default_timer as timer
 
 log = logging.getLogger(__name__)
@@ -31,7 +31,7 @@ class Dashboards(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        await asyncio.sleep(3.0)
+        await asyncio.sleep(6.0)
         log.info(f"Reloading dashboards every {DASHBOARD_REFRESH_INTERVAL} minutes.")
         await self.update_dashboards.start()
 
@@ -86,6 +86,38 @@ class Dashboards(commands.Cog):
                                          dashboard_post_channel_id=ctx.channel_id,
                                          dashboard_post_id=msg.id,
                                          excluded_channel_ids=[c.id for c in excluded_channels],
+                                         dashboard_type=dType.id)
+
+        async with ctx.bot.db.acquire() as conn:
+            await conn.execute(insert_new_dashboard(dashboard))
+
+        await self.update_dashboard(dashboard)
+
+    @dashboard_commands.command(
+        name="shop_create",
+        description="Creates a dashboard showing available shops"
+    )
+    async def dashboard_shop_create(self, ctx: ApplicationContext):
+        await ctx.defer()
+
+        dashboard: RefCategoryDashboard = await get_dashboard_from_category_channel_id(ctx)
+
+        if dashboard is not None:
+            return await ctx.respond(embed=ErrorEmbed(description="There is already a dashboard for this category. "
+                                                                  "Delete that before creating another"),
+                                     ephemeral=True)
+
+        # Create post with dummy text in it
+        interaction = await ctx.respond("Fetching dashboard data. This may take a moment")
+        msg: Message = await ctx.channel.fetch_message(interaction.id)
+        await msg.pin(reason=f"Shop dashboard created by {ctx.author.name}")
+
+        dType = ctx.bot.compendium.get_object("c_dashboard_type", "SHOP")
+
+        dashboard = RefCategoryDashboard(category_channel_id=ctx.channel.category.id,
+                                         dashboard_post_channel_id=ctx.channel_id,
+                                         dashboard_post_id=msg.id,
+                                         excluded_channel_ids=[],
                                          dashboard_type=dType.id)
 
         async with ctx.bot.db.acquire() as conn:
@@ -159,7 +191,22 @@ class Dashboards(commands.Cog):
                     channels_dict["In Use"].append(c.mention)
 
             category = dashboard.get_category_channel(self.bot)
-            await original_message.edit(content='', embed=RpDashboardEmbed(channels_dict, category.name))
+            return await original_message.edit(content='', embed=RpDashboardEmbed(channels_dict, category.name))
+
+        elif dType is not None and dType.value.upper() == "SHOP":
+            shop_dict = {}
+            g: discord.Guild = dashboard.get_category_channel(self.bot).guild
+
+            for shop_type in self.bot.compendium.c_shop_type[0].values():
+                shop_dict[shop_type.value] = []
+
+            async with self.bot.db.acquire() as conn:
+                async for row in conn.execute(get_shops(g.id)):
+                    if row is not None:
+                        shop: Shop = ShopSchema(self.bot.compendium).load(row)
+                        shop_dict[shop.type.value].append(shop)
+
+            return await original_message.edit(content='', embed=ShopDashboardEmbed(g, shop_dict))
 
     # --------------------------- #
     # Tasks

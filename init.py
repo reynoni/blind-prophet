@@ -74,7 +74,10 @@ async def on_application_command_error(ctx: ApplicationContext, error):
         log.warning("Error in command: '{}'".format(ctx.command))
         for line in traceback.format_exception(type(error), error, error.__traceback__):
             log.warning(line)
-        return await ctx.respond(f'Something went wrong. Let us know if it keeps up!')
+        try:
+            return await ctx.respond(f'Something went wrong. Let us know if it keeps up!')
+        except:
+            log.warning('Unable to respond')
 
 
 @bot.event

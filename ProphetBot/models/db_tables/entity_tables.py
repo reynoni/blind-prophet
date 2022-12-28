@@ -64,15 +64,16 @@ shops_table = sa.Table(
     "shops",
     metadata,
     Column("id", Integer, primary_key=True, autoincrement='auto'),
+    Column("guild_id", BigInteger, nullable=False),
     Column("name", String, nullable=False),
     Column("type", Integer, nullable=False),  # ref: > c_shop_type.id
-    Column("owner", Integer, nullable=False),  # ref: > characters.id
-    Column("rarity", Integer, nullable=False),  # ref: > c_rarity.id
-    Column("prestige", Integer, nullable=True),
+    Column("owner_id", BigInteger, nullable=False),  # ref: > characters.id
+    Column("channel_id", BigInteger, nullable=False),
     Column("shelf", Integer, nullable=True, default=0),
     Column("network", Integer, nullable=True, default=0),
     Column("mastery", Integer, nullable=True, default=0),
     Column("seeks_remaining", Integer, nullable=True, default=0),
+    Column("max_cost", Integer, nullable=True),
     Column("active", BOOLEAN, nullable=False, default=True)
 )
 
@@ -97,6 +98,7 @@ adventures_table = sa.Table(
     "adventures",
     metadata,
     Column("id", Integer, primary_key=True, autoincrement='auto'),
+    Column("guild_id", BigInteger, nullable=False),
     Column("name", String, nullable=False),
     Column("role_id", BigInteger, nullable=False),
     Column("dms", sa.ARRAY(BigInteger), nullable=False),  # ref: <> characters.player_id

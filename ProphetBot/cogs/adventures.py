@@ -123,7 +123,7 @@ class Adventures(commands.Cog):
 
             tier = ctx.bot.compendium.get_object("c_adventure_tier", 1)
 
-            adventure = Adventure(name=adventure_name, role_id=adventure_role.id, dms=[dm.id], tier=tier,
+            adventure = Adventure(guild_id=ctx.guild.id,name=adventure_name, role_id=adventure_role.id, dms=[dm.id], tier=tier,
                                   category_channel_id=new_adventure_category.id, ep=0)
 
             async with ctx.bot.db.acquire() as conn:

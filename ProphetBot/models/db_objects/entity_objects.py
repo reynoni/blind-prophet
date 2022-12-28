@@ -100,6 +100,7 @@ class PlayerGuild(object):
 
 
 class Adventure(object):
+    guild_id: int
     name: str
     role_id: int
     dms: List[int]
@@ -151,3 +152,24 @@ class Arena(object):
 
     def get_host(self, ctx: ApplicationContext | discord.Interaction) -> discord.Member:
         return discord.utils.get(ctx.guild.members, id=self.host_id)
+
+
+class Shop(object):
+    guild_id: int
+    name: str
+    type: ShopType
+    owner_id: int
+    channel_id: int
+    shelf: int
+    network: int
+    mastery: int
+    seeks_remaining: int
+    max_cost: int | None
+    active: bool
+
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+    def get_owner(self, ctx: ApplicationContext | discord.Interaction) -> discord.Member:
+        return discord.utils.get(ctx.guild.members, id=self.owner_id)

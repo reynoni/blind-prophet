@@ -147,6 +147,6 @@ c_shop_tier_table = sa.Table(
     "c_shop_tier",
     metadata,
     Column("id", Integer, primary_key=True),
-    Column("rarity", Integer, nullable=False)  # ref: > c_rarity.id
+    Column("rarity", Integer, nullable=False),  # ref: > c_rarity.id
 )
 

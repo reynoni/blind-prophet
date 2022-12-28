@@ -34,6 +34,32 @@ class RpDashboardEmbed(Embed):
         self.set_footer(text="Last Updated")
 
 
+class ShopDashboardEmbed(Embed):
+    def __init__(self, g: discord.Guild, shop_dict: Dict):
+        super(ShopDashboardEmbed, self).__init__(
+            color=Color.dark_grey(),
+            title=f"Open Establishments",
+            description="<channel> | <owner> (seeks remaining)/(total seeks)",
+            timestamp=discord.utils.utcnow()
+        )
+
+        for key in shop_dict:
+            if len(shop_dict[key]) > 0:
+                self.add_field(
+                    name=f"**{key} Shops**",
+                    value="\n".join([
+                                        f"\u200b {g.get_channel(s.channel_id).mention} | {discord.utils.get(g.members, id=s.owner_id).mention} (**{s.seeks_remaining}**/{s.network + 1})"
+                                        for s in shop_dict[key]]),
+                    inline=False
+                )
+            else:
+                self.add_field(
+                    name=f"**{key} Shops**",
+                    value="None",
+                    inline=False
+                )
+
+
 class GlobalEmbed(Embed):
     def __init__(self, ctx: ApplicationContext, g_event: GlobalEvent, players: List[GlobalPlayer],
                  gblist: bool = False):
@@ -114,7 +140,7 @@ class GlobalEmbed(Embed):
         if gblist:
             # Need to break this up to avoid field character limit
             chunk_size = 20
-            chunk_players = [active_players[i:i+chunk_size] for i in range(0, len(active_players), chunk_size)]
+            chunk_players = [active_players[i:i + chunk_size] for i in range(0, len(active_players), chunk_size)]
 
             for player_list in chunk_players:
                 self.add_field(name="**All active players (gold, xp, # posts)**",
